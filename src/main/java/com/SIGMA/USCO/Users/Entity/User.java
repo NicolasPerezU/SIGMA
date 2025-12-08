@@ -13,6 +13,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Entity
 @Data
@@ -38,8 +41,14 @@ public class User implements UserDetails {
     @NotNull
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    private Role role;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
+
 
     @Enumerated(EnumType.STRING)
     private Status status;
@@ -50,8 +59,25 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        return roles.stream()
+                .flatMap(role -> {
+
+                    Stream<GrantedAuthority> roleAuthority = Stream.of(
+                            new SimpleGrantedAuthority("ROLE_" + role.getName())
+                    );
+
+
+                    Stream<GrantedAuthority> permissionAuthorities =
+                            role.getPermissions()
+                                    .stream()
+                                    .map(permission -> new SimpleGrantedAuthority("PERM_" + permission.getName()));
+
+                    return Stream.concat(roleAuthority, permissionAuthorities);
+                })
+                .collect(Collectors.toSet());
     }
+
+
 
     @Override
     public String getPassword() {

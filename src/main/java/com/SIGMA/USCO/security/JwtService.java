@@ -32,16 +32,16 @@ public class JwtService {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
 
-        List<String> roles = userDetails.getAuthorities()
+        List<String> authorities = userDetails.getAuthorities()
                 .stream()
-                .map(authority -> authority.getAuthority().replace("ROLE_", "")) // eliminamos el prefix si es necesario
+                .map(auth -> auth.getAuthority())
                 .collect(Collectors.toList());
 
-        extraClaims.put("roles", roles);
+        extraClaims.put("authorities", authorities);
 
         return generateToken(extraClaims, userDetails);
-
     }
+
 
     public String generateToken(Map<String,Object> extraClaims, UserDetails userDetails) {
         return Jwts.builder()

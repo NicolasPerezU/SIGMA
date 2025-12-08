@@ -7,11 +7,11 @@ import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.AuthRequest;
 import com.SIGMA.USCO.Users.dto.ResetPasswordRequest;
 import com.SIGMA.USCO.Users.repository.PasswordResetTokenRepository;
+import com.SIGMA.USCO.Users.repository.RoleRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.config.EmailService;
 import com.SIGMA.USCO.security.JwtService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -34,6 +35,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailService emailService;
+    private final RoleRepository roleRepository;
 
     public ResponseEntity<?> register(AuthRequest request) {
 
@@ -43,9 +45,7 @@ public class AuthService {
                 request.getEmail().isEmpty() ||
                 request.getPassword().isEmpty()) {
 
-            return ResponseEntity
-                    .badRequest()
-                    .body("Todos los campos son obligatorios (nombre, apellido, correo y contraseña)");
+            return ResponseEntity.badRequest().body("Todos los campos son obligatorios (nombre, apellido, correo y contraseña)");
         }
 
 
@@ -64,13 +64,16 @@ public class AuthService {
                     .body("Este correo ya está en uso");
         }
 
+        Role studentRole = roleRepository.findByName("STUDENT")
+                .orElseThrow(() -> new RuntimeException("El rol STUDENT no existe en la base de datos."));
+
 
         User user = User.builder()
                 .name(request.getName())
                 .lastName(request.getLastName())
                 .email(email.toLowerCase())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.STUDENT)
+                .roles(Set.of(studentRole))
                 .status(Status.ACTIVE)
                 .creationDate(LocalDateTime.now())
                 .lastUpdateDate(LocalDateTime.now())
@@ -117,7 +120,7 @@ public class AuthService {
                 .build();
         tokenRepository.save(resetToken);
 
-        String resetLink = "http://localhost:8080/auth/reset-password?token=" + token;
+        String resetLink = "http://localhost:8080/auth/reset-password?token=" + token; //Aqui toca poner un redireccionamiento en el front para que el usuario pueda cambiar la contraseña
 
         String subject = "Restablecimiento de contraseña - SIGMA USCO";
         String message = """
