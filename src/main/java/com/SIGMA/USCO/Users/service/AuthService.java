@@ -1,11 +1,9 @@
 package com.SIGMA.USCO.Users.service;
 
-import com.SIGMA.USCO.Users.Entity.PasswordResetToken;
-import com.SIGMA.USCO.Users.Entity.Role;
-import com.SIGMA.USCO.Users.Entity.Status;
-import com.SIGMA.USCO.Users.Entity.User;
+import com.SIGMA.USCO.Users.Entity.*;
 import com.SIGMA.USCO.Users.dto.AuthRequest;
 import com.SIGMA.USCO.Users.dto.ResetPasswordRequest;
+import com.SIGMA.USCO.Users.repository.BlackListedTokenRepository;
 import com.SIGMA.USCO.Users.repository.PasswordResetTokenRepository;
 import com.SIGMA.USCO.Users.repository.RoleRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
@@ -36,6 +34,7 @@ public class AuthService {
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailService emailService;
     private final RoleRepository roleRepository;
+    private final BlackListedTokenRepository blackListedTokenRepository;
 
     public ResponseEntity<?> register(AuthRequest request) {
 
@@ -156,5 +155,21 @@ public class AuthService {
         resetToken.setUsed(true);
         tokenRepository.save(resetToken);
     }
+    public ResponseEntity<?> logout(String token){
+        if (token == null || token.isEmpty()) {
+            return ResponseEntity.badRequest().body("Token no proporcionado.");
+        }
+
+        if (!blackListedTokenRepository.existsByToken(token)) {
+            BlackListedToken blackListedToken = BlackListedToken.builder()
+                    .token(token)
+                    .build();
+            blackListedTokenRepository.save(blackListedToken);
+            return ResponseEntity.ok("Cierre de sesión exitoso.");
+        } else {
+            return ResponseEntity.badRequest().body("El token ya ha sido invalidado.");
+        }
+    }
+
 
 }

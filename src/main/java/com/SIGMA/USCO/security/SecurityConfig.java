@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.security;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,10 +16,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableMethodSecurity
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private AuthenticationProvider authenticationProvider;
+    private final AuthenticationProvider authenticationProvider;
+    private final BlackListFilter blackListFilter;
+
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
@@ -50,6 +53,9 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 );
+        http.addFilterBefore(blackListFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+
+
 
         return http.build();
 
