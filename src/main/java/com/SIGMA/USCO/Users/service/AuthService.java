@@ -3,10 +3,7 @@ package com.SIGMA.USCO.Users.service;
 import com.SIGMA.USCO.Users.Entity.*;
 import com.SIGMA.USCO.Users.dto.AuthRequest;
 import com.SIGMA.USCO.Users.dto.ResetPasswordRequest;
-import com.SIGMA.USCO.Users.repository.BlackListedTokenRepository;
-import com.SIGMA.USCO.Users.repository.PasswordResetTokenRepository;
-import com.SIGMA.USCO.Users.repository.RoleRepository;
-import com.SIGMA.USCO.Users.repository.UserRepository;
+import com.SIGMA.USCO.Users.repository.*;
 import com.SIGMA.USCO.config.EmailService;
 import com.SIGMA.USCO.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +32,7 @@ public class AuthService {
     private final EmailService emailService;
     private final RoleRepository roleRepository;
     private final BlackListedTokenRepository blackListedTokenRepository;
+    private final StudentProfileRepository studentProfileRepository;
 
     public ResponseEntity<?> register(AuthRequest request) {
 
@@ -80,11 +78,28 @@ public class AuthService {
 
         userRepository.save(user);
 
+        if (userHasStudentRole(user)) {
+            StudentProfile profile = StudentProfile.builder()
+                    .user(user)
+                    .approvedCredits(0L)
+                    .gpa(0.0)
+                    .semester(0L)
+                    .studentCode(null)
+                    .build();
+            studentProfileRepository.save(profile);
+        }
+
 
         String token = jwtService.generateToken(user);
 
         return ResponseEntity.ok(token);
     }
+
+    private boolean userHasStudentRole(User user) {
+        return user.getRoles().stream()
+                .anyMatch(r -> r.getName().equalsIgnoreCase("STUDENT"));
+    }
+
     public ResponseEntity<?> login(AuthRequest request){
         try {
             Authentication auth = authenticationManager.authenticate(

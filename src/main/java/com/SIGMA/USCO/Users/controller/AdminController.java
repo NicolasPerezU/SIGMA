@@ -40,7 +40,4 @@ public class AdminController {
         return adminService.changeUserStatus(request);
     }
 
-
-
-
 }
