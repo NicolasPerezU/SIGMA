@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.Users.controller;
 
+import com.SIGMA.USCO.Modalities.service.ModalityService;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.StudentProfileDTO;
 import com.SIGMA.USCO.Users.service.StudentService;
@@ -15,10 +16,13 @@ import org.springframework.web.bind.annotation.*;
 public class StudentController {
 
     private final StudentService studentService;
+    private final ModalityService modalityService;
 
     @PostMapping("/profile")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> updateStudentProfile(@RequestBody StudentProfileDTO request){
         return studentService.updateStudentProfile(request);
     }
+
+
 }

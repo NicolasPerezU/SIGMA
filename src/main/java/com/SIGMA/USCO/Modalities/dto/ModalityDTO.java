@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.Modalities.dto;
 
-import com.SIGMA.USCO.Modalities.Entity.RuleType;
+
+import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,19 +11,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequirementsRequest {
-
+public class ModalityDTO {
 
     private Long id;
-
-    private String requirementName;
-
+    private String name;
     private String description;
-
-    private RuleType ruleType;
-
-    private String expectedValue;
-
-    private boolean active;
+    private Long creditsRequired;
 
 }

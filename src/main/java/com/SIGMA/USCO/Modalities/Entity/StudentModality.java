@@ -25,6 +25,10 @@ public class StudentModality {
     @ManyToOne(optional = false)
     private User student;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "modality_id")
+    private DegreeModality modality;
+
     @Enumerated(EnumType.STRING)
     private ModalityProcessStatus status;
 

@@ -19,4 +19,7 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
     List<StudentModality> findByStatus(ModalityProcessStatus status);
 
     boolean existsByStudentIdAndStatusIn(Long studentId, List<ModalityProcessStatus> statuses);
+
+    boolean existsByStudent_IdAndModality_Id(Long studentId, Long modalityId);
+
 }

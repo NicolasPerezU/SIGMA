@@ -1,6 +1,5 @@
 package com.SIGMA.USCO.Modalities.dto;
 
-import com.SIGMA.USCO.Modalities.Entity.RuleType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,19 +9,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequirementsRequest {
-
-
-    private Long id;
+public class RequirementValidation {
 
     private String requirementName;
 
-    private String description;
-
-    private RuleType ruleType;
-
     private String expectedValue;
 
-    private boolean active;
+    private String studentValue;
 
+    private boolean fulfilled;
 }

@@ -69,6 +69,4 @@ public class StudentService {
 
         return ResponseEntity.ok("Datos de perfil de estudiante actualizados correctamente");
     }
-
-
 }

@@ -8,21 +8,15 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class RequirementsRequest {
-
+@AllArgsConstructor
+public class RequirementDTO {
 
     private Long id;
-
     private String requirementName;
-
     private String description;
-
     private RuleType ruleType;
-
     private String expectedValue;
 
-    private boolean active;
 
 }

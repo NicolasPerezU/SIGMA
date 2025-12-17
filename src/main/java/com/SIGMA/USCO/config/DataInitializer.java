@@ -32,12 +32,16 @@ public class DataInitializer {
             Permission assignRole = createPermission("ASSIGN_ROLE");
             Permission createModality = createPermission("CREATE_MODALITY");
             Permission updateModality = createPermission("UPDATE_MODALITY");
+            Permission createRequiredDocument = createPermission("CREATE_REQUIRED_DOCUMENT");
+            Permission updateRequiredDocument = createPermission("UPDATE_REQUIRED_DOCUMENT");
+            Permission reviewDocuments = createPermission("REVIEW_DOCUMENTS");
+            Permission viewDocuments = createPermission("VIEW_DOCUMENTS");
 
 
             // Crear roles y asignar permisos
             createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality));
 
-            createRole("SECRETARY", Set.of(verDocumentos));
+            createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments) );
 
             createRole("COUNCIL", Set.of(verDocumentos) );
 
