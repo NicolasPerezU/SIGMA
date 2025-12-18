@@ -102,6 +102,27 @@ public class ModalityController {
             @PathVariable Long studentDocumentId,@RequestBody DocumentReview request) {
         return modalityService.reviewStudentDocument(studentDocumentId, request);
     }
+    @PostMapping("/{studentModalityId}/approve-secretary")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY')")
+    public ResponseEntity<?> approveBySecretary(@PathVariable Long studentModalityId) {
+        return modalityService.approveModalityBySecretary(studentModalityId);
+    }
+    @PostMapping("/{studentModalityId}/approve-council")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY')")
+    public ResponseEntity<?> approveByCouncil(@PathVariable Long studentModalityId) {
+        return modalityService.approveModalityByCouncil(studentModalityId);
+    }
+    @PostMapping("/documents/{studentDocumentId}/review-council")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
+    public ResponseEntity<?> reviewDocumentCouncil(@PathVariable Long studentDocumentId, @RequestBody DocumentReview request) {
+        return modalityService.reviewStudentDocumentByCouncil(studentDocumentId, request);
+    }
+
+
+
+
+
+
 
 
 

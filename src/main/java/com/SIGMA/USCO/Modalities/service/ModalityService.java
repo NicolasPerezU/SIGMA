@@ -2,6 +2,7 @@ package com.SIGMA.USCO.Modalities.service;
 
 import com.SIGMA.USCO.Modalities.Entity.*;
 import com.SIGMA.USCO.Modalities.Repository.DegreeModalityRepository;
+import com.SIGMA.USCO.Modalities.Repository.ModalityProcessStatusHistoryRepository;
 import com.SIGMA.USCO.Modalities.Repository.ModalityRequirementsRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Modalities.dto.*;
@@ -53,6 +54,7 @@ public class ModalityService {
     private final StudentProfileRepository studentProfileRepository;
     private final StudentModalityRepository studentModalityRepository;
     private final StudentDocumentRepository studentDocumentRepository;
+    private final ModalityProcessStatusHistoryRepository historyRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -353,9 +355,21 @@ public class ModalityService {
                 .modality(modality)
                 .status(ModalityProcessStatus.MODALITY_SELECTED)
                 .selectionDate(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
         studentModalityRepository.save(studentModality);
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.MODALITY_SELECTED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(student)
+                        .observations("Modalidad seleccionada por el estudiante")
+                        .build()
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -556,8 +570,8 @@ public class ModalityService {
         StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
-        if ((request.getStatus() == DocumentStatus.REJECTED ||
-                request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED)
+        if ((request.getStatus() == DocumentStatus.REJECTED_FOR_SECRETARY_REVIEW ||
+                request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_SECRETARY)
                 && (request.getNotes() == null || request.getNotes().isBlank())) {
 
             return ResponseEntity.badRequest()
@@ -580,5 +594,202 @@ public class ModalityService {
 
 
     }
+
+    public ResponseEntity<?> approveModalityBySecretary(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User secretary = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modality not found"));
+
+
+        if (!(studentModality.getStatus() == ModalityProcessStatus.MODALITY_SELECTED ||
+                studentModality.getStatus() == ModalityProcessStatus.CORRECTIONS_REQUESTED_SECRETARY)) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "approved", false,
+                            "message", "La modalidad no está en un estado válido para ser aprobada por secretaría",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        Long modalityId = studentModality.getModality().getId();
+
+
+        List<RequiredDocument> mandatoryDocuments =
+                requiredDocumentRepository.findByModalityIdAndActiveTrue(modalityId)
+                        .stream()
+                        .filter(RequiredDocument::isMandatory)
+                        .toList();
+
+
+        List<StudentDocument> uploadedDocuments =
+                studentDocumentRepository.findByStudentModalityId(studentModalityId);
+
+        Map<Long, StudentDocument> uploadedMap = uploadedDocuments.stream()
+                .collect(Collectors.toMap(
+                        doc -> doc.getDocumentConfig().getId(),
+                        doc -> doc
+                ));
+
+
+        List<Map<String, Object>> invalidDocuments = new ArrayList<>();
+
+        for (RequiredDocument required : mandatoryDocuments) {
+
+            StudentDocument uploaded = uploadedMap.get(required.getId());
+
+            if (uploaded == null) {
+                invalidDocuments.add(
+                        Map.of(
+                                "documentName", required.getDocumentName(),
+                                "status", "NOT_UPLOADED"
+                        )
+                );
+                continue;
+            }
+
+            if (uploaded.getStatus() != DocumentStatus.ACCEPTED_FOR_SECRETARY_REVIEW) {
+                invalidDocuments.add(
+                        Map.of(
+                                "documentName", required.getDocumentName(),
+                                "status", uploaded.getStatus()
+                        )
+                );
+            }
+        }
+
+
+        if (!invalidDocuments.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "approved", false,
+                            "message", "Para poder aprobar la modalidad, todos los documentos obligatorios deben estar aceptados",
+                            "documents", invalidDocuments
+                    )
+            );
+        }
+
+
+        studentModality.setStatus(ModalityProcessStatus.READY_FOR_COUNCIL);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        ModalityProcessStatusHistory history = ModalityProcessStatusHistory.builder()
+                .studentModality(studentModality)
+                .status(ModalityProcessStatus.READY_FOR_COUNCIL)
+                .changeDate(LocalDateTime.now())
+                .responsible(secretary)
+                .observations("Modalidad aprobada por secretaría")
+                .build();
+
+        historyRepository.save(history);
+
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "approved", true,
+                        "newStatus", ModalityProcessStatus.READY_FOR_COUNCIL,
+                        "message", "Modalidad aprobada correctamente y enviada al consejo"
+                )
+        );
+    }
+
+    public ResponseEntity<?> approveModalityByCouncil(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User councilMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modality not found"));
+
+
+        if (!(studentModality.getStatus() == ModalityProcessStatus.READY_FOR_COUNCIL ||
+                studentModality.getStatus() == ModalityProcessStatus.UNDER_REVIEW_COUNCIL)) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "approved", false,
+                            "message", "La modalidad no está en estado válido para aprobación por el Consejo",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        studentModality.setStatus(ModalityProcessStatus.PROPOSAL_APPROVED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        ModalityProcessStatusHistory history = ModalityProcessStatusHistory.builder()
+                .studentModality(studentModality)
+                .status(ModalityProcessStatus.PROPOSAL_APPROVED)
+                .changeDate(LocalDateTime.now())
+                .responsible(councilMember)
+                .observations("Modalidad aprobada por el Consejo Académico")
+                .build();
+
+        historyRepository.save(history);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "approved", true,
+                        "newStatus", ModalityProcessStatus.PROPOSAL_APPROVED,
+                        "message", "Modalidad aprobada definitivamente por el Consejo Académico"
+                )
+        );
+    }
+
+    public ResponseEntity<?> reviewStudentDocumentByCouncil(Long studentDocumentId, DocumentReview request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User councilMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+
+        if ((request.getStatus() == DocumentStatus.REJECTED_FOR_COUNCIL_REVIEW ||
+                request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_COUNCIL)
+                && (request.getNotes() == null || request.getNotes().isBlank())) {
+
+            return ResponseEntity.badRequest().body(
+                    "You must provide notes when rejecting or requesting corrections"
+            );
+        }
+
+
+        document.setStatus(request.getStatus());
+        document.setNotes(request.getNotes());
+        document.setUploadDate(LocalDateTime.now());
+
+        studentDocumentRepository.save(document);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "documentId", document.getId(),
+                        "documentName", document.getDocumentConfig().getDocumentName(),
+                        "newStatus", document.getStatus(),
+                        "message", "Documento revisado correctamente por el Consejo"
+                )
+        );
+    }
+
+
 
 }
