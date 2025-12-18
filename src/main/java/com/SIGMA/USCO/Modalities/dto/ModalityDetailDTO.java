@@ -1,7 +1,7 @@
 package com.SIGMA.USCO.Modalities.dto;
 
 import com.SIGMA.USCO.Modalities.Entity.ModalityType;
-import com.SIGMA.USCO.documents.dto.DocumentDTO;
+import com.SIGMA.USCO.documents.dto.view.DocumentDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -117,6 +117,19 @@ public class ModalityController {
     public ResponseEntity<?> reviewDocumentCouncil(@PathVariable Long studentDocumentId, @RequestBody DocumentReview request) {
         return modalityService.reviewStudentDocumentByCouncil(studentDocumentId, request);
     }
+    @GetMapping("/students")
+    @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
+    public ResponseEntity<?> listAllModalitiesForSecretary() {
+        return modalityService.getAllStudentModalitiesForSecretary();
+    }
+
+    @GetMapping("/students/{studentModalityId}")
+    @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
+    public ResponseEntity<?> getModalityDetailForSecretary(@PathVariable Long studentModalityId) {
+        return modalityService.getStudentModalityDetailForSecretary(studentModalityId);
+    }
+
+
 
 
 

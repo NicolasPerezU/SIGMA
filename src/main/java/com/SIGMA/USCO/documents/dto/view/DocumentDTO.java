@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.dto;
+package com.SIGMA.USCO.documents.dto.view;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

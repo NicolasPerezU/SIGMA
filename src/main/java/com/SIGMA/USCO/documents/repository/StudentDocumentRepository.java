@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.documents.repository;
 
 import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.entity.StudentDocumentStatusHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,4 +14,6 @@ public interface StudentDocumentRepository extends JpaRepository<StudentDocument
             Long modalityId,
             Long documentConfigId
     );
+
+
 }

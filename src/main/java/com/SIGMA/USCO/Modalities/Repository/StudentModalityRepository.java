@@ -22,4 +22,7 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
 
     boolean existsByStudent_IdAndModality_Id(Long studentId, Long modalityId);
 
+    Optional<StudentModality> findTopByStudentIdOrderByUpdatedAtDesc(Long studentId);
+
+
 }

@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.documents.controller;
 
-import com.SIGMA.USCO.documents.dto.RequiredDocumentRequest;
+import com.SIGMA.USCO.documents.dto.request.RequiredDocumentRequest;
 import com.SIGMA.USCO.documents.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

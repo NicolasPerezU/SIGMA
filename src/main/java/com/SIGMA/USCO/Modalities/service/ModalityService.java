@@ -10,16 +10,16 @@ import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.documents.dto.DocumentDTO;
+import com.SIGMA.USCO.documents.dto.view.DetailDocument;
+import com.SIGMA.USCO.documents.dto.view.DocumentDTO;
 import com.SIGMA.USCO.documents.entity.DocumentStatus;
 import com.SIGMA.USCO.documents.entity.RequiredDocument;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.entity.StudentDocumentStatusHistory;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
-import jakarta.annotation.Resource;
-import lombok.NoArgsConstructor;
+import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -29,10 +29,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -55,6 +53,7 @@ public class ModalityService {
     private final StudentModalityRepository studentModalityRepository;
     private final StudentDocumentRepository studentDocumentRepository;
     private final ModalityProcessStatusHistoryRepository historyRepository;
+    private final StudentDocumentStatusHistoryRepository documentHistoryRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -409,9 +408,6 @@ public class ModalityService {
 
         DegreeModality modality = studentModality.getModality();
 
-    /* =========================
-       VALIDACIONES
-    ========================== */
 
         String originalFilename = file.getOriginalFilename();
         String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
@@ -426,9 +422,6 @@ public class ModalityService {
             return ResponseEntity.badRequest().body("El archivo supera el tamaño permitido");
         }
 
-    /* =========================
-       CONSTRUCCIÓN DE RUTA
-    ========================== */
 
         String modalityFolder = modality.getName()
                 .replaceAll("[^a-zA-Z0-9]", "_");
@@ -450,9 +443,6 @@ public class ModalityService {
 
         Files.copy(file.getInputStream(), fullPath, StandardCopyOption.REPLACE_EXISTING);
 
-    /* =========================
-       GUARDAR EN BD
-    ========================== */
 
         StudentDocument studentDocument = studentDocumentRepository
                 .findByStudentModalityIdAndDocumentConfigId(studentModalityId, requiredDocumentId)
@@ -467,8 +457,18 @@ public class ModalityService {
         studentDocument.setFilePath(fullPath.toString());
         studentDocument.setStatus(DocumentStatus.PENDING);
         studentDocument.setUploadDate(LocalDateTime.now());
-
         studentDocumentRepository.save(studentDocument);
+
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(studentDocument)
+                        .status(DocumentStatus.PENDING)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(student)
+                        .observations("Documento cargado o actualizado por el estudiante")
+                        .build()
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -583,6 +583,17 @@ public class ModalityService {
         document.setUploadDate(LocalDateTime.now());
 
         studentDocumentRepository.save(document);
+
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(document)
+                        .status(request.getStatus())
+                        .changeDate(LocalDateTime.now())
+                        .responsible(secretary)
+                        .observations(request.getNotes())
+                        .build()
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -779,6 +790,18 @@ public class ModalityService {
 
         studentDocumentRepository.save(document);
 
+
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(document)
+                        .status(request.getStatus())
+                        .changeDate(LocalDateTime.now())
+                        .responsible(councilMember)
+                        .observations(request.getNotes())
+                        .build()
+        );
+
+
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
@@ -788,6 +811,212 @@ public class ModalityService {
                         "message", "Documento revisado correctamente por el Consejo"
                 )
         );
+    }
+
+    private String describeModalityStatus(ModalityProcessStatus status) {
+
+        return switch (status) {
+
+            case MODALITY_SELECTED ->
+                    "Has seleccionado una modalidad de grado. Está pendiente de revisión por Secretaría.";
+
+            case CORRECTIONS_REQUESTED_SECRETARY ->
+                    "La Secretaría solicitó correcciones. Debes ajustar la información requerida.";
+
+            case READY_FOR_COUNCIL ->
+                    "La Secretaría aprobó tu modalidad de grado. Está pendiente de revisión por el Concejo.";
+
+            case UNDER_REVIEW_COUNCIL ->
+                    "El Concejo Académico está revisando tu modalidad.";
+
+            case CORRECTIONS_REQUESTED_COUNCIL ->
+                    "El Cocsejo solicitó correcciones. Debes realizar los ajustes indicados.";
+
+            case PROPOSAL_APPROVED ->
+                    "Tu modalidad fue aprobada por el Concejo Académico.";
+
+            case MODALITY_CANCELLED ->
+                    "La modalidad fue cancelada.";
+
+            case MODALITY_CLOSED ->
+                    "La modalidad fue cerrada.";
+
+            default ->
+                    "Estado del proceso no definido.";
+        };
+    }
+
+    public ResponseEntity<?> getCurrentStudentModality() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        StudentModality studentModality = studentModalityRepository
+                .findTopByStudentIdOrderByUpdatedAtDesc(student.getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Not current modality found for the student")
+                );
+
+        List<ModalityProcessStatusHistory> historyEntities =
+                historyRepository.findByStudentModalityIdOrderByChangeDateAsc(
+                        studentModality.getId()
+                );
+
+        List<ModalityStatusHistoryDTO> history = historyEntities.stream()
+                .map(h -> ModalityStatusHistoryDTO.builder()
+                        .status(h.getStatus().name())
+                        .description(describeModalityStatus(h.getStatus()))
+                        .changeDate(h.getChangeDate())
+                        .responsible(
+                                h.getResponsible() != null
+                                        ? h.getResponsible().getEmail()
+                                        : "Sistema"
+                        )
+                        .observations(h.getObservations())
+                        .build()
+                )
+                .toList();
+
+        return ResponseEntity.ok(
+                CurrentStudentModalityDTO.builder()
+                        .studentModalityId(studentModality.getId())
+                        .modalityName(studentModality.getModality().getName())
+                        .currentStatus(studentModality.getStatus().name())
+                        .currentStatusDescription(
+                                describeModalityStatus(studentModality.getStatus())
+                        )
+                        .lastUpdatedAt(studentModality.getUpdatedAt())
+                        .history(history)
+                        .build()
+        );
+    }
+
+    public ResponseEntity<?> getAllStudentModalitiesForSecretary() {
+
+        List<StudentModality> modalities = studentModalityRepository.findAll();
+
+        List<ModalityList> response = modalities.stream()
+                .map(sm -> {
+
+                    ModalityProcessStatus status = sm.getStatus();
+
+                    boolean pending =
+                            status == ModalityProcessStatus.MODALITY_SELECTED ||
+                                    status == ModalityProcessStatus.CORRECTIONS_REQUESTED_SECRETARY;
+
+                    return ModalityList.builder()
+                            .studentModalityId(sm.getId())
+                            .studentName(
+                                    sm.getStudent().getName() + " " + sm.getStudent().getLastName()
+                            )
+                            .studentEmail(sm.getStudent().getEmail())
+                            .modalityName(sm.getModality().getName())
+                            .currentStatus(status.name())
+                            .currentStatusDescription(describeModalityStatus(status))
+                            .lastUpdatedAt(sm.getUpdatedAt())
+                            .hasPendingActions(pending)
+                            .build();
+                })
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    public ResponseEntity<?> getStudentModalityDetailForSecretary(Long studentModalityId) {
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modality not found"));
+
+        User student = studentModality.getStudent();
+        DegreeModality modality = studentModality.getModality();
+
+        List<ModalityStatusHistoryDTO> history =
+                historyRepository
+                        .findByStudentModalityIdOrderByChangeDateAsc(studentModalityId)
+                        .stream()
+                        .map(h -> ModalityStatusHistoryDTO.builder()
+                                .status(h.getStatus().name())
+                                .description(describeModalityStatus(h.getStatus()))
+                                .changeDate(h.getChangeDate())
+                                .responsible(
+                                        h.getResponsible() != null
+                                                ? h.getResponsible().getEmail()
+                                                : "Sistema"
+                                )
+                                .observations(h.getObservations())
+                                .build()
+                        )
+                        .toList();
+
+
+
+        List<RequiredDocument> requiredDocuments =
+                requiredDocumentRepository.findByModalityIdAndActiveTrue(modality.getId());
+
+        List<StudentDocument> uploadedDocuments =
+                studentDocumentRepository.findByStudentModalityId(studentModalityId);
+
+        Map<Long, StudentDocument> uploadedMap =
+                uploadedDocuments.stream()
+                        .collect(Collectors.toMap(
+                                d -> d.getDocumentConfig().getId(),
+                                d -> d
+                        ));
+
+        List<DetailDocument> documents = requiredDocuments.stream()
+                .map(req -> {
+
+                    StudentDocument uploaded = uploadedMap.get(req.getId());
+
+                    return DetailDocument.builder()
+                            .studentDocumentId(
+                                    uploaded != null ? uploaded.getId() : null
+                            )
+                            .documentName(req.getDocumentName())
+                            .mandatory(req.isMandatory())
+                            .uploaded(uploaded != null)
+                            .status(
+                                    uploaded != null
+                                            ? uploaded.getStatus().name()
+                                            : "NOT_UPLOADED"
+                            )
+                            .statusDescription(
+                                    uploaded != null
+                                            ? uploaded.getStatus().name()
+                                            : "Documento aún no cargado por el estudiante."
+                            )
+                            .notes(
+                                    uploaded != null ? uploaded.getNotes() : null
+                            )
+                            .lastUpdate(
+                                    uploaded != null ? uploaded.getUploadDate() : null
+                            )
+                            .build();
+                })
+                .toList();
+
+        return ResponseEntity.ok(
+                ModalityCompleteDetail.builder()
+                        .studentModalityId(studentModality.getId())
+                        .studentName(student.getName() + " " + student.getLastName())
+                        .studentEmail(student.getEmail())
+                        .modalityName(modality.getName())
+                        .currentStatus(studentModality.getStatus().name())
+                        .currentStatusDescription(
+                                describeModalityStatus(studentModality.getStatus())
+                        )
+                        .lastUpdatedAt(studentModality.getUpdatedAt())
+                        .history(history)
+                        .documents(documents)
+                        .build()
+        );
+
+
+
+
     }
 
 
