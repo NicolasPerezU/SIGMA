@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.Users.dto;
+package com.SIGMA.USCO.Users.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StudentProfileDTO {
+public class StudentProfileRequest {
 
     private Long approvedCredits;
     private Double gpa;

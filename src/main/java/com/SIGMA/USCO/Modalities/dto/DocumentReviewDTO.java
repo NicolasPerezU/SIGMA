@@ -1,19 +1,18 @@
 package com.SIGMA.USCO.Modalities.dto;
 
+import com.SIGMA.USCO.documents.entity.DocumentStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class UpdateModalityRequirementRequest {
+@AllArgsConstructor
+public class DocumentReviewDTO {
 
-    private Long modalityId;
-    private List<RequirementsRequest> requirements;
+    private DocumentStatus status;
+    private String notes;
 
 }

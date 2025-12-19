@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.Modalities.Entity;
 
+import com.SIGMA.USCO.Modalities.Entity.enums.RuleType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

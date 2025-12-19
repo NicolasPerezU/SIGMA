@@ -1,7 +1,7 @@
 package com.SIGMA.USCO.Users.controller;
 
-import com.SIGMA.USCO.Users.dto.AuthRequest;
-import com.SIGMA.USCO.Users.dto.ResetPasswordRequest;
+import com.SIGMA.USCO.Users.dto.request.AuthRequest;
+import com.SIGMA.USCO.Users.dto.request.ResetPasswordRequest;
 import com.SIGMA.USCO.Users.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

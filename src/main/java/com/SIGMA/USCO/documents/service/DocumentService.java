@@ -3,8 +3,9 @@ package com.SIGMA.USCO.documents.service;
 import com.SIGMA.USCO.Modalities.Repository.DegreeModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.documents.dto.request.RequiredDocumentRequest;
-import com.SIGMA.USCO.documents.dto.view.DocumentStatusDTO;
+
+import com.SIGMA.USCO.documents.dto.StatusHistoryDTO;
+import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
 import com.SIGMA.USCO.documents.entity.DocumentStatus;
 import com.SIGMA.USCO.documents.entity.RequiredDocument;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
@@ -33,7 +34,7 @@ public class DocumentService {
     private final StudentDocumentStatusHistoryRepository documentHistoryRepository;
 
 
-    public ResponseEntity<?> createRequiredDocument(RequiredDocumentRequest request) {
+    public ResponseEntity<?> createRequiredDocument(RequiredDocumentDTO request) {
 
         var modality = degreeModalityRepository.findById(request.getModalityId())
                 .orElseThrow(() -> new RuntimeException(
@@ -56,7 +57,7 @@ public class DocumentService {
 
         return ResponseEntity.ok("Documento obligatorio registrado correctamente.");
     }
-    public ResponseEntity<?> updateRequiredDocument(Long documentId, RequiredDocumentRequest request) {
+    public ResponseEntity<?> updateRequiredDocument(Long documentId, RequiredDocumentDTO request) {
 
         if ( !requiredDocumentRepository.existsById(documentId) ) {
             return ResponseEntity.badRequest().body("El documento obligatorio con ID " + documentId + " no existe.");
@@ -125,8 +126,8 @@ public class DocumentService {
                 documentHistoryRepository
                         .findByStudentDocumentIdOrderByChangeDateAsc(studentDocumentId);
 
-        List<DocumentStatusDTO> response = history.stream()
-                .map(h -> DocumentStatusDTO.builder()
+        List<StatusHistoryDTO> response = history.stream()
+                .map(h -> StatusHistoryDTO.builder()
                         .status(h.getStatus().name())
                         .description(describeDocumentStatus(h.getStatus()))
                         .changeDate(h.getChangeDate())
@@ -142,7 +143,5 @@ public class DocumentService {
 
         return ResponseEntity.ok(response);
     }
-
-
 
 }

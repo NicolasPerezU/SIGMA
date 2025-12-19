@@ -1,9 +1,6 @@
 package com.SIGMA.USCO.Modalities.Controller;
 
-import com.SIGMA.USCO.Modalities.dto.DocumentReview;
-import com.SIGMA.USCO.Modalities.dto.ModalityRequest;
-import com.SIGMA.USCO.Modalities.dto.RequirementsRequest;
-import com.SIGMA.USCO.Modalities.dto.UpdateModalityRequirementRequest;
+import com.SIGMA.USCO.Modalities.dto.*;
 import com.SIGMA.USCO.Modalities.service.ModalityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -25,25 +22,25 @@ public class ModalityController {
 
     @PostMapping("/create")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
-    public ResponseEntity<?> createModality(@RequestBody ModalityRequest request) {
+    public ResponseEntity<?> createModality(@RequestBody ModalityDTO request) {
         return modalityService.createModality(request);
     }
     @PutMapping("/update/{modalityId}")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
-    public ResponseEntity<?> updateModality(@PathVariable Long modalityId, @RequestBody ModalityRequest request) {
+    public ResponseEntity<?> updateModality(@PathVariable Long modalityId, @RequestBody ModalityDTO request) {
         return modalityService.updateModality(modalityId, request);
     }
 
     @PostMapping("/requirements/create/{modalityId}")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
-    public ResponseEntity<?> createModalityRequirements(@PathVariable Long modalityId, @RequestBody List<RequirementsRequest> requirements) {
+    public ResponseEntity<?> createModalityRequirements(@PathVariable Long modalityId, @RequestBody List<RequirementDTO> requirements) {
         return modalityService.createModalityRequirements(modalityId, requirements);
     }
 
-    @PutMapping("/requirements/update")
+    @PutMapping("/requirements/{modalityId}/update")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
-    public ResponseEntity<?> updateModalityRequirements(@RequestBody UpdateModalityRequirementRequest request) {
-        return modalityService.updateModalityRequirements(request);
+    public ResponseEntity<?> updateModalityRequirements(@PathVariable Long ModalityId,@RequestBody List<RequirementDTO> request) {
+        return modalityService.updateModalityRequirements(ModalityId, request);
     }
 
     @GetMapping
@@ -99,7 +96,7 @@ public class ModalityController {
     @PutMapping("/documents/{studentDocumentId}/review")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
     public ResponseEntity<?> reviewDocument(
-            @PathVariable Long studentDocumentId,@RequestBody DocumentReview request) {
+            @PathVariable Long studentDocumentId,@RequestBody DocumentReviewDTO request) {
         return modalityService.reviewStudentDocument(studentDocumentId, request);
     }
     @PostMapping("/{studentModalityId}/approve-secretary")
@@ -114,7 +111,7 @@ public class ModalityController {
     }
     @PostMapping("/documents/{studentDocumentId}/review-council")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
-    public ResponseEntity<?> reviewDocumentCouncil(@PathVariable Long studentDocumentId, @RequestBody DocumentReview request) {
+    public ResponseEntity<?> reviewDocumentCouncil(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
         return modalityService.reviewStudentDocumentByCouncil(studentDocumentId, request);
     }
     @GetMapping("/students")
@@ -128,6 +125,8 @@ public class ModalityController {
     public ResponseEntity<?> getModalityDetailForSecretary(@PathVariable Long studentModalityId) {
         return modalityService.getStudentModalityDetailForSecretary(studentModalityId);
     }
+
+
 
 
 

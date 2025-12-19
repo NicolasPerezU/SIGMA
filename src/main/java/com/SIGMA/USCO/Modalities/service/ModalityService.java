@@ -1,21 +1,23 @@
 package com.SIGMA.USCO.Modalities.service;
 
 import com.SIGMA.USCO.Modalities.Entity.*;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
+import com.SIGMA.USCO.Modalities.Entity.enums.RuleType;
 import com.SIGMA.USCO.Modalities.Repository.DegreeModalityRepository;
 import com.SIGMA.USCO.Modalities.Repository.ModalityProcessStatusHistoryRepository;
 import com.SIGMA.USCO.Modalities.Repository.ModalityRequirementsRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Modalities.dto.*;
+
 import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.documents.dto.view.DetailDocument;
-import com.SIGMA.USCO.documents.dto.view.DocumentDTO;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
-import com.SIGMA.USCO.documents.entity.RequiredDocument;
-import com.SIGMA.USCO.documents.entity.StudentDocument;
-import com.SIGMA.USCO.documents.entity.StudentDocumentStatusHistory;
+import com.SIGMA.USCO.documents.dto.DetailDocumentDTO;
+import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
+import com.SIGMA.USCO.documents.entity.*;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
@@ -55,11 +57,12 @@ public class ModalityService {
     private final ModalityProcessStatusHistoryRepository historyRepository;
     private final StudentDocumentStatusHistoryRepository documentHistoryRepository;
 
+
     @Value("${file.upload-dir}")
     private String uploadDir;
 
 
-    public ResponseEntity<?> createModality(ModalityRequest request) {
+    public ResponseEntity<?> createModality(ModalityDTO request) {
 
         if (degreeModalityRepository.existsByNameIgnoreCase(request.getName())) {
             return ResponseEntity.badRequest().body("La modalidad con el nombre " + request.getName() + " ya existe.");
@@ -78,8 +81,7 @@ public class ModalityService {
 
         return ResponseEntity.ok(degreeModalityRepository.save(newModality));
     }
-
-    public ResponseEntity<?> updateModality(Long modalityId, ModalityRequest request) {
+    public ResponseEntity<?> updateModality(Long modalityId, ModalityDTO request) {
 
         if (!degreeModalityRepository.existsById(modalityId)) {
             return ResponseEntity.badRequest().body("La modalidad con ID " + modalityId + " no existe.");
@@ -96,10 +98,9 @@ public class ModalityService {
 
         degreeModalityRepository.save(modality);
 
-        return ResponseEntity.ok("Modalidad actualizada exitosamente");
+        return ResponseEntity.ok(modality);
     }
-
-    public ResponseEntity<?> createModalityRequirements(Long modalityId, List<RequirementsRequest> requirements) {
+    public ResponseEntity<?> createModalityRequirements(Long modalityId, List<RequirementDTO> requirements) {
 
         if (!degreeModalityRepository.existsById(modalityId)) {
             return ResponseEntity.badRequest().body("La modalidad con ID " + modalityId + " no existe.");
@@ -107,7 +108,7 @@ public class ModalityService {
         DegreeModality modality = degreeModalityRepository.findById(modalityId).orElseThrow();
 
 
-        for (RequirementsRequest requirementRequest : requirements) {
+        for (RequirementDTO requirementRequest : requirements) {
             ModalityRequirements requirement = ModalityRequirements.builder()
                     .modality(modality)
                     .requirementName(requirementRequest.getRequirementName())
@@ -124,28 +125,29 @@ public class ModalityService {
 
         return ResponseEntity.ok("Requisitos creados exitosamente");
     }
+    public ResponseEntity<?> updateModalityRequirements(Long modalityId, List<RequirementDTO> requirements) {
 
-    public ResponseEntity<?> updateModalityRequirements(UpdateModalityRequirementRequest request) {
-
-        if (!degreeModalityRepository.existsById(request.getModalityId())) {
-            return ResponseEntity.badRequest().body("La modalidad con ID " + request.getModalityId() + " no existe.");
+        if (!degreeModalityRepository.existsById(modalityId)) {
+            return ResponseEntity.badRequest()
+                    .body("La modalidad con ID " + modalityId + " no existe.");
         }
-        DegreeModality modality = degreeModalityRepository.findById(request.getModalityId()).orElseThrow();
 
+        DegreeModality modality = degreeModalityRepository
+                .findById(modalityId)
+                .orElseThrow();
 
         List<ModalityRequirements> existingRequirements =
-                modalityRequirementsRepository.findByModalityId(modality.getId());
+                modalityRequirementsRepository.findByModalityId(modalityId);
 
         Map<Long, ModalityRequirements> existingMap = existingRequirements.stream()
                 .collect(Collectors.toMap(ModalityRequirements::getId, r -> r));
 
         List<ModalityRequirements> toSave = new ArrayList<>();
 
-        for (RequirementsRequest dto : request.getRequirements()) {
+        for (RequirementDTO dto : requirements) {
 
-
+            // NUEVO
             if (dto.getId() == null) {
-
                 ModalityRequirements newReq = ModalityRequirements.builder()
                         .modality(modality)
                         .requirementName(dto.getRequirementName())
@@ -161,7 +163,7 @@ public class ModalityService {
                 continue;
             }
 
-
+            // UPDATE
             ModalityRequirements existing = existingMap.get(dto.getId());
 
             if (existing == null) {
@@ -184,7 +186,6 @@ public class ModalityService {
 
         return ResponseEntity.ok("Requisitos de la modalidad actualizados correctamente");
     }
-
     public ResponseEntity<List<ModalityDTO>> getAllModalities() {
         List<ModalityDTO> modalities = degreeModalityRepository.findByStatus(ModalityStatus.ACTIVE)
                 .stream()
@@ -198,7 +199,6 @@ public class ModalityService {
 
         return ResponseEntity.ok(modalities);
     }
-
     public ResponseEntity<?> getModalityDetail(Long modalityId) {
 
         if (!degreeModalityRepository.existsById(modalityId)) {
@@ -218,7 +218,7 @@ public class ModalityService {
 
         var documents = requiredDocumentRepository.findByModalityIdAndActiveTrue(modalityId)
                 .stream()
-                .map(doc -> DocumentDTO.builder()
+                .map(doc -> RequiredDocumentDTO.builder()
                         .id(doc.getId())
                         .documentName(doc.getDocumentName())
                         .description(doc.getDescription())
@@ -227,7 +227,7 @@ public class ModalityService {
                         .build())
                 .toList();
 
-        ModalityDetailDTO modalityDetail = ModalityDetailDTO.builder()
+        ModalityDTO modalityDetail = ModalityDTO.builder()
                 .id(modalityId)
                 .name(degreeModalityRepository.findById(modalityId).orElseThrow().
                         getName())
@@ -244,7 +244,6 @@ public class ModalityService {
         return ResponseEntity.ok(modalityDetail);
 
     }
-
     public ResponseEntity<?> startStudentModality(Long modalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -296,7 +295,7 @@ public class ModalityService {
         List<ModalityRequirements> requirements =
                 modalityRequirementsRepository.findByModalityIdAndActiveTrue(modalityId);
 
-        List<RequirementValidation> results = new ArrayList<>();
+        List<ValidationItemDTO> results = new ArrayList<>();
         boolean allValid = true;
 
         for (ModalityRequirements req : requirements) {
@@ -325,7 +324,7 @@ public class ModalityService {
             }
 
             results.add(
-                    RequirementValidation.builder()
+                    ValidationItemDTO.builder()
                             .requirementName(req.getRequirementName())
                             .expectedValue(req.getExpectedValue())
                             .studentValue(studentValue)
@@ -340,7 +339,7 @@ public class ModalityService {
 
         if (!allValid) {
             return ResponseEntity.badRequest().body(
-                    ValidationResult.builder()
+                    ValidationResultDTO.builder()
                             .eligible(false)
                             .results(results)
                             .message("No cumples los requisitos académicos para esta modalidad")
@@ -559,7 +558,7 @@ public class ModalityService {
 
     }
 
-    public ResponseEntity<?> reviewStudentDocument(Long studentDocumentId, DocumentReview request) {
+    public ResponseEntity<?> reviewStudentDocument(Long studentDocumentId, DocumentReviewDTO request) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
@@ -762,7 +761,7 @@ public class ModalityService {
         );
     }
 
-    public ResponseEntity<?> reviewStudentDocumentByCouncil(Long studentDocumentId, DocumentReview request) {
+    public ResponseEntity<?> reviewStudentDocumentByCouncil(Long studentDocumentId, DocumentReviewDTO request) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
@@ -881,7 +880,7 @@ public class ModalityService {
                 .toList();
 
         return ResponseEntity.ok(
-                CurrentStudentModalityDTO.builder()
+                StudentModalityDTO.builder()
                         .studentModalityId(studentModality.getId())
                         .modalityName(studentModality.getModality().getName())
                         .currentStatus(studentModality.getStatus().name())
@@ -898,7 +897,7 @@ public class ModalityService {
 
         List<StudentModality> modalities = studentModalityRepository.findAll();
 
-        List<ModalityList> response = modalities.stream()
+        List<ModalityListDTO> response = modalities.stream()
                 .map(sm -> {
 
                     ModalityProcessStatus status = sm.getStatus();
@@ -907,7 +906,7 @@ public class ModalityService {
                             status == ModalityProcessStatus.MODALITY_SELECTED ||
                                     status == ModalityProcessStatus.CORRECTIONS_REQUESTED_SECRETARY;
 
-                    return ModalityList.builder()
+                    return ModalityListDTO.builder()
                             .studentModalityId(sm.getId())
                             .studentName(
                                     sm.getStudent().getName() + " " + sm.getStudent().getLastName()
@@ -966,12 +965,12 @@ public class ModalityService {
                                 d -> d
                         ));
 
-        List<DetailDocument> documents = requiredDocuments.stream()
+        List<DetailDocumentDTO> documents = requiredDocuments.stream()
                 .map(req -> {
 
                     StudentDocument uploaded = uploadedMap.get(req.getId());
 
-                    return DetailDocument.builder()
+                    return DetailDocumentDTO.builder()
                             .studentDocumentId(
                                     uploaded != null ? uploaded.getId() : null
                             )
@@ -999,7 +998,7 @@ public class ModalityService {
                 .toList();
 
         return ResponseEntity.ok(
-                ModalityCompleteDetail.builder()
+                StudentModalityDTO.builder()
                         .studentModalityId(studentModality.getId())
                         .studentName(student.getName() + " " + student.getLastName())
                         .studentEmail(student.getEmail())
@@ -1018,7 +1017,6 @@ public class ModalityService {
 
 
     }
-
 
 
 }

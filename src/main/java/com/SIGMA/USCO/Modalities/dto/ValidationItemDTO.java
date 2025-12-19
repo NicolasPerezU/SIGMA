@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequirementValidation {
+public class ValidationItemDTO {
 
     private String requirementName;
 

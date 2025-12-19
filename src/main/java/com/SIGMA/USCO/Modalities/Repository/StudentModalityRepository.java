@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.Modalities.Repository;
 
-import com.SIGMA.USCO.Modalities.Entity.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import org.springframework.data.jpa.repository.JpaRepository;
 

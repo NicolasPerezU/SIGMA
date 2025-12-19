@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.Modalities.Entity;
+package com.SIGMA.USCO.Modalities.Entity.enums;
 
 public enum ModalityProcessStatus {
     MODALITY_SELECTED,
@@ -13,5 +13,9 @@ public enum ModalityProcessStatus {
     GRADED_APPROVED,
     GRADED_FAILED,
     MODALITY_CANCELLED,
-    MODALITY_CLOSED
+    MODALITY_CLOSED,
+    CANCELLATION_REQUESTED,
+    CANCELLED_WITHOUT_REPROVAL,
+    CANCELLATION_REJECTED
+
 }

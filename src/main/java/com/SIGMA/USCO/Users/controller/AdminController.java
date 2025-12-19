@@ -1,8 +1,7 @@
 package com.SIGMA.USCO.Users.controller;
 
-import com.SIGMA.USCO.Users.dto.AssignRoleRequest;
-import com.SIGMA.USCO.Users.dto.ChangeUserStatusRequest;
-import com.SIGMA.USCO.Users.dto.RoleRequest;
+import com.SIGMA.USCO.Users.dto.request.RoleRequest;
+import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,13 +29,13 @@ public class AdminController {
 
     @PostMapping("/assignRole")
     @PreAuthorize("hasAuthority('PERM_ASSIGN_ROLE')")
-    public ResponseEntity<?> assignRoleToUser(@RequestBody AssignRoleRequest request) {
+    public ResponseEntity<?> assignRoleToUser(@RequestBody UpdateUserRequest request) {
         return adminService.assignRoleToUser(request);
     }
 
     @PostMapping("/changeUserStatus")
     @PreAuthorize("hasAuthority('PERM_ACTIVATE_OR_DEACTIVATE_USER')")
-    public ResponseEntity<?> changeUserStatus(@RequestBody ChangeUserStatusRequest request){
+    public ResponseEntity<?> changeUserStatus(@RequestBody UpdateUserRequest request){
         return adminService.changeUserStatus(request);
     }
 

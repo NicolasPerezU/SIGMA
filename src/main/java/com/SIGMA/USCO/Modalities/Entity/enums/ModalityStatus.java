@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.Modalities.Entity;
+package com.SIGMA.USCO.Modalities.Entity.enums;
 
 public enum ModalityStatus {
 

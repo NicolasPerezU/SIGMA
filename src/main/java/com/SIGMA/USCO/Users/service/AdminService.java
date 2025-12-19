@@ -4,13 +4,11 @@ import com.SIGMA.USCO.Users.Entity.Permission;
 import com.SIGMA.USCO.Users.Entity.Role;
 import com.SIGMA.USCO.Users.Entity.Status;
 import com.SIGMA.USCO.Users.Entity.User;
-import com.SIGMA.USCO.Users.dto.AssignRoleRequest;
-import com.SIGMA.USCO.Users.dto.ChangeUserStatusRequest;
-import com.SIGMA.USCO.Users.dto.RoleRequest;
+import com.SIGMA.USCO.Users.dto.request.RoleRequest;
+import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.repository.PermissionRepository;
 import com.SIGMA.USCO.Users.repository.RoleRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -81,7 +79,7 @@ public class AdminService {
         return ResponseEntity.ok(role);
     }
 
-    public ResponseEntity<?> assignRoleToUser(AssignRoleRequest request){
+    public ResponseEntity<?> assignRoleToUser(UpdateUserRequest request){
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -97,7 +95,7 @@ public class AdminService {
         return ResponseEntity.ok("Rol asignado correctamente al usuario.");
     }
 
-    public ResponseEntity<?> changeUserStatus(ChangeUserStatusRequest request){
+    public ResponseEntity<?> changeUserStatus(UpdateUserRequest request){
 
         if (request.getStatus() == null) {
             return ResponseEntity.badRequest().body("El estado debe ser ACTIVE o INACTIVE.");
@@ -118,6 +116,4 @@ public class AdminService {
         return ResponseEntity.ok("Estado del usuario actualizado correctamente.");
 
     }
-
-
 }

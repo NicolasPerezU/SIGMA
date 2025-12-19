@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.dto.view;
+package com.SIGMA.USCO.documents.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DetailDocument {
+public class DetailDocumentDTO {
 
     private Long studentDocumentId;
 

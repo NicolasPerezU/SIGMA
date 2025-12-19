@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.Modalities.dto;
 
-import com.SIGMA.USCO.Modalities.Entity.RuleType;
+import com.SIGMA.USCO.Modalities.Entity.enums.RuleType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +17,7 @@ public class RequirementDTO {
     private String description;
     private RuleType ruleType;
     private String expectedValue;
+    private boolean active;
 
 
 }

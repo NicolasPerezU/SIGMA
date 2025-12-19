@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.dto.view;
+package com.SIGMA.USCO.documents.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,13 +9,18 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class DocumentDTO {
+public class RequiredDocumentDTO {
+
+
+    private Long modalityId;
 
     private Long id;
+
     private String documentName;
     private String allowedFormat;
     private Integer maxFileSizeMB;
     private boolean mandatory;
     private String description;
+    private boolean active;
 
 }

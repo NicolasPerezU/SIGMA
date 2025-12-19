@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.dto.view;
+package com.SIGMA.USCO.documents.dto;
 
 
 import lombok.AllArgsConstructor;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class DocumentStatusDTO {
+public class StatusHistoryDTO {
 
     private String status;
     private String description;

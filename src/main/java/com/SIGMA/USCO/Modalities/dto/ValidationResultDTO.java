@@ -1,18 +1,21 @@
 package com.SIGMA.USCO.Modalities.dto;
 
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DocumentReview {
+public class ValidationResultDTO {
 
-    private DocumentStatus status;
-    private String notes;
+    private boolean eligible;
+    private String message;
+    private List<ValidationItemDTO> results;
+
 
 }

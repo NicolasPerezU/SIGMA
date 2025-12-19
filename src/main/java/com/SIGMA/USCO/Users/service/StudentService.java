@@ -2,7 +2,7 @@ package com.SIGMA.USCO.Users.service;
 
 import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
-import com.SIGMA.USCO.Users.dto.StudentProfileDTO;
+import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class StudentService {
     private final UserRepository userRepository;
     private final StudentProfileRepository studentProfileRepository;
 
-    public ResponseEntity<?> updateStudentProfile(StudentProfileDTO request) {
+    public ResponseEntity<?> updateStudentProfile(StudentProfileRequest request) {
 
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

@@ -1,8 +1,8 @@
 package com.SIGMA.USCO.Users.service;
 
 import com.SIGMA.USCO.Users.Entity.*;
-import com.SIGMA.USCO.Users.dto.AuthRequest;
-import com.SIGMA.USCO.Users.dto.ResetPasswordRequest;
+import com.SIGMA.USCO.Users.dto.request.AuthRequest;
+import com.SIGMA.USCO.Users.dto.request.ResetPasswordRequest;
 import com.SIGMA.USCO.Users.repository.*;
 import com.SIGMA.USCO.config.EmailService;
 import com.SIGMA.USCO.security.JwtService;
@@ -22,8 +22,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -120,6 +118,7 @@ public class AuthService {
                     .body("Credenciales incorrectas. Por favor, verifica tu correo institucional y contraseña.");
         }
     }
+
     public void sendResetPasswordLink(AuthRequest request){
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("No se encontró un usuario con el correo proporcionado."));
@@ -155,6 +154,7 @@ public class AuthService {
         emailService.sendEmail(user.getEmail(), subject, message);
 
     }
+
     public void resetPassword(ResetPasswordRequest request){
         PasswordResetToken resetToken = tokenRepository.findByTokenAndUsedFalse(request.getToken())
                 .orElseThrow(() -> new RuntimeException("El token es inválido o ya ha sido utilizado."));
@@ -170,6 +170,7 @@ public class AuthService {
         resetToken.setUsed(true);
         tokenRepository.save(resetToken);
     }
+
     public ResponseEntity<?> logout(String token){
         if (token == null || token.isEmpty()) {
             return ResponseEntity.badRequest().body("Token no proporcionado.");

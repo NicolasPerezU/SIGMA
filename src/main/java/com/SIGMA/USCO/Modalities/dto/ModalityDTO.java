@@ -1,11 +1,15 @@
 package com.SIGMA.USCO.Modalities.dto;
 
 
-import jakarta.persistence.Entity;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
+import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -17,5 +21,9 @@ public class ModalityDTO {
     private String name;
     private String description;
     private Long creditsRequired;
+    private ModalityStatus status;
+    private ModalityType type;
+    private List<RequirementDTO> requirements;
+    private List<RequiredDocumentDTO> documents;
 
 }

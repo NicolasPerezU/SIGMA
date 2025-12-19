@@ -1,5 +1,7 @@
 package com.SIGMA.USCO.Modalities.Entity;
 
+import com.SIGMA.USCO.Modalities.Entity.enums.AcademicDistinction;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Users.Entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

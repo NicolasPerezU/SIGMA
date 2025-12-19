@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.Users.dto;
+package com.SIGMA.USCO.Users.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,9 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AssignRoleRequest {
+public class UpdateUserRequest {
 
     private Long userId;
     private Long roleId;
+    private String status;
 
 }

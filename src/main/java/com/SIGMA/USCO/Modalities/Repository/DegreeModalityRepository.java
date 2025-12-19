@@ -1,8 +1,8 @@
 package com.SIGMA.USCO.Modalities.Repository;
 
 import com.SIGMA.USCO.Modalities.Entity.DegreeModality;
-import com.SIGMA.USCO.Modalities.Entity.ModalityStatus;
-import com.SIGMA.USCO.Modalities.Entity.ModalityType;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

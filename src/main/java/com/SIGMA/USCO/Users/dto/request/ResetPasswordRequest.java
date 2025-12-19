@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.Users.dto;
+package com.SIGMA.USCO.Users.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
