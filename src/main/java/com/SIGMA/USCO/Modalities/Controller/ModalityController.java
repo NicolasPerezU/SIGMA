@@ -125,12 +125,34 @@ public class ModalityController {
     public ResponseEntity<?> getModalityDetailForSecretary(@PathVariable Long studentModalityId) {
         return modalityService.getStudentModalityDetailForSecretary(studentModalityId);
     }
+    @PostMapping("/{studentModalityId}/cancellation/approve")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_CANCELLATION')")
+    public ResponseEntity<?> approveCancellation(@PathVariable Long studentModalityId) {
+        return modalityService.approveCancellation(studentModalityId);
+    }
 
+    @PostMapping("/{studentModalityId}/cancellation/reject")
+    @PreAuthorize("hasAuthority('PERM_REJECT_CANCELLATION')")
+    public ResponseEntity<?> rejectCancellation(@PathVariable Long studentModalityId, @RequestBody String reason
+    ) {
+        return modalityService.rejectCancellation(studentModalityId, reason);
+    }
+    @PostMapping("/{studentModalityId}/assign-director/{directorId}")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_PROJECT_DIRECTOR')")
+    public ResponseEntity<?> assignProjectDirector(@PathVariable Long studentModalityId, @PathVariable Long directorId) {
+        return modalityService.assignProjectDirector(studentModalityId, directorId);
+    }
 
-
-
-
-
+    @PostMapping("/{studentModalityId}/schedule-defense")
+    @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
+    public ResponseEntity<?> scheduleDefense(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
+        return modalityService.scheduleDefense(studentModalityId, request);
+    }
+    @PostMapping("/{studentModalityId}/final-evaluation")
+    @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
+    public ResponseEntity<?> registerFinalDefenseEvaluation(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
+        return modalityService.registerFinalDefenseEvaluation(studentModalityId, request);
+    }
 
 
 

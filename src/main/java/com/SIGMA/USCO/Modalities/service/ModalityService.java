@@ -1,10 +1,7 @@
 package com.SIGMA.USCO.Modalities.service;
 
 import com.SIGMA.USCO.Modalities.Entity.*;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
-import com.SIGMA.USCO.Modalities.Entity.enums.RuleType;
+import com.SIGMA.USCO.Modalities.Entity.enums.*;
 import com.SIGMA.USCO.Modalities.Repository.DegreeModalityRepository;
 import com.SIGMA.USCO.Modalities.Repository.ModalityProcessStatusHistoryRepository;
 import com.SIGMA.USCO.Modalities.Repository.ModalityRequirementsRepository;
@@ -1017,6 +1014,426 @@ public class ModalityService {
 
 
     }
+
+    public ResponseEntity<?> requestCancellation(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        if (!studentModality.getStudent().getId().equals(student.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No autorizado");
+        }
+
+        if (studentModality.getStatus() == ModalityProcessStatus.CANCELLATION_REQUESTED ||
+                studentModality.getStatus() == ModalityProcessStatus.MODALITY_CANCELLED) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad ya tiene una solicitud de cancelación"
+                    )
+            );
+        }
+
+
+        List<StudentDocument> documents =
+                studentDocumentRepository.findByStudentModalityId(studentModalityId);
+
+        boolean hasJustification = documents.stream()
+                .anyMatch(doc ->
+                        doc.getDocumentConfig().getModality().getId()
+                                .equals(studentModality.getModality().getId())
+                );
+
+        if (!hasJustification) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe subir el documento de justificación de cancelación"
+                    )
+            );
+        }
+
+
+        studentModality.setStatus(ModalityProcessStatus.CANCELLATION_REQUESTED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.CANCELLATION_REQUESTED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(student)
+                        .observations("Solicitud de cancelación enviada por el estudiante")
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Solicitud de cancelación enviada correctamente"
+                )
+        );
+    }
+
+    public ResponseEntity<?> approveCancellation(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User council = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality modality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no está en estado de cancelación solicitada",
+                            "currentStatus", modality.getStatus()
+                    )
+            );
+        }
+
+        modality.setStatus(ModalityProcessStatus.MODALITY_CANCELLED);
+        modality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(modality);
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(modality)
+                        .status(ModalityProcessStatus.MODALITY_CANCELLED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(council)
+                        .observations("Cancelación aprobada por el Consejo")
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "La modalidad fue cancelada correctamente"
+                )
+        );
+    }
+
+    public ResponseEntity<?> rejectCancellation(Long studentModalityId, String reason) {
+
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe indicar el motivo del rechazo"
+                    )
+            );
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User council = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality modality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Estado inválido para rechazo",
+                            "currentStatus", modality.getStatus()
+                    )
+            );
+        }
+
+        modality.setStatus(ModalityProcessStatus.CANCELLATION_REJECTED);
+        modality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(modality);
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(modality)
+                        .status(ModalityProcessStatus.CANCELLATION_REJECTED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(council)
+                        .observations(reason)
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Solicitud de cancelación rechazada"
+                )
+        );
+    }
+
+    public ResponseEntity<?> assignProjectDirector(Long studentModalityId, Long directorId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User responsible = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad del estudiante no encontrada"));
+
+        User director = userRepository.findById(directorId)
+                .orElseThrow(() -> new RuntimeException("Director no encontrado"));
+
+
+        boolean isDirector = director.getRoles().stream()
+                .anyMatch(role -> role.getName().equalsIgnoreCase("PROJECT_DIRECTOR"));
+
+        if (!isDirector) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "El usuario seleccionado no tiene rol de Director"
+                    )
+            );
+        }
+
+        if (studentModality.getStatus() == ModalityProcessStatus.MODALITY_SELECTED ||
+                studentModality.getStatus() == ModalityProcessStatus.CORRECTIONS_REQUESTED_SECRETARY) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad aún no está lista para asignar Director",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        User previousDirector = studentModality.getProjectDirector();
+
+        studentModality.setProjectDirector(director);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        String observation;
+
+        if (previousDirector == null) {
+            observation = "Director asignado: " + director.getEmail();
+        } else {
+            observation =
+                    "Cambio de Director: " +
+                            previousDirector.getEmail() +
+                            " → " +
+                            director.getEmail();
+        }
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(studentModality.getStatus())
+                        .changeDate(LocalDateTime.now())
+                        .responsible(responsible)
+                        .observations(observation)
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModality.getId(),
+                        "directorAssigned", director.getEmail(),
+                        "message", "Director asignado correctamente a la modalidad"
+                )
+        );
+    }
+
+    public ResponseEntity<?> scheduleDefense(Long studentModalityId, ScheduleDefenseDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User councilMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.PROPOSAL_APPROVED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no se encuentra en estado válido para programar sustentación",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        if (request.getDefenseDate() == null ||
+                request.getDefenseLocation() == null ||
+                request.getDefenseLocation().isBlank()) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe ingresar fecha y lugar válidos para la sustentación"
+                    )
+            );
+        }
+
+
+        studentModality.setDefenseDate(request.getDefenseDate());
+        studentModality.setDefenseLocation(request.getDefenseLocation());
+        studentModality.setStatus(ModalityProcessStatus.DEFENSE_SCHEDULED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.DEFENSE_SCHEDULED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(councilMember)
+                        .observations(
+                                "Sustentación programada para el "
+                                        + request.getDefenseDate()
+                                        + " en "
+                                        + request.getDefenseLocation()
+                        )
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "defenseDate", request.getDefenseDate(),
+                        "defenseLocation", request.getDefenseLocation(),
+                        "newStatus", ModalityProcessStatus.DEFENSE_SCHEDULED,
+                        "message", "Sustentación programada correctamente"
+                )
+        );
+    }
+
+    public ResponseEntity<?> registerFinalDefenseEvaluation(Long studentModalityId, ScheduleDefenseDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User councilMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.DEFENSE_SCHEDULED &&
+                studentModality.getStatus() != ModalityProcessStatus.DEFENSE_COMPLETED) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no se encuentra en estado válido para evaluación final",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        if (request.getObservations() == null || request.getObservations().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe registrar observaciones del resultado final"
+                    )
+            );
+        }
+
+
+        if (!request.isApproved()) {
+
+            studentModality.setStatus(ModalityProcessStatus.GRADED_FAILED);
+            studentModality.setAcademicDistinction(AcademicDistinction.NO_DISTINCTION);
+            studentModality.setUpdatedAt(LocalDateTime.now());
+
+            studentModalityRepository.save(studentModality);
+
+            historyRepository.save(
+                    ModalityProcessStatusHistory.builder()
+                            .studentModality(studentModality)
+                            .status(ModalityProcessStatus.GRADED_FAILED)
+                            .changeDate(LocalDateTime.now())
+                            .responsible(councilMember)
+                            .observations("Modalidad reprobada. " + request.getObservations())
+                            .build()
+            );
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "approved", false,
+                            "finalStatus", ModalityProcessStatus.GRADED_FAILED,
+                            "message", "La modalidad fue REPROBADA"
+                    )
+            );
+        }
+
+
+        AcademicDistinction distinction =
+                request.getAcademicDistinction() != null
+                        ? request.getAcademicDistinction()
+                        : AcademicDistinction.NO_DISTINCTION;
+
+        studentModality.setStatus(ModalityProcessStatus.GRADED_APPROVED);
+        studentModality.setAcademicDistinction(distinction);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+
+        studentModalityRepository.save(studentModality);
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.GRADED_APPROVED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(councilMember)
+                        .observations(
+                                "Modalidad aprobada. Mención: " + distinction.name() +
+                                        ". " + request.getObservations()
+                        )
+                        .build()
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "approved", true,
+                        "academicDistinction", distinction,
+                        "finalStatus", ModalityProcessStatus.GRADED_APPROVED,
+                        "message", "Modalidad aprobada correctamente"
+                )
+        );
+    }
+
+
+
+
+
+
+
 
 
 }

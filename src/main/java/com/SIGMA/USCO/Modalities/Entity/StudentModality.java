@@ -48,7 +48,7 @@ public class StudentModality {
 
     private LocalDateTime defenseDate;
 
-    private LocalDateTime defenseLocation;
+    private String defenseLocation;
 
 
 

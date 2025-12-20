@@ -33,4 +33,9 @@ public class StudentController {
     public ResponseEntity<?> getDocumentHistory(@PathVariable Long studentDocumentId) {
         return documentService.getDocumentHistory(studentDocumentId);
     }
+
+    @PostMapping("/{studentModalityId}/request-cancellation")
+    public ResponseEntity<?> requestCancellation(@PathVariable Long studentModalityId) {
+        return modalityService.requestCancellation(studentModalityId);
+    }
 }

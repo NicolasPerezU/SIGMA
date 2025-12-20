@@ -38,6 +38,10 @@ public class DataInitializer {
             Permission viewDocuments = createPermission("VIEW_DOCUMENTS");
             Permission approveModality = createPermission("APPROVE_MODALITY");
             Permission viewAllModalities = createPermission("VIEW_ALL_MODALITIES");
+            Permission approveCancellation = createPermission("APPROVE_CANCELLATION");
+            Permission rejectCancellation = createPermission("REJECT_CANCELLATION");
+            Permission assignProjectDirector = createPermission("ASSIGN_PROJECT_DIRECTOR");
+            Permission scheduleDefense = createPermission("SCHEDULE_DEFENSE");
 
 
             // Crear roles y asignar permisos
@@ -45,7 +49,7 @@ public class DataInitializer {
 
             createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments, approveModality, viewAllModalities) );
 
-            createRole("COUNCIL", Set.of(verDocumentos) );
+            createRole("COUNCIL", Set.of(verDocumentos,approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense) );
 
             createRole("STUDENT", Set.of(verDocumentos) );
 
