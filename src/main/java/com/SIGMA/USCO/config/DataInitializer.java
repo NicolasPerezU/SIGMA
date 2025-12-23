@@ -42,12 +42,13 @@ public class DataInitializer {
             Permission rejectCancellation = createPermission("REJECT_CANCELLATION");
             Permission assignProjectDirector = createPermission("ASSIGN_PROJECT_DIRECTOR");
             Permission scheduleDefense = createPermission("SCHEDULE_DEFENSE");
+            Permission viewReports = createPermission("VIEW_REPORTS");
 
 
             // Crear roles y asignar permisos
             createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality));
 
-            createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments, approveModality, viewAllModalities) );
+            createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments, approveModality, viewAllModalities, viewReports));
 
             createRole("COUNCIL", Set.of(verDocumentos,approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense) );
 
