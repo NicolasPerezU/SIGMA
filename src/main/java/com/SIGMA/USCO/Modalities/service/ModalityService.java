@@ -18,6 +18,9 @@ import com.SIGMA.USCO.documents.entity.*;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
+import com.SIGMA.USCO.notifications.event.*;
+import com.SIGMA.USCO.notifications.listeners.ModalitySecretaryListener;
+import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.UrlResource;
@@ -53,6 +56,8 @@ public class ModalityService {
     private final StudentDocumentRepository studentDocumentRepository;
     private final ModalityProcessStatusHistoryRepository historyRepository;
     private final StudentDocumentStatusHistoryRepository documentHistoryRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
+
 
 
     @Value("${file.upload-dir}")
@@ -363,6 +368,13 @@ public class ModalityService {
                         .responsible(student)
                         .observations("Modalidad seleccionada por el estudiante")
                         .build()
+        );
+
+        notificationEventPublisher.publish(
+                new StudentModalityStarted(
+                        studentModality.getId(),
+                        student.getId()
+                )
         );
 
 
@@ -699,6 +711,8 @@ public class ModalityService {
 
         historyRepository.save(history);
 
+        notificationEventPublisher.publish(
+                new ModalityApprovedBySecretary(studentModality.getId(), secretary.getId()));
 
         return ResponseEntity.ok(
                 Map.of(
@@ -748,6 +762,10 @@ public class ModalityService {
                 .build();
 
         historyRepository.save(history);
+
+        notificationEventPublisher.publish(
+                new ModalityApprovedByCouncilEvent(studentModality.getId(), councilMember.getId()));
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -1076,6 +1094,10 @@ public class ModalityService {
                         .build()
         );
 
+        notificationEventPublisher.publish(new CancellationRequestedEvent(studentModality.getId(), student.getId())
+        );
+
+
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
@@ -1118,6 +1140,11 @@ public class ModalityService {
                         .observations("Cancelación aprobada por el Consejo")
                         .build()
         );
+
+        notificationEventPublisher.publish(
+                new CancellationApprovedEvent(modality.getId(), council.getId())
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -1170,6 +1197,11 @@ public class ModalityService {
                         .observations(reason)
                         .build()
         );
+
+        notificationEventPublisher.publish(
+                new CancellationRejectedEvent(modality.getId(), reason, council.getId())
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -1248,6 +1280,11 @@ public class ModalityService {
                         .build()
         );
 
+        notificationEventPublisher.publish(
+                new DirectorAssignedEvent(studentModality.getId(), director.getId(), responsible.getId())
+        );
+
+
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
@@ -1316,6 +1353,10 @@ public class ModalityService {
                         )
                         .build()
         );
+        notificationEventPublisher.publish(
+                new DefenseScheduledEvent(studentModality.getId(), request.getDefenseDate(), request.getDefenseLocation(), councilMember.getId())
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -1416,6 +1457,11 @@ public class ModalityService {
                         )
                         .build()
         );
+
+        notificationEventPublisher.publish(
+                new FinalDefenseResultEvent(studentModality.getId(), studentModality.getStatus(), studentModality.getAcademicDistinction(), request.getObservations(), councilMember.getId())
+        );
+
 
         return ResponseEntity.ok(
                 Map.of(
