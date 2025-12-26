@@ -64,7 +64,7 @@ public class NotificationService {
 
         User user = getCurrentUser();
 
-        long count = notificationRepository.countByRecipientIdAndReadFalse(user.getId());
+        long count = notificationRepository.countByRecipient_IdAndReadFalse(user.getId());
 
         return ResponseEntity.ok(
                 Map.of("unreadCount", count)
@@ -74,7 +74,7 @@ public class NotificationService {
     public ResponseEntity<?> getNotificationDetail(Long notificationId) {
 
         User user = getCurrentUser();
-        Notification notification = (Notification) notificationRepository.findByIdAndRecipientId(notificationId, user.getId())
+        Notification notification = (Notification) notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
                         .orElseThrow(() ->
                                 new RuntimeException("Notificación no encontrada")
                         );
@@ -99,7 +99,7 @@ public class NotificationService {
 
         User user = getCurrentUser();
 
-        Notification notification = (Notification) notificationRepository.findByIdAndRecipientId(notificationId, user.getId())
+        Notification notification = (Notification) notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
                         .orElseThrow(() ->
                                 new RuntimeException("Notificación no encontrada")
                         );

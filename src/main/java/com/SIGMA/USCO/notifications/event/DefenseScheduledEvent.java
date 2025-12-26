@@ -13,7 +13,6 @@ public class DefenseScheduledEvent extends DomainEvent {
     private final String defenseLocation;
     private final Long responsibleUserId;
 
-
     public DefenseScheduledEvent(Long studentModalityId, LocalDateTime defenseDate, String defenseLocation, Long responsibleUserId) {
         super(NotificationType.DEFENSE_SCHEDULED, studentModalityId, responsibleUserId);
         this.defenseDate = defenseDate;

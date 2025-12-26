@@ -19,7 +19,6 @@ import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
 import com.SIGMA.USCO.notifications.event.*;
-import com.SIGMA.USCO.notifications.listeners.ModalitySecretaryListener;
 import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
