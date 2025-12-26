@@ -59,7 +59,6 @@ public class ModalityService {
     private final NotificationEventPublisher notificationEventPublisher;
 
 
-
     @Value("${file.upload-dir}")
     private String uploadDir;
 
@@ -1473,13 +1472,5 @@ public class ModalityService {
                 )
         );
     }
-
-
-
-
-
-
-
-
 
 }

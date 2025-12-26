@@ -51,4 +51,12 @@ public class Notification {
 
     private LocalDateTime createdAt;
     private LocalDateTime sentAt;
+
+    private boolean emailSent = false;
+    private boolean inAppDelivered = false;
+
+    @Column(name = "is_read", nullable = false)
+    private boolean read = false;
+    private LocalDateTime readAt;
+
 }

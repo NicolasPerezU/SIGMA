@@ -15,5 +15,4 @@ public class CancellationApprovedEvent extends DomainEvent {
         this.councilUserId = councilUserId;
     }
 
-
 }

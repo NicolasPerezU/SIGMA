@@ -186,6 +186,8 @@ public class AuthService {
             return ResponseEntity.badRequest().body("El token ya ha sido invalidado.");
         }
     }
-
-
+    public User getCurrentUser() {
+        Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return (User) authentication.getPrincipal();
+    }
 }
