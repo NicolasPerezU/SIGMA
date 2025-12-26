@@ -6,6 +6,8 @@ import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.config.EmailService;
+import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
@@ -25,8 +27,8 @@ public class StudentNotificationListener {
     private final StudentModalityRepository studentModalityRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationDispatcherService dispatcher;
-    private final EmailService emailService;
     private final UserRepository userRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
 
 
     @EventListener
@@ -503,6 +505,53 @@ public class StudentNotificationListener {
                 .message(message)
                 .createdAt(LocalDateTime.now())
                 .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+    @EventListener
+    public void onDocumentCorrectionsRequested(DocumentCorrectionsRequestedEvent event) {
+
+        StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
+                        .orElseThrow();
+
+        User student = document.getStudentModality().getStudent();
+
+        String subject = "Correcciones solicitadas en un documento";
+
+        String message = """
+                Hola %s,
+
+                %s ha solicitado correcciones en el documento:
+
+                "%s"
+
+                Observaciones:
+                %s
+
+                Por favor, ingresa a SIGMA y corrige el documento para continuar con tu proceso.
+
+                Sistema SIGMA
+                """.formatted(
+                student.getName(),
+                event.getRequestedBy() == NotificationRecipientType.SECRETARY
+                        ? "La Secretaría"
+                        : "El Concejo Académico",
+                document.getDocumentConfig().getDocumentName(),
+                event.getObservations()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.DOCUMENT_CORRECTIONS_REQUESTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(document.getStudentModality())
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
         notificationRepository.save(notification);
         dispatcher.dispatch(notification);
     }

@@ -18,6 +18,7 @@ import com.SIGMA.USCO.documents.entity.*;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
+import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.event.*;
 import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -600,6 +601,20 @@ public class ModalityService {
                         .build()
         );
 
+        if (request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_SECRETARY) {
+
+            notificationEventPublisher.publish(
+                    new DocumentCorrectionsRequestedEvent(
+                            document.getId(),
+                            document.getStudentModality().getStudent().getId(),
+                            request.getNotes(),
+                            NotificationRecipientType.SECRETARY,
+                            secretary.getId()
+                    )
+            );
+        }
+
+
 
         return ResponseEntity.ok(
                 Map.of(
@@ -812,6 +827,19 @@ public class ModalityService {
                         .observations(request.getNotes())
                         .build()
         );
+
+        if (request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_COUNCIL) {
+
+            notificationEventPublisher.publish(
+                    new DocumentCorrectionsRequestedEvent(
+                            document.getId(),
+                            document.getStudentModality().getStudent().getId(),
+                            request.getNotes(),
+                            NotificationRecipientType.COUNCIL,
+                            councilMember.getId()
+                    )
+            );
+        }
 
 
         return ResponseEntity.ok(
