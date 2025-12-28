@@ -38,6 +38,4 @@ public class StudentDocument {
 
     private LocalDateTime uploadDate;
 
-
-
 }

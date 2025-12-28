@@ -5,6 +5,8 @@ import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.config.EmailService;
+import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
@@ -24,8 +26,8 @@ public class DirectorNotificationListener {
     private final StudentModalityRepository studentModalityRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationDispatcherService dispatcher;
-    private final EmailService emailService;
     private final UserRepository userRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
 
     @EventListener
     public void onCancellationApproved(CancellationApprovedEvent event) {
@@ -328,5 +330,59 @@ public class DirectorNotificationListener {
         notificationRepository.save(notification);
         dispatcher.dispatch(notification);
 
+    }
+
+    @EventListener
+    public void onStudentDocumentUpdated(StudentDocumentUpdatedEvent event) {
+
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                        .orElseThrow();
+
+        if (modality.getProjectDirector() == null) {
+            return;
+        }
+
+        StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
+                        .orElseThrow();
+
+        User student = modality.getStudent();
+        User director = modality.getProjectDirector();
+
+        String subject = "Documento actualizado – Estudiante asignado";
+
+        String message = """
+                El estudiante %s ha actualizado un documento
+                asociado a la modalidad que diriges.
+
+                Modalidad:
+                "%s"
+
+                Documento:
+                "%s"
+
+                Estado:
+                %s
+
+                Sistema SIGMA
+                """.formatted(
+                student.getName() + " " + student.getLastName(),
+                modality.getModality().getName(),
+                document.getDocumentConfig().getDocumentName(),
+                document.getStatus()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.DOCUMENT_UPLOADED)
+                .recipientType(NotificationRecipientType.PROJECT_DIRECTOR)
+                .recipient(director)
+                .triggeredBy(student)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
     }
 }

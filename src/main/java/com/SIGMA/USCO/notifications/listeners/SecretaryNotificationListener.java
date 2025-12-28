@@ -4,6 +4,8 @@ import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
+import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
@@ -27,7 +29,116 @@ public class SecretaryNotificationListener {
     private final NotificationRepository notificationRepository;
     private final NotificationDispatcherService dispatcher;
     private final UserRepository userRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
 
+    @EventListener
+    public void handleModalityStartedEvent(StudentModalityStarted event){
+
+        StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
+        List<User> secretaries =
+                userRepository.findAllByRoles_Name("SECRETARY");
+        String subject = "Nueva modalidad iniciada - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
+
+        String message = """
+                Hola Secretaría,
+                
+                Se ha iniciado una nueva modalidad de grado:
+                
+                "%s"
+                
+                para el estudiante %s.
+                
+                Por favor, proceda a revisar y validar la información correspondiente.
+                
+                Sistema SIGMA
+                """.formatted(
+                studentModality.getModality().getName(),
+                studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
+        );
+        for (User secretary : secretaries) {
+            Notification notification = Notification.builder()
+                    .type(NotificationType.MODALITY_STARTED)
+                    .recipientType(NotificationRecipientType.SECRETARY)
+                    .recipient(secretary)
+                    .triggeredBy(null)
+                    .studentModality(studentModality)
+                    .subject(subject)
+                    .message(message)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
+
+    }
+
+    @EventListener
+    public void onStudentDocumentUpdated(StudentDocumentUpdatedEvent event) {
+
+        StudentModality modality =
+                studentModalityRepository.findById(event.getStudentModalityId())
+                        .orElseThrow();
+
+        StudentDocument document =
+                studentDocumentRepository.findById(event.getStudentDocumentId())
+                        .orElseThrow();
+
+        User student = modality.getStudent();
+
+        List<User> secretaries =
+                userRepository.findAllByRoles_Name("SECRETARY");
+
+        String subject = "Documento actualizado por estudiante";
+
+        String message = """
+            El estudiante %s ha actualizado o resubido
+            un documento solicitado por Secretaría.
+
+            Estudiante:
+            %s (%s)
+
+            Modalidad:
+            "%s"
+
+            Documento:
+            "%s"
+
+            Estado actual:
+            %s
+
+            Por favor, ingrese al sistema SIGMA para
+            revisar el documento actualizado.
+
+            Sistema SIGMA
+            """.formatted(
+                student.getName(),
+                student.getName() + " " + student.getLastName(),
+                student.getEmail(),
+                modality.getModality().getName(),
+                document.getDocumentConfig().getDocumentName(),
+                document.getStatus()
+        );
+
+
+
+        for (User secretary : secretaries) {
+
+            Notification notification = Notification.builder()
+                    .type(NotificationType.DOCUMENT_UPLOADED)
+                    .recipientType(NotificationRecipientType.SECRETARY)
+                    .recipient(secretary)
+                    .triggeredBy(student)
+                    .studentModality(modality)
+                    .subject(subject)
+                    .message(message)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
+    }
 
     @EventListener
     public void handleDefenseScheduledEvent(DefenseScheduledEvent event){

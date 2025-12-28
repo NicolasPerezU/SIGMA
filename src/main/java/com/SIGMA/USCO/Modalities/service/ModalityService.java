@@ -476,6 +476,12 @@ public class ModalityService {
                         .build()
         );
 
+        notificationEventPublisher.publish(
+                new StudentDocumentUpdatedEvent(studentModality.getId(), studentDocument.getId(), student.getId()
+                )
+        );
+
+
 
         return ResponseEntity.ok(
                 Map.of(

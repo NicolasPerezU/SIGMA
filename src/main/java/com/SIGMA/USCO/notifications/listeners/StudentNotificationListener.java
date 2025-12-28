@@ -32,6 +32,98 @@ public class StudentNotificationListener {
 
 
     @EventListener
+    public void ModalityStarted(StudentModalityStarted event){
+
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
+
+        User student = modality.getStudent();
+
+        String subject =
+                "Modalidad iniciada – SIGMA";
+
+        String message = """
+                Hola %s,
+
+                Te informamos que tu modalidad de grado:
+
+                "%s"
+
+                ha sido oficialmente iniciada.
+
+                Estado actual:
+                EN PROGRESO: A la espera de aprobación por secretaría y concejo académico.
+
+            
+                Sistema SIGMA
+                """.formatted(
+                student.getName(),
+                modality.getModality().getName()
+        );
+
+
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_STARTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+    @EventListener
+    public void onDocumentCorrectionsRequested(DocumentCorrectionsRequestedEvent event) {
+
+        StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
+                .orElseThrow();
+
+        User student = document.getStudentModality().getStudent();
+
+        String subject = "Correcciones solicitadas en un documento";
+
+        String message = """
+                Hola %s,
+
+                %s ha solicitado correcciones en el documento:
+
+                "%s"
+
+                Observaciones:
+                %s
+
+                Por favor, ingresa a SIGMA y corrige el documento para continuar con tu proceso.
+
+                Sistema SIGMA
+                """.formatted(
+                student.getName(),
+                event.getRequestedBy() == NotificationRecipientType.SECRETARY
+                        ? "La Secretaría"
+                        : "El Concejo Académico",
+                document.getDocumentConfig().getDocumentName(),
+                event.getObservations()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.DOCUMENT_CORRECTIONS_REQUESTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(document.getStudentModality())
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+    @EventListener
     public void onCancellationRequested(CancellationRequestedEvent event){
         StudentModality sm = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
@@ -464,95 +556,7 @@ public class StudentNotificationListener {
         dispatcher.dispatch(notification);
     }
 
-    @EventListener
-    public void ModalityStarted(StudentModalityStarted event){
-
-        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
-
-        User student = modality.getStudent();
-
-        String subject =
-                "Modalidad iniciada – SIGMA";
-
-        String message = """
-                Hola %s,
-
-                Te informamos que tu modalidad de grado:
-
-                "%s"
-
-                ha sido oficialmente iniciada.
-
-                Estado actual:
-                EN PROGRESO: A la espera de aprobación por secretaría y concejo académico.
-
-            
-                Sistema SIGMA
-                """.formatted(
-                student.getName(),
-                modality.getModality().getName()
-        );
 
 
 
-        Notification notification = Notification.builder()
-                .type(NotificationType.MODALITY_STARTED)
-                .recipientType(NotificationRecipientType.STUDENT)
-                .recipient(student)
-                .triggeredBy(null)
-                .studentModality(modality)
-                .subject(subject)
-                .message(message)
-                .createdAt(LocalDateTime.now())
-                .build();
-        notificationRepository.save(notification);
-        dispatcher.dispatch(notification);
-    }
-
-    @EventListener
-    public void onDocumentCorrectionsRequested(DocumentCorrectionsRequestedEvent event) {
-
-        StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
-                        .orElseThrow();
-
-        User student = document.getStudentModality().getStudent();
-
-        String subject = "Correcciones solicitadas en un documento";
-
-        String message = """
-                Hola %s,
-
-                %s ha solicitado correcciones en el documento:
-
-                "%s"
-
-                Observaciones:
-                %s
-
-                Por favor, ingresa a SIGMA y corrige el documento para continuar con tu proceso.
-
-                Sistema SIGMA
-                """.formatted(
-                student.getName(),
-                event.getRequestedBy() == NotificationRecipientType.SECRETARY
-                        ? "La Secretaría"
-                        : "El Concejo Académico",
-                document.getDocumentConfig().getDocumentName(),
-                event.getObservations()
-        );
-
-        Notification notification = Notification.builder()
-                .type(NotificationType.DOCUMENT_CORRECTIONS_REQUESTED)
-                .recipientType(NotificationRecipientType.STUDENT)
-                .recipient(student)
-                .triggeredBy(null)
-                .studentModality(document.getStudentModality())
-                .subject(subject)
-                .message(message)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        notificationRepository.save(notification);
-        dispatcher.dispatch(notification);
-    }
 }
