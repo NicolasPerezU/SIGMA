@@ -3,6 +3,7 @@ package com.SIGMA.USCO.Users.service;
 import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
+import com.SIGMA.USCO.Users.dto.response.StudentResponse;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -69,4 +70,30 @@ public class StudentService {
 
         return ResponseEntity.ok("Datos de perfil de estudiante actualizados correctamente");
     }
+
+    public ResponseEntity<?> getStudentProfile() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("Usuario no encontrado");
+        }
+        User user = userOpt.get();
+        Optional<StudentProfile> profileOpt = studentProfileRepository.findByUserId(user.getId());
+
+        StudentResponse response = StudentResponse.builder()
+                .name(user.getName())
+                .lastname(user.getLastName())
+                .email(user.getEmail())
+                .approvedCredits(profileOpt.map(StudentProfile::getApprovedCredits).orElse(null))
+                .gpa(profileOpt.map(StudentProfile::getGpa).orElse(null))
+                .semester(profileOpt.map(StudentProfile::getSemester).orElse(null))
+                .studentCode(profileOpt.map(StudentProfile::getStudentCode).orElse(null))
+                .build();
+        return ResponseEntity.ok(response);
+
+
+    }
+
 }

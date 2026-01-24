@@ -10,5 +10,4 @@ public enum ModalityType {
     Project_Portafolio,
     Research_Incubator,
     Higher_Level_Academic_Production
-
 }

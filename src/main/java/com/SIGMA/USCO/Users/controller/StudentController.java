@@ -24,6 +24,12 @@ public class StudentController {
         return studentService.updateStudentProfile(request);
     }
 
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<?> getStudentInfo() {
+        return studentService.getStudentProfile();
+    }
+
     @GetMapping("/modality/current")
     public ResponseEntity<?> getCurrentStudentModality() {
         return modalityService.getCurrentStudentModality();

@@ -133,7 +133,8 @@ public class AuthService {
                 .build();
         tokenRepository.save(resetToken);
 
-        String resetLink = "http://localhost:8080/auth/reset-password?token=" + token; //Aqui toca poner un redireccionamiento en el front para que el usuario pueda cambiar la contraseña
+        String resetLink = "http://localhost:5173/reset-password";
+
 
         String subject = "Restablecimiento de contraseña - SIGMA USCO";
         String message = """
@@ -143,13 +144,14 @@ public class AuthService {
                 
                 Haz clic en el siguiente enlace para continuar:
                 %s
+                Tu token de restablecimiento de contraseña es: %s
                 
                 Este enlace expirará en 15 minutos.
                 
                 Si no fuiste tú, ignora este mensaje.
                 
                 Equipo SIGMA
-                """.formatted(user.getName(), resetLink);
+                """.formatted(user.getName(), resetLink, token);
 
         emailService.sendEmail(user.getEmail(), subject, message);
 

@@ -195,6 +195,8 @@ public class ModalityService {
                         .name(mod.getName())
                         .description(mod.getDescription())
                         .creditsRequired(mod.getCreditsRequired())
+                        .status(mod.getStatus())
+                        .type(mod.getType())
                         .build())
                 .toList();
 

@@ -46,7 +46,7 @@ public class DataInitializer {
 
 
             // Crear roles y asignar permisos
-            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality));
+            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports));
 
             createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments, approveModality, viewAllModalities, viewReports));
 
@@ -66,13 +66,15 @@ public class DataInitializer {
     }
 
     private void createRole(String name,Set<Permission> permissions) {
-        roleRepository.findByName(name)
+        Role role = roleRepository.findByName(name)
                 .orElseGet(() -> roleRepository.save(
                         Role.builder()
                                 .name(name)
                                 .permissions(permissions)
                                 .build()
                 ));
+        role.setPermissions(permissions);
+        roleRepository.save(role);
     }
 
 }

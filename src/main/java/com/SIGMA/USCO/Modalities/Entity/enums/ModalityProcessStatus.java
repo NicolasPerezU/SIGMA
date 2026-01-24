@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.Modalities.Entity.enums;
 
-public enum ModalityProcessStatus {
+public enum     ModalityProcessStatus {
     MODALITY_SELECTED,
     UNDER_REVIEW_SECRETARY,
     CORRECTIONS_REQUESTED_SECRETARY,
