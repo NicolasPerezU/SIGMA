@@ -31,6 +31,7 @@ public class RequiredDocument {
 
     private Integer maxFileSizeMB;
 
+    @Column(name = "is_mandatory")
     private boolean isMandatory;
 
     @Column(length = 5000)

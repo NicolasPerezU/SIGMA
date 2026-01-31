@@ -1,17 +1,24 @@
 package com.SIGMA.USCO.Users.service;
 
+import com.SIGMA.USCO.Modalities.Entity.StudentModality;
+import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
 import com.SIGMA.USCO.Users.dto.response.StudentResponse;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
+import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -20,6 +27,8 @@ public class StudentService {
 
     private final UserRepository userRepository;
     private final StudentProfileRepository studentProfileRepository;
+    private final StudentModalityRepository studentModalityRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
 
     public ResponseEntity<?> updateStudentProfile(StudentProfileRequest request) {
 
@@ -92,6 +101,50 @@ public class StudentService {
                 .studentCode(profileOpt.map(StudentProfile::getStudentCode).orElse(null))
                 .build();
         return ResponseEntity.ok(response);
+
+
+    }
+
+    public ResponseEntity<?> getMyDocuments(){
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        Optional<User> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(404).body("Usuario no encontrado");
+        }
+        User currentUser = user.get();
+        Optional<StudentModality> modalityOpt =
+                studentModalityRepository.findTopByStudentIdOrderByUpdatedAtDesc(currentUser.getId());
+
+        if (modalityOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("No se encontró ninguna modalidad asociada al estudiante");
+        }
+
+        Long studentModalityId = modalityOpt.get().getId();
+
+        List<StudentDocument> documents = studentDocumentRepository.findByStudentModalityId(studentModalityId);
+
+
+
+        List<Map<String, Object>> response = documents.stream()
+                .map(doc -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("notes", doc.getNotes());
+                    map.put("filePath", doc.getFilePath());
+                    map.put("studentDocumentId", doc.getId());
+                    map.put("uploadedAt", doc.getUploadDate());
+                    map.put("documentName", doc.getDocumentConfig().getDocumentName());
+                    map.put("mandatory", doc.getDocumentConfig().isMandatory());
+                    map.put("status", doc.getStatus());
+                    return map;
+                })
+                .toList();
+
+
+        return ResponseEntity.ok(response);
+
 
 
     }

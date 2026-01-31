@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.Set;
 
 @Configuration
 @RequiredArgsConstructor
+@Profile("dev")
 public class DataInitializer {
 
     private final RoleRepository roleRepository;
@@ -43,20 +45,31 @@ public class DataInitializer {
             Permission assignProjectDirector = createPermission("ASSIGN_PROJECT_DIRECTOR");
             Permission scheduleDefense = createPermission("SCHEDULE_DEFENSE");
             Permission viewReports = createPermission("VIEW_REPORTS");
+            Permission viewCancellations = createPermission("VIEW_CANCELLATIONS");
+            Permission viewRole = createPermission("VIEW_ROLE");
+            Permission createPermission = createPermission("CREATE_PERMISSION");
+            Permission viewPermission = createPermission("VIEW_PERMISSION");
+            Permission viewUser = createPermission("VIEW_USER");
+            Permission desactiveModality = createPermission("DESACTIVE_MODALITY");
+            Permission viewModalityAdmin = createPermission("VIEW_MODALITIES_ADMIN");
+            Permission deleteRequirement = createPermission("DELETE_MODALITY_REQUIREMENT");
+            Permission deleteRequiredDocument = createPermission("DELETE_REQUIRED_DOCUMENT");
+            Permission viewRequiredDocument = createPermission("VIEW_REQUIRED_DOCUMENT");
 
 
             // Crear roles y asignar permisos
-            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports));
+            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument));
 
             createRole("SECRETARY", Set.of(verDocumentos, reviewDocuments, viewDocuments, approveModality, viewAllModalities, viewReports));
 
-            createRole("COUNCIL", Set.of(verDocumentos,approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense) );
+            createRole("COUNCIL", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations));
 
             createRole("STUDENT", Set.of(verDocumentos) );
 
             createRole("PROJECT_DIRECTOR", Set.of(verDocumentos) );
         };
     }
+
 
     private Permission createPermission(String name) {
         return permissionRepository.findByName(name)

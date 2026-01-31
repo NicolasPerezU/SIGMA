@@ -1,5 +1,8 @@
 package com.SIGMA.USCO.Users.controller;
 
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
+import com.SIGMA.USCO.Modalities.dto.ModalityDTO;
+import com.SIGMA.USCO.Users.dto.request.PermissionDTO;
 import com.SIGMA.USCO.Users.dto.request.RoleRequest;
 import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.service.AdminService;
@@ -7,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin")
@@ -38,5 +43,44 @@ public class AdminController {
     public ResponseEntity<?> changeUserStatus(@RequestBody UpdateUserRequest request){
         return adminService.changeUserStatus(request);
     }
+
+    @GetMapping("/getRoles")
+    @PreAuthorize("hasAuthority('PERM_VIEW_ROLE')")
+    public ResponseEntity<?> getRoles() {
+        return adminService.getRoles();
+    }
+
+    @PostMapping("/createPermission")
+    @PreAuthorize("hasAuthority('PERM_CREATE_PERMISSION')")
+    public ResponseEntity<?> createPermission(@RequestBody PermissionDTO request) {
+        return adminService.createPermission(request);
+    }
+
+    @GetMapping("/getPermissions")
+    @PreAuthorize("hasAuthority('PERM_VIEW_PERMISSION')")
+    public ResponseEntity<?> getPermissions() {
+        return adminService.getPermissions();
+    }
+
+    @GetMapping("/getUsers")
+    @PreAuthorize("hasAuthority('PERM_VIEW_USER')")
+    public ResponseEntity<?> getUsers(@RequestParam(required = false) String status) {
+        return adminService.getUsers(status);
+    }
+
+    @PutMapping("/changeUserStatus/{userId}")
+    @PreAuthorize("hasAuthority('PERM_ACTIVATE_OR_DEACTIVATE_USER')")
+    public ResponseEntity<?> desactiveUser(@PathVariable Long userId) {
+        return adminService.desactiveUser(userId);
+    }
+
+    @GetMapping("/modalities")
+    @PreAuthorize("hasAuthority('PERM_VIEW_MODALITIES_ADMIN')")
+    public ResponseEntity<List<ModalityDTO>> getModalities(@RequestParam(required = false) ModalityStatus status) {
+        return adminService.getModalities(status);
+    }
+
+
+
 
 }

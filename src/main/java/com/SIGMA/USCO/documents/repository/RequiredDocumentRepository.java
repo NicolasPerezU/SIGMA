@@ -9,4 +9,11 @@ public interface RequiredDocumentRepository extends JpaRepository<RequiredDocume
     List<RequiredDocument> findByModalityId(Long modalityId);
 
     List<RequiredDocument> findByModalityIdAndActiveTrue(Long modalityId);
+
+    List<RequiredDocument> findByModalityIdAndActive(Long modalityId, boolean active);
+
+    List<RequiredDocument> findByModalityIdAndActiveTrueAndIsMandatoryTrue(Long modalityId);
+
+
+
 }

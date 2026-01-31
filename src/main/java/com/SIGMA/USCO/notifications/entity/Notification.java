@@ -10,9 +10,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "notifications")
-@Getter
-@Setter
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,7 +26,7 @@ public class Notification {
     private NotificationRecipientType recipientType;
 
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipient_user_id")
     private User recipient;
 
@@ -38,7 +36,7 @@ public class Notification {
     private User triggeredBy;
 
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_modality_id")
     private StudentModality studentModality;
 

@@ -21,6 +21,7 @@ import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepositor
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.event.*;
 import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.UrlResource;
@@ -80,7 +81,9 @@ public class ModalityService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return ResponseEntity.ok(degreeModalityRepository.save(newModality));
+        degreeModalityRepository.save(newModality);
+
+        return ResponseEntity.ok("Modalidad creada exitosamente" );
     }
     public ResponseEntity<?> updateModality(Long modalityId, ModalityDTO request) {
 
@@ -99,7 +102,22 @@ public class ModalityService {
 
         degreeModalityRepository.save(modality);
 
-        return ResponseEntity.ok(modality);
+        return ResponseEntity.ok("Modalidad actualizada exitosamente");
+    }
+    public ResponseEntity<?> desactiveModality(Long modalityId) {
+
+        if (!degreeModalityRepository.existsById(modalityId)) {
+            return ResponseEntity.badRequest().body("La modalidad con ID " + modalityId + " no existe.");
+        }
+
+        DegreeModality modality = degreeModalityRepository.findById(modalityId).orElseThrow();
+
+        modality.setStatus(ModalityStatus.INACTIVE);
+        modality.setUpdatedAt(LocalDateTime.now());
+
+        degreeModalityRepository.save(modality);
+
+        return ResponseEntity.ok("Modalidad desactivada exitosamente");
     }
     public ResponseEntity<?> createModalityRequirements(Long modalityId, List<RequirementDTO> requirements) {
 
@@ -187,6 +205,48 @@ public class ModalityService {
 
         return ResponseEntity.ok("Requisitos de la modalidad actualizados correctamente");
     }
+
+    public ResponseEntity<List<RequirementDTO>> getModalityRequirements(Long modalityId, Boolean active) {
+
+        if (!degreeModalityRepository.existsById(modalityId)) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+
+        List<ModalityRequirements> requirements;
+
+        if (active != null) {
+            requirements = modalityRequirementsRepository.findByModalityIdAndActive(modalityId, active);
+        } else {
+            requirements = modalityRequirementsRepository.findByModalityId(modalityId);
+        }
+
+        List<RequirementDTO> response = requirements.stream()
+                .map(r -> RequirementDTO.builder()
+                        .id(r.getId())
+                        .requirementName(r.getRequirementName())
+                        .description(r.getDescription())
+                        .ruleType(r.getRuleType())
+                        .expectedValue(r.getExpectedValue())
+                        .active(r.isActive())
+                        .build())
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    public ResponseEntity<?> deleteRequirement(Long requirementId) {
+
+        ModalityRequirements requirement = modalityRequirementsRepository.findById(requirementId)
+                .orElseThrow(() -> new RuntimeException("Requisito no encontrado"));
+
+        requirement.setActive(false);
+        requirement.setUpdatedAt(LocalDateTime.now());
+
+        modalityRequirementsRepository.save(requirement);
+
+        return ResponseEntity.ok("Requisito desactivado correctamente");
+    }
+
     public ResponseEntity<List<ModalityDTO>> getAllModalities() {
         List<ModalityDTO> modalities = degreeModalityRepository.findByStatus(ModalityStatus.ACTIVE)
                 .stream()
@@ -219,7 +279,8 @@ public class ModalityService {
                         .build())
                 .toList();
 
-        var documents = requiredDocumentRepository.findByModalityIdAndActiveTrue(modalityId)
+        var documents = requiredDocumentRepository
+                .findByModalityIdAndActiveTrueAndIsMandatoryTrue(modalityId)
                 .stream()
                 .map(doc -> RequiredDocumentDTO.builder()
                         .id(doc.getId())
@@ -227,8 +288,10 @@ public class ModalityService {
                         .description(doc.getDescription())
                         .allowedFormat(doc.getAllowedFormat())
                         .maxFileSizeMB(doc.getMaxFileSizeMB())
+                        .mandatory(doc.isMandatory())
                         .build())
                 .toList();
+
 
         ModalityDTO modalityDetail = ModalityDTO.builder()
                 .id(modalityId)
@@ -247,6 +310,8 @@ public class ModalityService {
         return ResponseEntity.ok(modalityDetail);
 
     }
+
+    @Transactional
     public ResponseEntity<?> startStudentModality(Long modalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -291,7 +356,7 @@ public class ModalityService {
 
         if (exists) {
             return ResponseEntity.badRequest()
-                    .body("Ya has iniciado esta modalidad");
+                    .body("Ya haz iniciado esta modalidad");
         }
 
 
@@ -635,6 +700,7 @@ public class ModalityService {
 
     }
 
+    @Transactional
     public ResponseEntity<?> approveModalityBySecretary(Long studentModalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -744,6 +810,7 @@ public class ModalityService {
         );
     }
 
+    @Transactional
     public ResponseEntity<?> approveModalityByCouncil(Long studentModalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -942,9 +1009,43 @@ public class ModalityService {
         );
     }
 
-    public ResponseEntity<?> getAllStudentModalitiesForSecretary() {
+    public ResponseEntity<?> getAllStudentModalitiesForSecretary(
+            List<ModalityProcessStatus> statuses,
+            String name
+    ) {
 
-        List<StudentModality> modalities = studentModalityRepository.findAll();
+        List<StudentModality> modalities;
+
+        boolean hasStatusFilter = statuses != null && !statuses.isEmpty();
+        boolean hasNameFilter = name != null && !name.isBlank();
+
+        if (hasStatusFilter && hasNameFilter) {
+
+            modalities =
+                    studentModalityRepository
+                            .findByStatusInAndStudent_NameContainingIgnoreCaseOrStatusInAndStudent_LastNameContainingIgnoreCase(
+                                    statuses,
+                                    name,
+                                    statuses,
+                                    name
+                            );
+
+        } else if (hasStatusFilter) {
+
+            modalities = studentModalityRepository.findByStatusIn(statuses);
+
+        } else if (hasNameFilter) {
+
+            modalities =
+                    studentModalityRepository
+                            .findByStudent_NameContainingIgnoreCaseOrStudent_LastNameContainingIgnoreCase(
+                                    name,
+                                    name
+                            );
+
+        } else {
+            modalities = studentModalityRepository.findAll();
+        }
 
         List<ModalityListDTO> response = modalities.stream()
                 .map(sm -> {
@@ -958,7 +1059,8 @@ public class ModalityService {
                     return ModalityListDTO.builder()
                             .studentModalityId(sm.getId())
                             .studentName(
-                                    sm.getStudent().getName() + " " + sm.getStudent().getLastName()
+                                    sm.getStudent().getName() + " " +
+                                            sm.getStudent().getLastName()
                             )
                             .studentEmail(sm.getStudent().getEmail())
                             .modalityName(sm.getModality().getName())
@@ -972,6 +1074,8 @@ public class ModalityService {
 
         return ResponseEntity.ok(response);
     }
+
+
 
     public ResponseEntity<?> getStudentModalityDetailForSecretary(Long studentModalityId) {
 
@@ -1140,6 +1244,7 @@ public class ModalityService {
         );
     }
 
+    @Transactional
     public ResponseEntity<?> approveCancellation(Long studentModalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -1244,6 +1349,31 @@ public class ModalityService {
                 )
         );
     }
+
+    public List<CancellationList> getPendingCancellations() {
+
+        List<StudentModality> modalities =
+                studentModalityRepository.findByStatus(
+                        ModalityProcessStatus.CANCELLATION_REQUESTED
+                );
+
+        return modalities.stream()
+                .map(sm -> CancellationList.builder()
+                        .studentModalityId(sm.getId())
+                        .studentName(
+                                sm.getStudent().getName() + " " + sm.getStudent().getLastName()
+                        )
+                        .email(sm.getStudent().getEmail())
+                        .modalityName(sm.getModality().getName())
+                        .requestDate(sm.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+    }
+
+
+
+
 
     public ResponseEntity<?> assignProjectDirector(Long studentModalityId, Long directorId) {
 
@@ -1404,6 +1534,7 @@ public class ModalityService {
         );
     }
 
+    @Transactional
     public ResponseEntity<?> registerFinalDefenseEvaluation(Long studentModalityId, ScheduleDefenseDTO request) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

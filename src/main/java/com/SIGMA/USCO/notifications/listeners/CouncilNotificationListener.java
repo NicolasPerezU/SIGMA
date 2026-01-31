@@ -36,11 +36,9 @@ public class CouncilNotificationListener {
     @EventListener
     public void onCancellationRequested(CancellationRequestedEvent event){
 
-        StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId())
-                .orElseThrow();
+        StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        List<User> councilMembers =
-                userRepository.findAllByRoles_Name("COUNCIL");
+        List<User> councilMembers = userRepository.findAllByRoles_Name("COUNCIL");
 
         String subject = "Solicitud de cancelación de modalidad";
 

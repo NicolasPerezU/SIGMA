@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/students")
@@ -44,4 +47,22 @@ public class StudentController {
     public ResponseEntity<?> requestCancellation(@PathVariable Long studentModalityId) {
         return modalityService.requestCancellation(studentModalityId);
     }
+
+    @GetMapping("/my-documents")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<?> getMyDocuments() {
+        return studentService.getMyDocuments();
+    }
+
+    @PostMapping("/cancellation-document/{studentModalityId}")
+    public ResponseEntity<?> uploadCancellationDocument(@PathVariable Long studentModalityId, @RequestParam("file") MultipartFile file) {
+        documentService.uploadCancellationDocument(studentModalityId, file);
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Documento de justificación cargado correctamente"
+                )
+        );
+    }
+
 }

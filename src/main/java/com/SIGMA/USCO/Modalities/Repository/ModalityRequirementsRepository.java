@@ -10,4 +10,6 @@ public interface ModalityRequirementsRepository extends JpaRepository<ModalityRe
     List<ModalityRequirements> findByModalityId(Long modalityId);
 
     List<ModalityRequirements> findByModalityIdAndActiveTrue(Long modalityId);
+
+    List<ModalityRequirements> findByModalityIdAndActive(Long modalityId, boolean active);
 }

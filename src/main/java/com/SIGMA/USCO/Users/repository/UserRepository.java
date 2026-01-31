@@ -1,8 +1,8 @@
 package com.SIGMA.USCO.Users.repository;
 
 
+import com.SIGMA.USCO.Users.Entity.Status;
 import com.SIGMA.USCO.Users.Entity.User;
-import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -15,4 +15,5 @@ public interface UserRepository extends JpaRepository<User,Long> {
     List<User> findAllByRoles_Name(String roleName);
 
 
+    List<User> findByStatus(Status status);
 }

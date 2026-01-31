@@ -1,8 +1,14 @@
 package com.SIGMA.USCO.Modalities.Controller;
 
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.dto.*;
 import com.SIGMA.USCO.Modalities.service.ModalityService;
+import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.service.DocumentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,6 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -19,6 +27,7 @@ import java.util.List;
 public class ModalityController {
 
     private final ModalityService modalityService;
+    private final DocumentService documentService;
 
     @PostMapping("/create")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
@@ -31,6 +40,14 @@ public class ModalityController {
         return modalityService.updateModality(modalityId, request);
     }
 
+    @PutMapping("delete/{modalityId}")
+    @PreAuthorize("hasAuthority('PERM_DESACTIVE_MODALITY')")
+    public ResponseEntity<?> deactivateModality(@PathVariable Long modalityId) {
+        return modalityService.desactiveModality(modalityId);
+    }
+
+
+
     @PostMapping("/requirements/create/{modalityId}")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
     public ResponseEntity<?> createModalityRequirements(@PathVariable Long modalityId, @RequestBody List<RequirementDTO> requirements) {
@@ -42,6 +59,18 @@ public class ModalityController {
     public ResponseEntity<?> updateModalityRequirements(@PathVariable Long ModalityId,@RequestBody List<RequirementDTO> request) {
         return modalityService.updateModalityRequirements(ModalityId, request);
     }
+
+    @GetMapping("/{modalityId}/requirements")
+    public ResponseEntity<List<RequirementDTO>> listRequirements(@PathVariable Long modalityId, @RequestParam(required = false) Boolean active) {
+        return modalityService.getModalityRequirements(modalityId, active);
+    }
+
+    @PutMapping("/requirements/delete/{requirementId}")
+    @PreAuthorize("hasAuthority('PERM_DELETE_MODALITY_REQUIREMENT')")
+    public ResponseEntity<?> desactiveRequirements(@PathVariable Long requirementId) {
+        return modalityService.deleteRequirement(requirementId);
+    }
+
 
     @GetMapping
     public ResponseEntity<?> getAllModalities() {
@@ -116,8 +145,10 @@ public class ModalityController {
     }
     @GetMapping("/students")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
-    public ResponseEntity<?> listAllModalitiesForSecretary() {
-        return modalityService.getAllStudentModalitiesForSecretary();
+    public ResponseEntity<?> listAllModalitiesForSecretary(@RequestParam(required = false)
+                                                               List<ModalityProcessStatus> statuses, @RequestParam(required = false)
+    String name) {
+        return modalityService.getAllStudentModalitiesForSecretary(statuses, name);
     }
 
     @GetMapping("/students/{studentModalityId}")
@@ -137,6 +168,38 @@ public class ModalityController {
     ) {
         return modalityService.rejectCancellation(studentModalityId, reason);
     }
+
+    @GetMapping("/cancellation-request")
+    @PreAuthorize("hasAuthority('PERM_VIEW_CANCELLATIONS')")
+    public ResponseEntity<List<CancellationList>> getPendingCancellations() {
+
+        List<CancellationList> cancellations =
+                modalityService.getPendingCancellations();
+
+        return ResponseEntity.ok(cancellations);
+    }
+
+    @GetMapping("/cancellation/document/{studentModalityId}")
+    @PreAuthorize("hasAuthority('PERM_VIEW_CANCELLATIONS')")
+    public ResponseEntity<Resource> getCancellationDocument(@PathVariable Long studentModalityId) throws MalformedURLException {
+
+        StudentDocument document = documentService.getDocumentCancellation(studentModalityId);
+
+        Path filePath = Paths.get(document.getFilePath());
+        Resource resource = new UrlResource(filePath.toUri());
+
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new RuntimeException("No se pudo leer el archivo");
+        }
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + document.getFileName() + "\""
+                )
+                .body(resource);
+    }
+
     @PostMapping("/{studentModalityId}/assign-director/{directorId}")
     @PreAuthorize("hasAuthority('PERM_ASSIGN_PROJECT_DIRECTOR')")
     public ResponseEntity<?> assignProjectDirector(@PathVariable Long studentModalityId, @PathVariable Long directorId) {
@@ -153,11 +216,5 @@ public class ModalityController {
     public ResponseEntity<?> registerFinalDefenseEvaluation(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
         return modalityService.registerFinalDefenseEvaluation(studentModalityId, request);
     }
-
-
-
-
-
-
 
 }

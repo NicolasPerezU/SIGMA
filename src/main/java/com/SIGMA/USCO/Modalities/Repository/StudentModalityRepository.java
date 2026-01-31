@@ -20,6 +20,9 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
 
     List<StudentModality> findByStatus(ModalityProcessStatus status);
 
+    List<StudentModality> findByStatusIn(List<ModalityProcessStatus> statuses);
+
+
     boolean existsByStudentIdAndStatusIn(Long studentId, List<ModalityProcessStatus> statuses);
 
     boolean existsByStudent_IdAndModality_Id(Long studentId, Long modalityId);
@@ -34,6 +37,19 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
     List<StudentModality> findByProjectDirector_Id(Long directorId);
 
     List<StudentModality> findByProjectDirector_IdAndSelectionDateBetween(Long directorId, LocalDateTime localDateTime, LocalDateTime localDateTime1);
+
+    List<StudentModality> findByStatusInAndStudent_NameContainingIgnoreCaseOrStatusInAndStudent_LastNameContainingIgnoreCase(
+            List<ModalityProcessStatus> statuses1,
+            String name1,
+            List<ModalityProcessStatus> statuses2,
+            String name2
+    );
+
+    List<StudentModality> findByStudent_NameContainingIgnoreCaseOrStudent_LastNameContainingIgnoreCase(
+            String name1,
+            String name2
+    );
+
 
 
 

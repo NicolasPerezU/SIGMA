@@ -9,5 +9,7 @@ public enum ModalityType {
     Degree_Seminar,
     Project_Portafolio,
     Research_Incubator,
-    Higher_Level_Academic_Production
+    Higher_Level_Academic_Production,
+    Others
+
 }

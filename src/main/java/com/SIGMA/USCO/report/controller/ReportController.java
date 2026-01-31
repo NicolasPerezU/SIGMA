@@ -164,7 +164,4 @@ public class ReportController {
         return reportService.exportModalitiesComparisonSemesterTypeExcel(filter);
     }
 
-
-
-
 }
