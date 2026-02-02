@@ -3,6 +3,7 @@ package com.SIGMA.USCO.Modalities.Repository;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
+import com.SIGMA.USCO.Users.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -49,6 +50,9 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
             String name1,
             String name2
     );
+
+    Optional<StudentModality> findByStudent(User student);
+
 
 
 

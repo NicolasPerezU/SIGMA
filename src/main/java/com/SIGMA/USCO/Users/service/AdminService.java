@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +38,7 @@ public class AdminService {
     public ResponseEntity<?> getRoles() {
 
         return ResponseEntity.ok(roleRepository.findAll().stream().map(role -> RoleRequest.builder()
+                                .id(role.getId())
                                 .name(role.getName())
                                 .permissionIds(
                                         role.getPermissions()
@@ -84,9 +86,12 @@ public class AdminService {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
 
-        if (roleRepository.findByName(request.getName()).isPresent() && !role.getName().equalsIgnoreCase(request.getName())) {
+        Optional<Role> existingRole = roleRepository.findByNameIgnoreCase(request.getName());
+
+        if (existingRole.isPresent() && !existingRole.get().getId().equals(id)) {
             return ResponseEntity.badRequest().body("El rol ya existe.");
         }
+
 
         Set<Permission> permissions = Set.of();
 

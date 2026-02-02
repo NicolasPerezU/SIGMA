@@ -8,6 +8,8 @@ import com.SIGMA.USCO.Modalities.Repository.ModalityRequirementsRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Modalities.dto.*;
 
+import com.SIGMA.USCO.Modalities.dto.response.FinalDefenseResponse;
+import com.SIGMA.USCO.Modalities.dto.response.ProjectDirectorResponse;
 import com.SIGMA.USCO.Users.Entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
@@ -1371,10 +1373,6 @@ public class ModalityService {
                 .toList();
     }
 
-
-
-
-
     public ResponseEntity<?> assignProjectDirector(Long studentModalityId, Long directorId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -1638,5 +1636,124 @@ public class ModalityService {
                 )
         );
     }
+
+    public ResponseEntity<?> getFinalDefenseResult(Long studentModalityId) {
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        if (studentModality.getStatus() != ModalityProcessStatus.GRADED_APPROVED &&
+                studentModality.getStatus() != ModalityProcessStatus.GRADED_FAILED) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad aún no tiene un resultado final registrado",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        ModalityProcessStatus finalStatus = studentModality.getStatus();
+
+        ModalityProcessStatusHistory history = historyRepository
+                .findTopByStudentModalityAndStatusOrderByChangeDateDesc(
+                        studentModality,
+                        finalStatus
+                )
+                .orElseThrow(() -> new RuntimeException(
+                        "No se encontró historial de evaluación final"
+                ));
+
+        return ResponseEntity.ok(
+                FinalDefenseResponse.builder()
+                        .studentModalityId(studentModality.getId())
+                        .studentName(
+                                studentModality.getStudent().getName() + " " +
+                                        studentModality.getStudent().getLastName()
+                        )
+                        .studentEmail(studentModality.getStudent().getEmail())
+                        .finalStatus(finalStatus)
+                        .approved(finalStatus == ModalityProcessStatus.GRADED_APPROVED)
+                        .academicDistinction(studentModality.getAcademicDistinction())
+                        .observations(history.getObservations())
+                        .evaluationDate(history.getChangeDate())
+                        .evaluatedBy(
+                                history.getResponsible() != null
+                                        ? history.getResponsible().getName()
+                                        : "Consejo del Programa"
+                        )
+                        .build()
+        );
+    }
+
+    public ResponseEntity<?> getMyFinalDefenseResult() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository
+                .findByStudent(student)
+                .orElseThrow(() -> new RuntimeException(
+                        "No se encontró una modalidad asociada al estudiante"
+                ));
+
+        if (studentModality.getStatus() != ModalityProcessStatus.GRADED_APPROVED &&
+                studentModality.getStatus() != ModalityProcessStatus.GRADED_FAILED) {
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "hasResult", false,
+                            "message", "Tu modalidad aún no tiene un resultado final"
+                    )
+            );
+        }
+
+        ModalityProcessStatus finalStatus = studentModality.getStatus();
+
+        ModalityProcessStatusHistory history = historyRepository
+                .findTopByStudentModalityAndStatusOrderByChangeDateDesc(
+                        studentModality,
+                        finalStatus
+                )
+                .orElseThrow(() -> new RuntimeException(
+                        "No se encontró historial de evaluación final"
+                ));
+
+        return ResponseEntity.ok(
+                FinalDefenseResponse.builder()
+                        .studentModalityId(studentModality.getId())
+                        .studentName(student.getName() + " " + student.getLastName())
+                        .studentEmail(student.getEmail())
+                        .finalStatus(finalStatus)
+                        .approved(finalStatus == ModalityProcessStatus.GRADED_APPROVED)
+                        .academicDistinction(studentModality.getAcademicDistinction())
+                        .observations(history.getObservations())
+                        .evaluationDate(history.getChangeDate())
+                        .evaluatedBy(
+                                history.getResponsible() != null
+                                        ? history.getResponsible().getName()
+                                        : "Consejo del Programa"
+                        )
+                        .build()
+        );
+    }
+
+    public List<ProjectDirectorResponse> getProjectDirectors() {
+
+        return userRepository.findAllByRoles_Name("PROJECT_DIRECTOR")
+                .stream()
+                .map(user -> new ProjectDirectorResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getLastName(),
+                        user.getEmail()
+                ))
+                .collect(Collectors.toList());
+    }
+
 
 }

@@ -2,6 +2,7 @@ package com.SIGMA.USCO.Modalities.Controller;
 
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.dto.*;
+import com.SIGMA.USCO.Modalities.dto.response.ProjectDirectorResponse;
 import com.SIGMA.USCO.Modalities.service.ModalityService;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.service.DocumentService;
@@ -215,6 +216,23 @@ public class ModalityController {
     @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
     public ResponseEntity<?> registerFinalDefenseEvaluation(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
         return modalityService.registerFinalDefenseEvaluation(studentModalityId, request);
+    }
+
+    @GetMapping("/project-directors")
+    @PreAuthorize("hasAuthority('PERM_VIEW_PROJECT_DIRECTOR')")
+    public ResponseEntity<List<ProjectDirectorResponse>> getProjectDirectors() {
+        return ResponseEntity.ok(modalityService.getProjectDirectors());
+    }
+
+    @GetMapping("/{studentModalityId}/final-evaluation")
+    @PreAuthorize("hasAuthority('PERM_VIEW_FINAL_DEFENSE_RESULT')")
+    public ResponseEntity<?> getFinalDefenseResult(@PathVariable Long studentModalityId) {
+        return modalityService.getFinalDefenseResult(studentModalityId);
+    }
+
+    @GetMapping("/final-evaluation/my-result")
+    public ResponseEntity<?> getMyFinalDefenseResult() {
+        return modalityService.getMyFinalDefenseResult();
     }
 
 }
