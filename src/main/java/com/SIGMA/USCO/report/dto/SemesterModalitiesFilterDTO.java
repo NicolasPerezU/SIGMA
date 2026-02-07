@@ -1,7 +1,6 @@
 package com.SIGMA.USCO.report.dto;
 
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +15,5 @@ import java.time.LocalDateTime;
 public class SemesterModalitiesFilterDTO {
 
     private LocalDateTime startDate;
-    private ModalityType modalityType;
     private ModalityProcessStatus status;
 }

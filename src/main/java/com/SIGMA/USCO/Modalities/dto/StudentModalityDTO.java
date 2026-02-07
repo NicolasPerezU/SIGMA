@@ -15,6 +15,8 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentModalityDTO {
 
+    private String facultyName;
+    private String academicProgramName;
     private Long studentModalityId;
     private String modalityName;
     private String currentStatus;

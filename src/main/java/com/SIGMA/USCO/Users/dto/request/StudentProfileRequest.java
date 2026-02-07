@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class StudentProfileRequest {
 
+    private Long academicProgramId;
+    private Long facultyId;
     private Long approvedCredits;
     private Double gpa;
     private Long semester;

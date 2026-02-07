@@ -13,7 +13,7 @@ public class DocumentCorrectionsRequestedEvent extends DomainEvent {
     private final NotificationRecipientType requestedBy;
 
     public DocumentCorrectionsRequestedEvent(Long studentDocumentId, Long studentId, String observations, NotificationRecipientType requestedBy, Long triggeredByUserId) {
-        super(requestedBy == NotificationRecipientType.SECRETARY
+        super(requestedBy == NotificationRecipientType.PROGRAM_HEAD
         ? NotificationType.DOCUMENT_CORRECTIONS_REQUESTED
         : NotificationType.DOCUMENT_CORRECTIONS_REQUESTED, null,
                 triggeredByUserId);

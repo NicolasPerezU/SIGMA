@@ -3,18 +3,29 @@ package com.SIGMA.USCO.Users.service;
 import com.SIGMA.USCO.Modalities.Entity.DegreeModality;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
 import com.SIGMA.USCO.Modalities.Repository.DegreeModalityRepository;
+import com.SIGMA.USCO.Modalities.Repository.ModalityRequirementsRepository;
 import com.SIGMA.USCO.Modalities.dto.ModalityDTO;
+import com.SIGMA.USCO.Modalities.dto.RequirementDTO;
 import com.SIGMA.USCO.Users.Entity.Permission;
+import com.SIGMA.USCO.Users.Entity.ProgramAuthority;
 import com.SIGMA.USCO.Users.Entity.Role;
-import com.SIGMA.USCO.Users.Entity.Status;
+import com.SIGMA.USCO.Users.Entity.enums.ProgramRole;
+import com.SIGMA.USCO.Users.Entity.enums.Status;
 import com.SIGMA.USCO.Users.Entity.User;
+import com.SIGMA.USCO.Users.dto.request.assignAuthorityProgram;
 import com.SIGMA.USCO.Users.dto.request.PermissionDTO;
 import com.SIGMA.USCO.Users.dto.request.RoleRequest;
 import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.dto.response.UserResponse;
 import com.SIGMA.USCO.Users.repository.PermissionRepository;
+import com.SIGMA.USCO.Users.repository.ProgramAuthorityRepository;
 import com.SIGMA.USCO.Users.repository.RoleRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
+import com.SIGMA.USCO.academic.entity.AcademicProgram;
+import com.SIGMA.USCO.academic.repository.AcademicProgramRepository;
+import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
+import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -33,6 +44,10 @@ public class AdminService {
     private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
     private final DegreeModalityRepository degreeModalityRepository;
+    private final ModalityRequirementsRepository modalityRequirementsRepository;
+    private final RequiredDocumentRepository requiredDocumentRepository;
+    private final AcademicProgramRepository academicProgramRepository;
+    private final ProgramAuthorityRepository programAuthorityRepository;
 
 
     public ResponseEntity<?> getRoles() {
@@ -228,6 +243,89 @@ public class AdminService {
         return ResponseEntity.ok("Usuario desactivado correctamente.");
     }
 
+    @Transactional
+    public ProgramAuthority assignProgramHead(assignAuthorityProgram request){
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                .orElseThrow(() -> new RuntimeException("Programa académico no encontrado"));
+
+        Role programHeadRole = roleRepository.findByName("PROGRAM_HEAD")
+                .orElseThrow(() -> new RuntimeException("Rol PROGRAM_HEAD no encontrado"));
+
+        if (!user.getRoles().contains(programHeadRole)) {
+            user.getRoles().add(programHeadRole);
+            userRepository.save(user);
+        }
+
+        ProgramAuthority authority = ProgramAuthority.builder()
+                .user(user)
+                .academicProgram(program)
+                .role(ProgramRole.PROGRAM_HEAD)
+                .build();
+
+        programAuthorityRepository.save(authority);
+        return authority;
+    }
+
+    @Transactional
+    public ProgramAuthority assignProjectDirector(assignAuthorityProgram request){
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                .orElseThrow(() -> new RuntimeException("Programa académico no encontrado"));
+
+        Role projectDirector = roleRepository.findByName("PROJECT_DIRECTOR")
+                .orElseThrow(() -> new RuntimeException("Rol PROJECT_DIRECTOR no encontrado"));
+
+        if (!user.getRoles().contains(projectDirector)) {
+            user.getRoles().add(projectDirector);
+            userRepository.save(user);
+        }
+
+        ProgramAuthority authority = ProgramAuthority.builder()
+                .user(user)
+                .academicProgram(program)
+                .role(ProgramRole.PROJECT_DIRECTOR)
+                .build();
+
+        programAuthorityRepository.save(authority);
+        return authority;
+    }
+
+    @Transactional
+    public ProgramAuthority assignCommittee(assignAuthorityProgram request){
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                .orElseThrow(() -> new RuntimeException("Programa académico no encontrado"));
+
+        Role committee = roleRepository.findByName("PROGRAM_CURRICULUM_COMMITTEE")
+                .orElseThrow(() -> new RuntimeException("Rol PROGRAM_CURRICULUM_COMMITTEE no encontrado"));
+
+        if (!user.getRoles().contains(committee)) {
+            user.getRoles().add(committee);
+            userRepository.save(user);
+        }
+
+        ProgramAuthority authority = ProgramAuthority.builder()
+                .user(user)
+                .academicProgram(program)
+                .role(ProgramRole.PROGRAM_CURRICULUM_COMMITTEE)
+                .build();
+
+        programAuthorityRepository.save(authority);
+        return authority;
+    }
+
+
+
     public ResponseEntity<List<ModalityDTO>> getModalities(ModalityStatus status) {
 
         List<DegreeModality> modalities;
@@ -243,13 +341,52 @@ public class AdminService {
                         .id(mod.getId())
                         .name(mod.getName())
                         .description(mod.getDescription())
-                        .creditsRequired(mod.getCreditsRequired())
                         .status(mod.getStatus())
-                        .type(mod.getType())
-                        .build())
+
+
+                        .facultyId(mod.getFaculty().getId())
+                        .facultyName(mod.getFaculty().getName())
+
+
+                        .requirements(
+                                modalityRequirementsRepository.findByModalityId(mod.getId())
+                                        .stream()
+                                        .map(req -> RequirementDTO.builder()
+                                                .id(req.getId())
+                                                .requirementName(req.getRequirementName())
+                                                .description(req.getDescription())
+                                                .ruleType(req.getRuleType())
+                                                .expectedValue(req.getExpectedValue())
+                                                .active(req.isActive())
+                                                .build())
+                                        .toList()
+                        )
+
+
+                        .documents(
+                                requiredDocumentRepository.findByModalityId(mod.getId())
+                                        .stream()
+                                        .map(doc -> RequiredDocumentDTO.builder()
+                                                .id(doc.getId())
+                                                .modalityId( doc.getModality().getId())
+                                                .documentName(doc.getDocumentName())
+                                                .description(doc.getDescription())
+                                                .allowedFormat(doc.getAllowedFormat())
+                                                .maxFileSizeMB(doc.getMaxFileSizeMB())
+                                                .mandatory(doc.isMandatory())
+                                                .active(doc.isActive())
+                                                .build())
+                                        .toList()
+                        )
+
+                        .build()
+                )
                 .toList();
 
         return ResponseEntity.ok(response);
     }
+
+
+
 
 }

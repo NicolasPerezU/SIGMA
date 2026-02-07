@@ -1,7 +1,7 @@
 package com.SIGMA.USCO.Users.repository;
 
 
-import com.SIGMA.USCO.Users.Entity.Status;
+import com.SIGMA.USCO.Users.Entity.enums.Status;
 import com.SIGMA.USCO.Users.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 

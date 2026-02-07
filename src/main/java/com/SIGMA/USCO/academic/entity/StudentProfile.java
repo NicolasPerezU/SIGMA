@@ -1,5 +1,6 @@
-package com.SIGMA.USCO.Users.Entity;
+package com.SIGMA.USCO.academic.entity;
 
+import com.SIGMA.USCO.Users.Entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,15 @@ public class StudentProfile {
     @MapsId
     @JoinColumn(name = "user_id")
     private User user;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "academic_program_id")
+    private AcademicProgram academicProgram;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "faculty_id")
+    private Faculty faculty;
+
 
     private Long approvedCredits;
     private Double gpa;            // Grade Point Average (promedio)

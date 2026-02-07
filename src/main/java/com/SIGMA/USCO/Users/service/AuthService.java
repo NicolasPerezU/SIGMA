@@ -1,9 +1,11 @@
 package com.SIGMA.USCO.Users.service;
 
 import com.SIGMA.USCO.Users.Entity.*;
+import com.SIGMA.USCO.Users.Entity.enums.Status;
 import com.SIGMA.USCO.Users.dto.request.AuthRequest;
 import com.SIGMA.USCO.Users.dto.request.ResetPasswordRequest;
 import com.SIGMA.USCO.Users.repository.*;
+import com.SIGMA.USCO.academic.repository.StudentProfileRepository;
 import com.SIGMA.USCO.config.EmailService;
 import com.SIGMA.USCO.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -34,39 +36,34 @@ public class AuthService {
 
     public ResponseEntity<?> register(AuthRequest request) {
 
-
         if (request.getName().isEmpty() ||
                 request.getLastName().isEmpty() ||
                 request.getEmail().isEmpty() ||
                 request.getPassword().isEmpty()) {
 
-            return ResponseEntity.badRequest().body("Todos los campos son obligatorios (nombre, apellido, correo y contraseña)");
+            return ResponseEntity.badRequest()
+                    .body("Todos los campos son obligatorios (nombre, apellido, correo y contraseña)");
         }
 
+        String email = request.getEmail().trim().toLowerCase();
 
-        String email = request.getEmail().trim();
-
-        if (!email.toLowerCase().endsWith("@usco.edu.co")) {
-            return ResponseEntity
-                    .badRequest()
+        if (!email.endsWith("@usco.edu.co")) {
+            return ResponseEntity.badRequest()
                     .body("El correo debe ser institucional con dominio @usco.edu.co");
         }
 
-
         if (userRepository.existsByEmail(email)) {
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("Este correo ya está en uso");
         }
 
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new RuntimeException("El rol STUDENT no existe en la base de datos."));
 
-
         User user = User.builder()
                 .name(request.getName())
                 .lastName(request.getLastName())
-                .email(email.toLowerCase())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .roles(Set.of(studentRole))
                 .status(Status.ACTIVE)
@@ -76,22 +73,11 @@ public class AuthService {
 
         userRepository.save(user);
 
-        if (userHasStudentRole(user)) {
-            StudentProfile profile = StudentProfile.builder()
-                    .user(user)
-                    .approvedCredits(0L)
-                    .gpa(0.0)
-                    .semester(0L)
-                    .studentCode(null)
-                    .build();
-            studentProfileRepository.save(profile);
-        }
-
-
         String token = jwtService.generateToken(user);
 
         return ResponseEntity.ok(token);
     }
+
 
     private boolean userHasStudentRole(User user) {
         return user.getRoles().stream()

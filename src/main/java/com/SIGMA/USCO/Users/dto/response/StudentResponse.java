@@ -21,4 +21,9 @@ public class StudentResponse {
     private Long semester;
     private String studentCode;
 
+    private String faculty;
+    private String academicProgram;
+
+
+
 }

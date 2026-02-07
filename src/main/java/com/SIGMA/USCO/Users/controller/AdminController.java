@@ -2,6 +2,8 @@ package com.SIGMA.USCO.Users.controller;
 
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
 import com.SIGMA.USCO.Modalities.dto.ModalityDTO;
+import com.SIGMA.USCO.Users.Entity.ProgramAuthority;
+import com.SIGMA.USCO.Users.dto.request.assignAuthorityProgram;
 import com.SIGMA.USCO.Users.dto.request.PermissionDTO;
 import com.SIGMA.USCO.Users.dto.request.RoleRequest;
 import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
@@ -12,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -80,6 +83,59 @@ public class AdminController {
         return adminService.getModalities(status);
     }
 
+    @PostMapping("/assign-program-head")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_PROGRAM_HEAD')")
+    public ResponseEntity<?> assignProgramHead(@RequestBody assignAuthorityProgram request){
+
+        try {
+            ProgramAuthority assigned = adminService.assignProgramHead(request);
+            return ResponseEntity.ok(
+                    Map.of(
+                        "message", "Se ha asignado el jefe de programa correctamente"
+                     )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
+
+    @PostMapping("/assign-project-director")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_PROGRAM_HEAD')")
+    public ResponseEntity<?> assignProjectDirector(@RequestBody assignAuthorityProgram request){
+
+        try {
+            ProgramAuthority assigned = adminService.assignProjectDirector(request);
+            return ResponseEntity.ok(
+                    Map.of(
+                            "message", "Se ha asignado el director de proyecto correctamente"
+                    )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
+
+    @PostMapping("/assign-committee-member")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_PROGRAM_HEAD')")
+    public ResponseEntity<?> assignCommittee(@RequestBody assignAuthorityProgram request){
+
+        try {
+            ProgramAuthority assigned = adminService.assignCommittee(request);
+            return ResponseEntity.ok(
+                    Map.of(
+                            "message", "Se ha asignado el miembro del comité correctamente"
+                    )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
 
 
 

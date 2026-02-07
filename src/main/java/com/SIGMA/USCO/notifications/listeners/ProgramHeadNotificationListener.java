@@ -19,11 +19,10 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType.SECRETARY;
 
 @RequiredArgsConstructor
 @Component
-public class SecretaryNotificationListener {
+public class ProgramHeadNotificationListener {
 
     private final StudentModalityRepository studentModalityRepository;
     private final NotificationRepository notificationRepository;
@@ -35,12 +34,11 @@ public class SecretaryNotificationListener {
     public void handleModalityStartedEvent(StudentModalityStarted event){
 
         StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
         String subject = "Nueva modalidad iniciada - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
 
         String message = """
-                Hola Secretaría,
+                Hola Jefatura de Programa,
                 
                 Se ha iniciado una nueva modalidad de grado:
                 
@@ -52,14 +50,14 @@ public class SecretaryNotificationListener {
                 
                 Sistema SIGMA
                 """.formatted(
-                studentModality.getModality().getName(),
+                studentModality.getProgramDegreeModality().getDegreeModality().getName(),
                 studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
         );
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
             Notification notification = Notification.builder()
                     .type(NotificationType.MODALITY_STARTED)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(null)
                     .studentModality(studentModality)
                     .subject(subject)
@@ -76,24 +74,22 @@ public class SecretaryNotificationListener {
     @EventListener
     public void onStudentDocumentUpdated(StudentDocumentUpdatedEvent event) {
 
-        StudentModality modality =
-                studentModalityRepository.findById(event.getStudentModalityId())
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
-        StudentDocument document =
-                studentDocumentRepository.findById(event.getStudentDocumentId())
+        StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
                         .orElseThrow();
 
         User student = modality.getStudent();
 
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads =
+                userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
         String subject = "Documento actualizado por estudiante";
 
         String message = """
             El estudiante %s ha actualizado o resubido
-            un documento solicitado por Secretaría.
+            un documento solicitado por jefatura del programa.
 
             Estudiante:
             %s (%s)
@@ -115,19 +111,19 @@ public class SecretaryNotificationListener {
                 student.getName(),
                 student.getName() + " " + student.getLastName(),
                 student.getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 document.getDocumentConfig().getDocumentName(),
                 document.getStatus()
         );
 
 
 
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.DOCUMENT_UPLOADED)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(student)
                     .studentModality(modality)
                     .subject(subject)
@@ -145,13 +141,12 @@ public class SecretaryNotificationListener {
         StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
 
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
         String subject = "Sustentación programada - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
 
         String message = """
-                Hola Secretaría,
+                Hola jefatura del programa,
                 
                 Se ha programado una sustentación para la modalidad:
                 
@@ -166,17 +161,17 @@ public class SecretaryNotificationListener {
                 
                 Sistema SIGMA
                 """.formatted(
-                studentModality.getModality().getName(),
+                studentModality.getProgramDegreeModality().getDegreeModality().getName(),
                 studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName(),
                 event.getDefenseDate().toString(),
                 event.getDefenseLocation()
         );
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.DEFENSE_SCHEDULED)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(null)
                     .studentModality(studentModality)
                     .subject(subject)
@@ -194,13 +189,13 @@ public class SecretaryNotificationListener {
 
         StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads =
+                userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
         String subject = "Nuevo director asignado - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
 
         String message = """
-                Hola Secretaría,
+                Hola jefatura del programa,
                 
                 Se ha asignado un nuevo director para la modalidad:
                 
@@ -209,15 +204,15 @@ public class SecretaryNotificationListener {
                 del estudiante %s.
                 
                 """.formatted(
-                studentModality.getModality().getName(),
+                studentModality.getProgramDegreeModality().getDegreeModality().getName(),
                 studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
         );
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.DIRECTOR_ASSIGNED)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(null)
                     .studentModality(studentModality)
                     .subject(subject)
@@ -242,8 +237,8 @@ public class SecretaryNotificationListener {
             return;
         }
 
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads =
+                userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
 
 
@@ -275,18 +270,18 @@ public class SecretaryNotificationListener {
                 director.getName(),
                 modality.getStudent().getName(),
                 modality.getStudent().getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getFinalStatus().toString(),
                 event.getAcademicDistinction().toString(),
                 event.getObservations() != null ? event.getObservations() : "N/A"
         );
 
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.DEFENSE_COMPLETED)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(null)
                     .studentModality(modality)
                     .subject(subject)
@@ -301,20 +296,19 @@ public class SecretaryNotificationListener {
     }
 
     @EventListener
-    public void ModalityApproved(ModalityApprovedByCouncilEvent event){
+    public void ModalityApproved(ModalityApprovedByCommitteeEvent event){
         StudentModality modality =
                 studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
-        List<User> secretaries =
-                userRepository.findAllByRoles_Name("SECRETARY");
+        List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
-        String subject = "Modalidad aprobada por el consejo - Estudiante: " + modality.getStudent().getName() + " " + modality.getStudent().getLastName();
+        String subject = "Modalidad aprobada por el comité de currículo de programa - Estudiante: " + modality.getStudent().getName() + " " + modality.getStudent().getLastName();
 
         String message = """
-                Hola Secretaría,
+                Hola Jefatura de programa,
 
-                La modalidad de grado ha sido aprobada por el consejo:
+                La modalidad de grado ha sido aprobada por el comité de currículo de programa.
 
                 Estudiante:
                 %s (%s)
@@ -329,16 +323,16 @@ public class SecretaryNotificationListener {
                 """.formatted(
                 modality.getStudent().getName(),
                 modality.getStudent().getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 modality.getSelectionDate()
         );
 
-        for (User secretary : secretaries) {
+        for (User programHead : programHeads) {
 
             Notification notification = Notification.builder()
-                    .type(NotificationType.MODALITY_APPROVED_BY_COUNCIL)
-                    .recipientType(NotificationRecipientType.SECRETARY)
-                    .recipient(secretary)
+                    .type(NotificationType.MODALITY_APPROVED_BY_PROGRAM_CURRICULUM_COMMITTEE)
+                    .recipientType(NotificationRecipientType.PROGRAM_HEAD)
+                    .recipient(programHead)
                     .triggeredBy(null)
                     .studentModality(modality)
                     .subject(subject)

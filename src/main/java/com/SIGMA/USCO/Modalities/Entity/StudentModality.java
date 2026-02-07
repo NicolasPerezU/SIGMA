@@ -3,6 +3,8 @@ package com.SIGMA.USCO.Modalities.Entity;
 import com.SIGMA.USCO.Modalities.Entity.enums.AcademicDistinction;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Users.Entity.User;
+import com.SIGMA.USCO.academic.entity.AcademicProgram;
+import com.SIGMA.USCO.academic.entity.ProgramDegreeModality;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,11 +27,20 @@ public class StudentModality {
     private Long id;
 
     @ManyToOne(optional = false)
+    @JoinColumn(name = "student_id")
     private User student;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "modality_id")
-    private DegreeModality modality;
+    @JoinColumn(name = "academic_program_id")
+    private AcademicProgram academicProgram;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "program_degree_modality_id")
+    private ProgramDegreeModality programDegreeModality;
+
+    @OneToMany(mappedBy = "studentModality", cascade = CascadeType.ALL)
+    private List<ModalityProcessStatusHistory> statusHistory;
+
 
     @Enumerated(EnumType.STRING)
     private ModalityProcessStatus status;
@@ -37,8 +48,7 @@ public class StudentModality {
     private LocalDateTime selectionDate;
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "studentModality", cascade = CascadeType.ALL)
-    private List<ModalityProcessStatusHistory> statusHistory;
+
 
     @ManyToOne
     private User projectDirector;

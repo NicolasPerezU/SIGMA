@@ -11,7 +11,7 @@ import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
 import com.SIGMA.USCO.notifications.event.CancellationRequestedEvent;
-import com.SIGMA.USCO.notifications.event.ModalityApprovedBySecretary;
+import com.SIGMA.USCO.notifications.event.ModalityApprovedByProgramHead;
 import com.SIGMA.USCO.notifications.event.StudentDocumentUpdatedEvent;
 import com.SIGMA.USCO.notifications.repository.NotificationRepository;
 import com.SIGMA.USCO.notifications.service.NotificationDispatcherService;
@@ -25,7 +25,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Component
-public class CouncilNotificationListener {
+public class CommitteeNotificationListener {
 
     private final StudentModalityRepository studentModalityRepository;
     private final NotificationRepository notificationRepository;
@@ -38,7 +38,7 @@ public class CouncilNotificationListener {
 
         StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        List<User> councilMembers = userRepository.findAllByRoles_Name("COUNCIL");
+        List<User> committeeMembers = userRepository.findAllByRoles_Name("PROGRAM_CURRICULUM_COMMITTEE");
 
         String subject = "Solicitud de cancelación de modalidad";
 
@@ -56,12 +56,12 @@ public class CouncilNotificationListener {
                 studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
         );
 
-        for (User councilMember : councilMembers) {
+        for (User committeeMember : committeeMembers) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.MODALITY_CANCELLATION_REQUESTED)
-                    .recipientType(NotificationRecipientType.COUNCIL)
-                    .recipient(councilMember)
+                    .recipientType(NotificationRecipientType.PROGRAM_CURRICULUM_COMMITTEE)
+                    .recipient(committeeMember)
                     .triggeredBy(studentModality.getStudent())
                     .studentModality(studentModality)
                     .subject(subject)
@@ -76,20 +76,20 @@ public class CouncilNotificationListener {
     }
 
     @EventListener
-    public void onModalityApprovedBySecretary(ModalityApprovedBySecretary event) {
+    public void onModalityApprovedByProgramHead(ModalityApprovedByProgramHead event) {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        List<User> councilMembers =
-                userRepository.findAllByRoles_Name("COUNCIL");
+        List<User> committeeMembers =
+                userRepository.findAllByRoles_Name("PROGRAM_CURRICULUM_COMMITTEE");
 
-        String subject = "Modalidad de grado aprobada por Secretaría";
+        String subject = "Modalidad de grado aprobada por Jefatura de Programa";
 
         String message = """
                 La modalidad de grado del estudiante:
 
                 "%s"
 
-                ha sido aprobada por Secretaría. Por favor,
+                ha sido aprobada por jefatura del programa. Por favor,
                 proceda con las siguientes etapas del proceso.
 
                 Sistema SIGMA
@@ -97,12 +97,12 @@ public class CouncilNotificationListener {
                 modality.getStudent().getName() + " " + modality.getStudent().getLastName()
         );
 
-        for (User councilMember : councilMembers) {
+        for (User committeMember : committeeMembers) {
 
             Notification notification = Notification.builder()
-                    .type(NotificationType.MODALITY_APPROVED_BY_SECRETARY)
-                    .recipientType(NotificationRecipientType.COUNCIL)
-                    .recipient(councilMember)
+                    .type(NotificationType.MODALITY_APPROVED_BY_PROGRAM_HEAD)
+                    .recipientType(NotificationRecipientType.PROGRAM_CURRICULUM_COMMITTEE)
+                    .recipient(committeMember)
                     .triggeredBy(modality.getStudent())
                     .studentModality(modality)
                     .subject(subject)
@@ -121,8 +121,8 @@ public class CouncilNotificationListener {
 
     private static final EnumSet<ModalityProcessStatus> VALID_STATES =
             EnumSet.of(
-                    ModalityProcessStatus.READY_FOR_COUNCIL,
-                    ModalityProcessStatus.UNDER_REVIEW_COUNCIL,
+                    ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE,
+                    ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE,
                     ModalityProcessStatus.PROPOSAL_APPROVED,
                     ModalityProcessStatus.DEFENSE_SCHEDULED
             );
@@ -161,20 +161,20 @@ public class CouncilNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName() + " " + student.getLastName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getAcademicProgram().getName(),
                 document.getDocumentConfig().getDocumentName(),
                 document.getStatus()
         );
 
-        List<User> councilMembers =
-                userRepository.findAllByRoles_Name("COUNCIL");
+        List<User> committeeMembers =
+                userRepository.findAllByRoles_Name("PROGRAM_CURRICULUM_COMMITTEE");
 
-        for (User council : councilMembers) {
+        for (User committee : committeeMembers) {
 
             Notification notification = Notification.builder()
                     .type(NotificationType.DOCUMENT_UPLOADED)
-                    .recipientType(NotificationRecipientType.COUNCIL)
-                    .recipient(council)
+                    .recipientType(NotificationRecipientType.PROGRAM_CURRICULUM_COMMITTEE)
+                    .recipient(committee)
                     .triggeredBy(student)
                     .studentModality(modality)
                     .subject(subject)

@@ -7,12 +7,12 @@ import lombok.Getter;
 public class CancellationApprovedEvent extends DomainEvent {
 
     private final Long studentModalityId;
-    private final Long councilUserId;
+    private final Long curriculumUserId;
 
-    public CancellationApprovedEvent(Long studentModalityId,Long councilUserId) {
-        super(NotificationType.MODALITY_CANCELLATION_APPROVED,studentModalityId, councilUserId);
+    public CancellationApprovedEvent(Long studentModalityId,Long curriculumUserId) {
+        super(NotificationType.MODALITY_CANCELLATION_APPROVED,studentModalityId, curriculumUserId);
         this.studentModalityId = studentModalityId;
-        this.councilUserId = councilUserId;
+        this.curriculumUserId = curriculumUserId;
     }
 
 }

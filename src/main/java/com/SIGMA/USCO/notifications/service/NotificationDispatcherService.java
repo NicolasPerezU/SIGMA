@@ -19,7 +19,8 @@ public class NotificationDispatcherService {
     private boolean shouldSendEmail(Notification notification) {
         return switch (notification.getRecipientType()) {
             case STUDENT, PROJECT_DIRECTOR -> true;
-            case SECRETARY, COUNCIL -> false;
+            case PROGRAM_HEAD -> false; // ESTO SIRVE PARA QUE NO SE ENVÍEN CORREOS A LOS JEFES DE PROGRAMA
+            case PROGRAM_CURRICULUM_COMMITTEE -> false; //  ESTO SIRVE PARA QUE NO SE ENVÍEN CORREOS A LOS COMITÉS DE CURRÍCULO DE PROGRAMA
             default -> false;
         };
     }

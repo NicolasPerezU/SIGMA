@@ -9,6 +9,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.core.parameters.P;
 
 import java.util.Set;
 
@@ -57,14 +58,23 @@ public class DataInitializer {
             Permission viewRequiredDocument = createPermission("VIEW_REQUIRED_DOCUMENT");
             Permission viewProjectDirector = createPermission("VIEW_PROJECT_DIRECTOR");
             Permission viewFinalDefenseResult = createPermission("VIEW_FINAL_DEFENSE_RESULT");
+            Permission createFaculty = createPermission("CREATE_FACULTY");
+            Permission createProgram = createPermission("CREATE_PROGRAM");
+            Permission createProgramDegreeModality = createPermission("CREATE_PROGRAM_DEGREE_MODALITY");
+            Permission assignProgramHead = createPermission("ASSIGN_PROGRAM_HEAD");
+            Permission viewFaculties = createPermission("VIEW_FACULTIES");
+            Permission updateFaculty = createPermission("UPDATE_FACULTY");
+            Permission deleteFaculty = createPermission("DELETE_FACULTY");
+            Permission viewPrograms = createPermission("VIEW_PROGRAMS");
+            Permission updateProgram = createPermission("UPDATE_PROGRAM");
 
 
             // Crear roles y asignar permisos
-            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult));
+            createRole("SUPERADMIN", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality, assignProgramHead, viewFaculties, updateFaculty, deleteFaculty, viewPrograms, updateProgram));
 
-            createRole("SECRETARY", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult));
+            createRole("PROGRAM_HEAD", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality));
 
-            createRole("COUNCIL", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult));
+            createRole("PROGRAM_CURRICULUM_COMMITTEE", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality));
 
             createRole("STUDENT", Set.of(verDocumentos));
 

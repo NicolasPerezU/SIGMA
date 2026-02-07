@@ -2,7 +2,6 @@ package com.SIGMA.USCO.Modalities.dto;
 
 
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
 import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,11 +17,12 @@ import java.util.List;
 public class ModalityDTO {
 
     private Long id;
+    private Long facultyId;
+    private String facultyName;
     private String name;
     private String description;
-    private Long creditsRequired;
     private ModalityStatus status;
-    private ModalityType type;
+    private Double requiredCredits;
     private List<RequirementDTO> requirements;
     private List<RequiredDocumentDTO> documents;
 

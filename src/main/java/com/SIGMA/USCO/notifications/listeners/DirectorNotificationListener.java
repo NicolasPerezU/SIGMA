@@ -46,12 +46,12 @@ public class DirectorNotificationListener {
 
                 "%s"
 
-                del estudiante %s ha sido APROBADA por el concejo.
+                del estudiante %s ha sido APROBADA por el comité de currículo de programa .
 
                 Sistema SIGMA
                 """.formatted(
                 sm.getProjectDirector().getName(),
-                sm.getModality().getName(),
+                sm.getProgramDegreeModality().getDegreeModality().getName(),
                 sm.getStudent().getName() + " " + sm.getStudent().getLastName()
         );
 
@@ -88,12 +88,12 @@ public class DirectorNotificationListener {
 
                 "%s"
 
-                del estudiante %s ha sido RECHAZADA por el concejo.
+                del estudiante %s ha sido RECHAZADA por el comité de currículo de programa.
 
                 Sistema SIGMA
                 """.formatted(
                 sm.getProjectDirector().getName(),
-                sm.getModality().getName(),
+                sm.getProgramDegreeModality().getDegreeModality().getName(),
                 sm.getStudent().getName() + " " + sm.getStudent().getLastName()
         );
 
@@ -129,13 +129,13 @@ public class DirectorNotificationListener {
 
                 "%s"
 
-                Esta solicitud será evaluada por el concejo Académico.
+                Esta solicitud será evaluada por el comité de currículo de programa.
 
                 Sistema SIGMA
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getStudent().getName() + " " + sm.getStudent().getLastName(),
-                sm.getModality().getName()
+                sm.getProgramDegreeModality().getDegreeModality().getName()
         );
 
 
@@ -195,7 +195,7 @@ public class DirectorNotificationListener {
                 director.getName(),
                 modality.getStudent().getName(),
                 modality.getStudent().getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getDefenseDate(),
                 event.getDefenseLocation()
         );
@@ -253,7 +253,7 @@ public class DirectorNotificationListener {
                 director.getName(),
                 student.getName() + " " + student.getLastName(),
                 student.getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getAcademicProgram().getName(),
                 modality.getUpdatedAt()
         );
 
@@ -311,7 +311,7 @@ public class DirectorNotificationListener {
                 director.getName(),
                 modality.getStudent().getName(),
                 modality.getStudent().getEmail(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getFinalStatus().toString(),
                 event.getAcademicDistinction().toString(),
                 event.getObservations() != null ? event.getObservations() : "N/A"
@@ -366,7 +366,7 @@ public class DirectorNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName() + " " + student.getLastName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 document.getDocumentConfig().getDocumentName(),
                 document.getStatus()
         );

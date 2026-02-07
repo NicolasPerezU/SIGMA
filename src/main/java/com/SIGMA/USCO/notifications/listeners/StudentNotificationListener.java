@@ -5,7 +5,6 @@ import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.config.EmailService;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
@@ -51,13 +50,13 @@ public class StudentNotificationListener {
                 ha sido oficialmente iniciada.
 
                 Estado actual:
-                EN PROGRESO: A la espera de aprobación por secretaría y concejo académico.
+                EN PROGRESO: A la espera de aprobación por jefatura de programa y el comité de currículo de programa.
 
             
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName()
+                modality.getProgramDegreeModality().getDegreeModality().getName()
         );
 
 
@@ -101,9 +100,9 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                event.getRequestedBy() == NotificationRecipientType.SECRETARY
-                        ? "La Secretaría"
-                        : "El Concejo Académico",
+                event.getRequestedBy() == NotificationRecipientType.PROGRAM_HEAD
+                        ? "La jefatura de programa"
+                        : "El Comité de currículo de programa",
                 document.getDocumentConfig().getDocumentName(),
                 event.getObservations()
         );
@@ -140,12 +139,12 @@ public class StudentNotificationListener {
                 "%s"
 
                 ha sido registrada correctamente y será evaluada
-                por el concejo Académico.
+                por el comité de currículo de programa.
 
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                sm.getModality().getName()
+                sm.getProgramDegreeModality().getDegreeModality().getName()
         );
 
         Notification notification = Notification.builder()
@@ -176,7 +175,7 @@ public class StudentNotificationListener {
         String message = """
                 Hola %s,
 
-                El concejo académico ha APROBADO la cancelación
+                El comité de currículo de programa ha APROBADO la cancelación
                 de tu modalidad de grado:
 
                 "%s"
@@ -186,7 +185,7 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                sm.getModality().getName()
+                sm.getProgramDegreeModality().getDegreeModality().getName()
         );
 
 
@@ -217,7 +216,7 @@ public class StudentNotificationListener {
         String message = """
                 Hola %s,
 
-                El concejo Académico ha RECHAZADO tu solicitud
+                El comité de currículo de programa ha RECHAZADO tu solicitud
                 de cancelación de la modalidad:
 
                 "%s"
@@ -225,12 +224,12 @@ public class StudentNotificationListener {
                 Motivo:
                 %s
 
-                Para mayor información, comunícate con Secretaría.
+                Para mayor información, comunícate con Jefatura de programa.
 
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                sm.getModality().getName(),
+                sm.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getReason()
         );
 
@@ -286,7 +285,7 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getDefenseDate(),
                 event.getDefenseLocation(),
                 director != null
@@ -342,7 +341,7 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 director.getName() + " " + director.getLastName(),
                 director.getEmail()
         );
@@ -413,13 +412,13 @@ public class StudentNotificationListener {
                 %s
 
                 Próximos pasos:
-                Por favor comunícate con Secretaría para
+                Por favor comunícate con Jefatura de programa para
                 completar los trámites finales.
 
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getAcademicDistinction() != null
                         ? event.getAcademicDistinction().name()
                         : "Ninguna",
@@ -448,7 +447,7 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getObservations() != null && !event.getObservations().isBlank()
                         ? event.getObservations()
                         : "Ninguna"
@@ -456,7 +455,7 @@ public class StudentNotificationListener {
     }
 
     @EventListener
-    public void ModalityApprovedByCouncil(ModalityApprovedByCouncilEvent event) {
+    public void ModalityApprovedByCommittee(ModalityApprovedByCommitteeEvent event) {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
@@ -488,7 +487,7 @@ public class StudentNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
                 modality.getProjectDirector() != null
                         ? modality.getProjectDirector().getName() + " " +
                         modality.getProjectDirector().getLastName()
@@ -499,7 +498,7 @@ public class StudentNotificationListener {
 
 
         Notification notification = Notification.builder()
-                .type(NotificationType.MODALITY_APPROVED_BY_COUNCIL)
+                .type(NotificationType.MODALITY_APPROVED_BY_PROGRAM_CURRICULUM_COMMITTEE)
                 .recipientType(NotificationRecipientType.STUDENT)
                 .recipient(student)
                 .triggeredBy(null)
@@ -513,14 +512,14 @@ public class StudentNotificationListener {
     }
 
     @EventListener
-    public void ModalityApprovedBySecretary(ModalityApprovedBySecretary event) {
+    public void ModalityApprovedByProgramHead(ModalityApprovedByProgramHead event) {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
         User student = modality.getStudent();
 
         String subject =
-                "Modalidad APROBADA por Secretaría – SIGMA";
+                "Modalidad APROBADA por Jefatura de programa – SIGMA";
 
         String message = """
                 Hola %s,
@@ -529,21 +528,21 @@ public class StudentNotificationListener {
 
                 "%s"
 
-                ha sido APROBADA por Secretaría.
+                ha sido APROBADA por la Jefatura de programa.
 
                 Próximos pasos:
-                Por favor espera la aprobación por parte del concejo académico para continuar con el proceso académico.
+                Por favor espera la aprobación por parte del comité de currículo de programa para continuar con el proceso académico.
 
                 Sistema SIGMA
                 """.formatted(
                 student.getName(),
-                modality.getModality().getName()
+                modality.getProgramDegreeModality().getDegreeModality().getName()
         );
 
 
 
         Notification notification = Notification.builder()
-                .type(NotificationType.MODALITY_APPROVED_BY_SECRETARY)
+                .type(NotificationType.MODALITY_APPROVED_BY_PROGRAM_HEAD)
                 .recipientType(NotificationRecipientType.STUDENT)
                 .recipient(student)
                 .triggeredBy(null)

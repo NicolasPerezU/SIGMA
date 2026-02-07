@@ -1,7 +1,7 @@
-package com.SIGMA.USCO.Users.repository;
+package com.SIGMA.USCO.academic.repository;
 
 
-import com.SIGMA.USCO.Users.Entity.StudentProfile;
+import com.SIGMA.USCO.academic.entity.StudentProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

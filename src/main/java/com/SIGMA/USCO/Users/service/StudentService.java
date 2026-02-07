@@ -2,11 +2,15 @@ package com.SIGMA.USCO.Users.service;
 
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
-import com.SIGMA.USCO.Users.Entity.StudentProfile;
+import com.SIGMA.USCO.academic.entity.AcademicProgram;
+import com.SIGMA.USCO.academic.entity.Faculty;
+import com.SIGMA.USCO.academic.entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
 import com.SIGMA.USCO.Users.dto.response.StudentResponse;
-import com.SIGMA.USCO.Users.repository.StudentProfileRepository;
+import com.SIGMA.USCO.academic.repository.AcademicProgramRepository;
+import com.SIGMA.USCO.academic.repository.FacultyRepository;
+import com.SIGMA.USCO.academic.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
@@ -29,56 +33,83 @@ public class StudentService {
     private final StudentProfileRepository studentProfileRepository;
     private final StudentModalityRepository studentModalityRepository;
     private final StudentDocumentRepository studentDocumentRepository;
+    private final FacultyRepository facultyRepository;
+    private final AcademicProgramRepository academicProgramRepository;
 
     public ResponseEntity<?> updateStudentProfile(StudentProfileRequest request) {
 
-        
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
 
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.status(404).body("Usuario no encontrado");
-        }
+        StudentProfile studentProfile = studentProfileRepository
+                .findByUserId(user.getId())
+                .orElseGet(() -> {
+                    StudentProfile sp = new StudentProfile();
+                    sp.setUser(user);
+                    return sp;
+                });
 
-        User user = userOpt.get();
-        Optional<StudentProfile> studentProfileOpt = studentProfileRepository.findByUserId(user.getId());
-        StudentProfile studentProfile;
-
-
-        if (studentProfileOpt.isPresent()) {
-            studentProfile = studentProfileOpt.get();
-        } else {
-            studentProfile = new StudentProfile();
-            studentProfile.setUser(user);
-        }
 
 
         if (request.getSemester() < 1 || request.getSemester() > 10) {
             return ResponseEntity.badRequest().body("El semestre debe estar entre 1 y 10.");
         }
 
-
         if (request.getGpa() < 0.0 || request.getGpa() > 5.0) {
-            return ResponseEntity.badRequest().body("La nota promedio debe estar entre 0.0 y 5.0.");
+            return ResponseEntity.badRequest().body("El promedio debe estar entre 0.0 y 5.0.");
+        }
+
+        if (request.getApprovedCredits() < 0) {
+            return ResponseEntity.badRequest().body("Los créditos aprobados no pueden ser negativos.");
         }
 
 
-        if (request.getApprovedCredits() > 180) {
-            return ResponseEntity.badRequest().body("El número máximo de créditos aprobados es 180.");
+
+        Faculty faculty = facultyRepository.findById(request.getFacultyId())
+                .orElseThrow(() ->
+                        new RuntimeException("La facultad con ID " + request.getFacultyId() + " no existe")
+                );
+
+
+
+        AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                .orElseThrow(() ->
+                        new RuntimeException("El programa académico con ID " + request.getAcademicProgramId() + " no existe")
+                );
+
+
+        if (!program.getFaculty().getId().equals(faculty.getId())) {
+            return ResponseEntity.badRequest().body(
+                    "El programa académico no pertenece a la facultad seleccionada."
+            );
         }
 
 
+        // (opcional pero muy recomendada)
+        if (request.getApprovedCredits() > program.getTotalCredits()) {
+            return ResponseEntity.badRequest().body(
+                    "Los créditos aprobados no pueden superar el total del programa (" +
+                            program.getTotalCredits() + ")."
+            );
+        }
+
+
+
+        studentProfile.setFaculty(faculty);
+        studentProfile.setAcademicProgram(program);
         studentProfile.setStudentCode(request.getStudentCode());
+        studentProfile.setSemester(request.getSemester());
         studentProfile.setGpa(request.getGpa());
         studentProfile.setApprovedCredits(request.getApprovedCredits());
-        studentProfile.setSemester(request.getSemester());
 
         studentProfileRepository.save(studentProfile);
 
-        return ResponseEntity.ok("Datos de perfil de estudiante actualizados correctamente");
+        return ResponseEntity.ok("Perfil académico actualizado correctamente");
     }
+
 
     public ResponseEntity<?> getStudentProfile() {
 
@@ -99,6 +130,9 @@ public class StudentService {
                 .gpa(profileOpt.map(StudentProfile::getGpa).orElse(null))
                 .semester(profileOpt.map(StudentProfile::getSemester).orElse(null))
                 .studentCode(profileOpt.map(StudentProfile::getStudentCode).orElse(null))
+                .faculty( profileOpt.map(StudentProfile::getFaculty).map(Faculty::getName).orElse(null))
+                .academicProgram(profileOpt.map(StudentProfile::getAcademicProgram).map(AcademicProgram::getName).orElse(null))
+
                 .build();
         return ResponseEntity.ok(response);
 

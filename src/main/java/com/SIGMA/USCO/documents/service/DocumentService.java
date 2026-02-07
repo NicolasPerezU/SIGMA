@@ -129,6 +129,7 @@ public class DocumentService {
                         .stream()
                         .map(doc -> RequiredDocumentDTO.builder()
                                 .id(doc.getId())
+                                .modalityId( doc.getModality().getId())
                                 .documentName(doc.getDocumentName())
                                 .description(doc.getDescription())
                                 .allowedFormat(doc.getAllowedFormat())
@@ -177,23 +178,23 @@ public class DocumentService {
             case PENDING ->
                     "Documento cargado y pendiente de revisión.";
 
-            case ACCEPTED_FOR_SECRETARY_REVIEW ->
-                    "Documento aprobado por la Secretaría.";
+            case ACCEPTED_FOR_PROGRAM_HEAD_REVIEW ->
+                    "Documento aprobado por la jefatura del programa.";
 
-            case REJECTED_FOR_SECRETARY_REVIEW ->
-                    "Documento rechazado por la Secretaría.";
+            case REJECTED_FOR_PROGRAM_HEAD_REVIEW ->
+                    "Documento rechazado por la jefatura del programa.";
 
-            case CORRECTIONS_REQUESTED_BY_SECRETARY ->
-                    "La Secretaría solicitó correcciones.";
+            case CORRECTIONS_REQUESTED_BY_PROGRAM_HEAD ->
+                    "La jefatura del programa solicitó correcciones.";
 
-            case ACCEPTED_FOR_COUNCIL_REVIEW ->
-                    "Documento aprobado para revisión del Consejo.";
+            case ACCEPTED_FOR_PROGRAM_CURRICULUM_COMMITTEE_REVIEW ->
+                    "Documento aprobado por el Comité Curricular del programa.";
 
-            case REJECTED_FOR_COUNCIL_REVIEW ->
-                    "Documento rechazado por el Consejo.";
+            case REJECTED_FOR_PROGRAM_CURRICULUM_COMMITTEE_REVIEW ->
+                    "Documento rechazado por el Comité Curricular del programa.";
 
-            case CORRECTIONS_REQUESTED_BY_COUNCIL ->
-                    "El Consejo solicitó correcciones.";
+            case CORRECTIONS_REQUESTED_BY_PROGRAM_CURRICULUM_COMMITTEE ->
+                    "El Comité Curricular del programa solicitó correcciones.";
 
             default ->
                     "Estado del documento no definido.";
@@ -255,7 +256,7 @@ public class DocumentService {
             throw new RuntimeException("No autorizado");
         }
 
-        RequiredDocument cancellationDocumentConfig = requiredDocumentRepository.findByModalityIdAndActiveTrue(studentModality.getModality().getId())
+        RequiredDocument cancellationDocumentConfig = requiredDocumentRepository.findByModalityIdAndActiveTrue(studentModality.getProgramDegreeModality().getDegreeModality().getId())
                         .stream().filter(doc ->
                                 doc.getDocumentName().equals("Justificación de cancelación de modalidad de grado"))
                         .findFirst()

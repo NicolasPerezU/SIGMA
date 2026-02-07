@@ -8,13 +8,13 @@ public class CancellationRejectedEvent extends DomainEvent {
 
     private final Long studentModalityId;
     private final String reason;
-    private final Long councilUserId;
+    private final Long curriculumUserId;
 
-    public CancellationRejectedEvent(Long studentModalityId, String reason, Long councilUserId) {
-        super(NotificationType.MODALITY_CANCELLATION_REJECTED,studentModalityId,councilUserId);
+    public CancellationRejectedEvent(Long studentModalityId, String reason, Long curriculumUserId) {
+        super(NotificationType.MODALITY_CANCELLATION_REJECTED,studentModalityId,curriculumUserId);
         this.studentModalityId = studentModalityId;
         this.reason = reason;
-        this.councilUserId = councilUserId;
+        this.curriculumUserId = curriculumUserId;
     }
 
 }

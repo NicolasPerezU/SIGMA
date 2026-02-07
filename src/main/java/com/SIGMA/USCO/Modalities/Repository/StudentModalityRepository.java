@@ -5,18 +5,13 @@ import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityStatus;
 import com.SIGMA.USCO.Users.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface StudentModalityRepository extends JpaRepository<StudentModality, Long> {
-
-
-    Optional<StudentModality> findByStudentIdAndStatus(Long studentId, ModalityProcessStatus status);
-
-
-    List<StudentModality> findByStudentId(Long studentId);
 
 
     List<StudentModality> findByStatus(ModalityProcessStatus status);
@@ -26,18 +21,15 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
 
     boolean existsByStudentIdAndStatusIn(Long studentId, List<ModalityProcessStatus> statuses);
 
-    boolean existsByStudent_IdAndModality_Id(Long studentId, Long modalityId);
+    boolean existsByStudent_IdAndProgramDegreeModality_DegreeModality_Id(
+            Long studentId,
+            Long modalityId
+    );
+
 
     Optional<StudentModality> findTopByStudentIdOrderByUpdatedAtDesc(Long studentId);
 
-    List<StudentModality> findByModality_Status(ModalityStatus status);
 
-    List<StudentModality> findBySelectionDateBetween(LocalDateTime start, LocalDateTime end);
-
-
-    List<StudentModality> findByProjectDirector_Id(Long directorId);
-
-    List<StudentModality> findByProjectDirector_IdAndSelectionDateBetween(Long directorId, LocalDateTime localDateTime, LocalDateTime localDateTime1);
 
     List<StudentModality> findByStatusInAndStudent_NameContainingIgnoreCaseOrStatusInAndStudent_LastNameContainingIgnoreCase(
             List<ModalityProcessStatus> statuses1,
@@ -54,7 +46,57 @@ public interface StudentModalityRepository extends JpaRepository<StudentModality
     Optional<StudentModality> findByStudent(User student);
 
 
+    boolean existsByStudent_IdAndProgramDegreeModality_Id(Long id, Long id1);
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.programDegreeModality.academicProgram.id IN :programIds
+AND sm.status IN :statuses
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+""")
+    List<StudentModality> findForProgramHeadWithStatusAndName(
+            List<Long> programIds,
+            List<ModalityProcessStatus> statuses,
+            String name
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.programDegreeModality.academicProgram.id IN :programIds
+AND sm.status IN :statuses
+""")
+    List<StudentModality> findForProgramHeadWithStatus(
+            List<Long> programIds,
+            List<ModalityProcessStatus> statuses
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.programDegreeModality.academicProgram.id IN :programIds
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+""")
+    List<StudentModality> findForProgramHeadWithName(
+            List<Long> programIds,
+            String name
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.programDegreeModality.academicProgram.id IN :programIds
+""")
+    List<StudentModality> findForProgramHead(
+            List<Long> programIds
+    );
 
 
-
+    List<StudentModality> findByStatusAndProgramDegreeModality_AcademicProgram_IdIn(
+            ModalityProcessStatus status,
+            List<Long> academicProgramIds
+    );
 }
