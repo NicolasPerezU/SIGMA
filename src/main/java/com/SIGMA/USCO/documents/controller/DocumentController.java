@@ -47,12 +47,4 @@ public class DocumentController {
     getByModalityAndStatus(@PathVariable Long modalityId, @RequestParam boolean active) {
         return documentService.getRequiredDocumentsByModalityAndStatus(modalityId, active);
     }
-
-
-
-
-
-
-
-
 }

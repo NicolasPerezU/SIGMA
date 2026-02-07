@@ -2321,4 +2321,77 @@ public class ModalityService {
                 .collect(Collectors.toList());
     }
 
+    public List<ProjectDirectorResponse> getProgramHeads() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+
+        List<ProgramAuthority> committeeAuthorities = programAuthorityRepository
+                .findByUser_IdAndRole(currentUser.getId(), ProgramRole.PROGRAM_CURRICULUM_COMMITTEE);
+
+        if (committeeAuthorities.isEmpty()) {
+            throw new RuntimeException("El usuario no tiene el rol de PROGRAM_CURRICULUM_COMMITTEE");
+        }
+
+
+        Set<Long> userProgramIds = committeeAuthorities.stream()
+                .map(authority -> authority.getAcademicProgram().getId())
+                .collect(Collectors.toSet());
+
+
+        List<com.SIGMA.USCO.Users.Entity.ProgramAuthority> programHeadAuthorities = programAuthorityRepository
+                .findByAcademicProgram_IdAndRole(userProgramIds.iterator().next(),
+                        ProgramRole.PROGRAM_HEAD
+                );
+
+
+        return programHeadAuthorities.stream()
+                .map(authority -> new ProjectDirectorResponse(
+                        authority.getUser().getId(),
+                        authority.getUser().getName(),
+                        authority.getUser().getLastName(),
+                        authority.getUser().getEmail()
+                ))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public List<ProjectDirectorResponse> getProgramCurriculumCommittee(Long academicProgramId, Long facultyId) {
+
+
+        List<ProgramAuthority> committeeAuthorities = programAuthorityRepository.findAll()
+                .stream()
+                .filter(authority -> authority.getRole() == ProgramRole.PROGRAM_CURRICULUM_COMMITTEE)
+                .toList();
+
+
+        if (academicProgramId != null) {
+            committeeAuthorities = committeeAuthorities.stream()
+                    .filter(authority -> authority.getAcademicProgram().getId().equals(academicProgramId))
+                    .toList();
+        }
+
+        if (facultyId != null) {
+            committeeAuthorities = committeeAuthorities.stream()
+                    .filter(authority -> authority.getAcademicProgram().getFaculty().getId().equals(facultyId))
+                    .toList();
+        }
+
+
+        return committeeAuthorities.stream()
+                .map(authority -> new ProjectDirectorResponse(
+                        authority.getUser().getId(),
+                        authority.getUser().getName(),
+                        authority.getUser().getLastName(),
+                        authority.getUser().getEmail()
+                ))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
 }
+

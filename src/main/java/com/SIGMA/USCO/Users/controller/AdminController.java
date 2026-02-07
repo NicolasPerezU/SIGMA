@@ -5,6 +5,7 @@ import com.SIGMA.USCO.Modalities.dto.ModalityDTO;
 import com.SIGMA.USCO.Users.Entity.ProgramAuthority;
 import com.SIGMA.USCO.Users.dto.request.assignAuthorityProgram;
 import com.SIGMA.USCO.Users.dto.request.PermissionDTO;
+import com.SIGMA.USCO.Users.dto.request.RegisterUserByAdminRequest;
 import com.SIGMA.USCO.Users.dto.request.RoleRequest;
 import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.service.AdminService;
@@ -67,8 +68,13 @@ public class AdminController {
 
     @GetMapping("/getUsers")
     @PreAuthorize("hasAuthority('PERM_VIEW_USER')")
-    public ResponseEntity<?> getUsers(@RequestParam(required = false) String status) {
-        return adminService.getUsers(status);
+    public ResponseEntity<?> getUsers(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Long academicProgramId,
+            @RequestParam(required = false) Long facultyId
+    ) {
+        return adminService.getUsers(status, role, academicProgramId, facultyId);
     }
 
     @PutMapping("/changeUserStatus/{userId}")
@@ -135,6 +141,12 @@ public class AdminController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
 
+    }
+
+    @PostMapping("/register-user")
+    @PreAuthorize("hasAuthority('PERM_CREATE_USER')")
+    public ResponseEntity<?> registerUserByAdmin(@RequestBody RegisterUserByAdminRequest request) {
+        return adminService.registerUserByAdmin(request);
     }
 
 

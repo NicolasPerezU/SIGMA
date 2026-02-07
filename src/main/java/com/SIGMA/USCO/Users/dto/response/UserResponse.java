@@ -21,6 +21,8 @@ public class UserResponse {
     private String email;
     private Status status;
     private Set<String> roles;
+    private String faculty;
+    private String academicProgram;
     private LocalDateTime createdDate;
 
 }

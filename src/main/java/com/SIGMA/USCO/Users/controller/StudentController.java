@@ -1,7 +1,7 @@
 package com.SIGMA.USCO.Users.controller;
 
 import com.SIGMA.USCO.Modalities.service.ModalityService;
-import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
+import com.SIGMA.USCO.academic.dto.StudentProfileRequest;
 import com.SIGMA.USCO.Users.service.StudentService;
 import com.SIGMA.USCO.documents.service.DocumentService;
 import lombok.RequiredArgsConstructor;

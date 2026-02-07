@@ -14,6 +14,7 @@ import com.SIGMA.USCO.Users.Entity.enums.Status;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.dto.request.assignAuthorityProgram;
 import com.SIGMA.USCO.Users.dto.request.PermissionDTO;
+import com.SIGMA.USCO.Users.dto.request.RegisterUserByAdminRequest;
 import com.SIGMA.USCO.Users.dto.request.RoleRequest;
 import com.SIGMA.USCO.Users.dto.request.UpdateUserRequest;
 import com.SIGMA.USCO.Users.dto.response.UserResponse;
@@ -22,12 +23,15 @@ import com.SIGMA.USCO.Users.repository.ProgramAuthorityRepository;
 import com.SIGMA.USCO.Users.repository.RoleRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.academic.entity.AcademicProgram;
+import com.SIGMA.USCO.academic.entity.StudentProfile;
 import com.SIGMA.USCO.academic.repository.AcademicProgramRepository;
+import com.SIGMA.USCO.academic.repository.StudentProfileRepository;
 import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -48,6 +52,8 @@ public class AdminService {
     private final RequiredDocumentRepository requiredDocumentRepository;
     private final AcademicProgramRepository academicProgramRepository;
     private final ProgramAuthorityRepository programAuthorityRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final PasswordEncoder passwordEncoder;
 
 
     public ResponseEntity<?> getRoles() {
@@ -192,9 +198,10 @@ public class AdminService {
         );
     }
 
-    public ResponseEntity<?> getUsers(String status) {
+    public ResponseEntity<?> getUsers(String status, String role, Long academicProgramId, Long facultyId) {
 
         List<User> users;
+
 
         if (status == null || status.isBlank()) {
             users = userRepository.findAll();
@@ -209,23 +216,82 @@ public class AdminService {
             users = userRepository.findByStatus(userStatus);
         }
 
-        return ResponseEntity.ok(
-                users.stream()
-                        .map(user -> UserResponse.builder()
-                                .id(user.getId())
-                                .name(user.getName())
-                                .email(user.getEmail())
-                                .status(user.getStatus())
-                                .roles(
-                                        user.getRoles().stream()
-                                                .map(Role::getName)
-                                                .collect(Collectors.toSet())
-                                )
-                                .createdDate(user.getCreationDate())
-                                .build()
-                        )
-                        .toList()
-        );
+
+        if (role != null && !role.isBlank()) {
+            final String roleNameUpper = role.toUpperCase();
+            users = users.stream()
+                    .filter(user -> user.getRoles().stream()
+                            .anyMatch(r -> r.getName().equalsIgnoreCase(roleNameUpper)))
+                    .toList();
+        }
+
+
+        List<UserResponse> userResponses = users.stream()
+                .map(user -> {
+                    String facultyName = null;
+                    String academicProgramName = null;
+                    Long userFacultyId = null;
+                    Long userAcademicProgramId = null;
+
+
+                    Optional<StudentProfile> studentProfile = studentProfileRepository.findByUserId(user.getId());
+                    if (studentProfile.isPresent()) {
+                        facultyName = studentProfile.get().getFaculty().getName();
+                        academicProgramName = studentProfile.get().getAcademicProgram().getName();
+                        userFacultyId = studentProfile.get().getFaculty().getId();
+                        userAcademicProgramId = studentProfile.get().getAcademicProgram().getId();
+                    } else {
+
+                        List<ProgramAuthority> authorities = programAuthorityRepository.findByUser_Id(user.getId());
+                        if (!authorities.isEmpty()) {
+                            ProgramAuthority authority = authorities.get(0);
+                            academicProgramName = authority.getAcademicProgram().getName();
+                            facultyName = authority.getAcademicProgram().getFaculty().getName();
+                            userAcademicProgramId = authority.getAcademicProgram().getId();
+                            userFacultyId = authority.getAcademicProgram().getFaculty().getId();
+                        }
+                    }
+
+                    return new Object[] {
+                            UserResponse.builder()
+                                    .id(user.getId())
+                                    .name(user.getName())
+                                    .lastname(user.getLastName())
+                                    .email(user.getEmail())
+                                    .status(user.getStatus())
+                                    .roles(
+                                            user.getRoles().stream()
+                                                    .map(Role::getName)
+                                                    .collect(Collectors.toSet())
+                                    )
+                                    .faculty(facultyName)
+                                    .academicProgram(academicProgramName)
+                                    .createdDate(user.getCreationDate())
+                                    .build(),
+                            userFacultyId,
+                            userAcademicProgramId
+                    };
+                })
+                .filter(data -> {
+                    Long userFacultyId = (Long) data[1];
+                    Long userAcademicProgramId = (Long) data[2];
+
+
+                    if (facultyId != null && (userFacultyId == null || !userFacultyId.equals(facultyId))) {
+                        return false;
+                    }
+
+
+                    if (academicProgramId != null && (userAcademicProgramId == null || !userAcademicProgramId.equals(academicProgramId))) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .map(data -> (UserResponse) data[0])
+                .toList();
+
+        return ResponseEntity.ok(userResponses);
     }
 
     public ResponseEntity<?> desactiveUser(Long userId) {
@@ -386,7 +452,100 @@ public class AdminService {
         return ResponseEntity.ok(response);
     }
 
+    @Transactional
+    public ResponseEntity<?> registerUserByAdmin(RegisterUserByAdminRequest request) {
 
 
+        if (request.getName() == null || request.getName().isBlank() ||
+                request.getLastName() == null || request.getLastName().isBlank() ||
+                request.getEmail() == null || request.getEmail().isBlank() ||
+                request.getPassword() == null || request.getPassword().isBlank() ||
+                request.getRoleName() == null || request.getRoleName().isBlank()) {
+
+            return ResponseEntity.badRequest()
+                    .body("Todos los campos son obligatorios (nombre, apellido, correo, contraseña y rol)");
+        }
+
+        String email = request.getEmail().trim().toLowerCase();
+
+
+        if (!email.endsWith("@usco.edu.co")) {
+            return ResponseEntity.badRequest()
+                    .body("El correo debe ser institucional con dominio @usco.edu.co");
+        }
+
+
+        if (userRepository.existsByEmail(email)) {
+            return ResponseEntity.badRequest()
+                    .body("Este correo ya está registrado en el sistema");
+        }
+
+
+        String roleName = request.getRoleName().toUpperCase();
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("El rol " + roleName + " no existe en el sistema"));
+
+
+        boolean requiresProgram = roleName.equals("PROGRAM_HEAD") ||
+                roleName.equals("PROJECT_DIRECTOR") ||
+                roleName.equals("PROGRAM_CURRICULUM_COMMITTEE");
+
+        if (requiresProgram && request.getAcademicProgramId() == null) {
+            return ResponseEntity.badRequest()
+                    .body("El rol " + roleName + " requiere que se especifique un programa académico");
+        }
+
+
+        User user = User.builder()
+                .name(request.getName())
+                .lastName(request.getLastName())
+                .email(email)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(Set.of(role))
+                .status(Status.ACTIVE)
+                .creationDate(LocalDateTime.now())
+                .lastUpdateDate(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user);
+
+
+        if (requiresProgram) {
+            AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                    .orElseThrow(() -> new RuntimeException("Programa académico no encontrado"));
+
+            ProgramRole programRole;
+            switch (roleName) {
+                case "PROGRAM_HEAD":
+                    programRole = ProgramRole.PROGRAM_HEAD;
+                    break;
+                case "PROJECT_DIRECTOR":
+                    programRole = ProgramRole.PROJECT_DIRECTOR;
+                    break;
+                case "PROGRAM_CURRICULUM_COMMITTEE":
+                    programRole = ProgramRole.PROGRAM_CURRICULUM_COMMITTEE;
+                    break;
+                default:
+                    throw new RuntimeException("Rol de programa no válido");
+            }
+
+            ProgramAuthority authority = ProgramAuthority.builder()
+                    .user(user)
+                    .academicProgram(program)
+                    .role(programRole)
+                    .build();
+
+            programAuthorityRepository.save(authority);
+
+            return ResponseEntity.ok(
+                    "Usuario registrado exitosamente con el rol " + roleName +
+                            " y asignado al programa académico: " + program.getName()
+            );
+        }
+
+        return ResponseEntity.ok(
+                "Usuario registrado exitosamente con el rol " + roleName
+        );
+    }
 
 }

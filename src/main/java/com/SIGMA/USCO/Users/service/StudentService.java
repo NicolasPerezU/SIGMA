@@ -6,7 +6,7 @@ import com.SIGMA.USCO.academic.entity.AcademicProgram;
 import com.SIGMA.USCO.academic.entity.Faculty;
 import com.SIGMA.USCO.academic.entity.StudentProfile;
 import com.SIGMA.USCO.Users.Entity.User;
-import com.SIGMA.USCO.Users.dto.request.StudentProfileRequest;
+import com.SIGMA.USCO.academic.dto.StudentProfileRequest;
 import com.SIGMA.USCO.Users.dto.response.StudentResponse;
 import com.SIGMA.USCO.academic.repository.AcademicProgramRepository;
 import com.SIGMA.USCO.academic.repository.FacultyRepository;

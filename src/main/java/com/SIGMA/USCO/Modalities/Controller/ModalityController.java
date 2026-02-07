@@ -263,6 +263,21 @@ public class ModalityController {
         return ResponseEntity.ok(modalityService.getProjectDirectors());
     }
 
+    @GetMapping("/program-heads")
+    @PreAuthorize("hasAuthority('PERM_VIEW_PROGRAM_HEAD')")
+    public ResponseEntity<List<ProjectDirectorResponse>> getProgramHeads() {
+        return ResponseEntity.ok(modalityService.getProgramHeads());
+    }
+
+    @GetMapping("/committee")
+    @PreAuthorize("hasAuthority('PERM_VIEW_COMMITTEE')")
+    public ResponseEntity<List<ProjectDirectorResponse>> getProgramCurriculumCommittee(
+            @RequestParam(required = false) Long academicProgramId,
+            @RequestParam(required = false) Long facultyId
+    ) {
+        return ResponseEntity.ok(modalityService.getProgramCurriculumCommittee(academicProgramId, facultyId));
+    }
+
     @GetMapping("/{studentModalityId}/final-evaluation")
     @PreAuthorize("hasAuthority('PERM_VIEW_FINAL_DEFENSE_RESULT')")
     public ResponseEntity<?> getFinalDefenseResult(@PathVariable Long studentModalityId) {
