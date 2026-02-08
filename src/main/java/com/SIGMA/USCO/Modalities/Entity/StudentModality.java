@@ -43,6 +43,7 @@ public class StudentModality {
 
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 100, nullable = false)
     private ModalityProcessStatus status;
 
     private LocalDateTime selectionDate;

@@ -70,6 +70,9 @@ public class DataInitializer {
             Permission viewProgramHead = createPermission("VIEW_PROGRAM_HEAD");
             Permission viewCommitteeMembers = createPermission("VIEW_COMMITTEE");
             Permission createUser = createPermission("CREATE_USER");
+            Permission viewModality = createPermission("VIEW_MODALITY");
+            Permission proposeDefense = createPermission("PROPOSE_DEFENSE");
+            Permission approveCancellationByProjectDirector = createPermission("APPROVE_CANCELLATION_DIRECTOR");
 
 
             // Crear roles y asignar permisos
@@ -81,7 +84,7 @@ public class DataInitializer {
 
             createRole("STUDENT", Set.of(verDocumentos));
 
-            createRole("PROJECT_DIRECTOR", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector) );
+            createRole("PROJECT_DIRECTOR", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewModality, proposeDefense, approveCancellationByProjectDirector) );
         };
     }
 

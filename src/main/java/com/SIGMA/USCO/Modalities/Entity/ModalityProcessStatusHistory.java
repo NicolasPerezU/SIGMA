@@ -25,6 +25,7 @@ public class ModalityProcessStatusHistory {
     private StudentModality studentModality;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 100,nullable = false)
     private ModalityProcessStatus status;
 
     private LocalDateTime changeDate;

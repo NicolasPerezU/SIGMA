@@ -99,4 +99,50 @@ WHERE sm.programDegreeModality.academicProgram.id IN :programIds
             ModalityProcessStatus status,
             List<Long> academicProgramIds
     );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.projectDirector.id = :directorId
+AND sm.status IN :statuses
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+""")
+    List<StudentModality> findForProjectDirectorWithStatusAndName(
+            Long directorId,
+            List<ModalityProcessStatus> statuses,
+            String name
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.projectDirector.id = :directorId
+AND sm.status IN :statuses
+""")
+    List<StudentModality> findForProjectDirectorWithStatus(
+            Long directorId,
+            List<ModalityProcessStatus> statuses
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.projectDirector.id = :directorId
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+""")
+    List<StudentModality> findForProjectDirectorWithName(
+            Long directorId,
+            String name
+    );
+
+    @Query("""
+SELECT sm FROM StudentModality sm
+WHERE sm.projectDirector.id = :directorId
+""")
+    List<StudentModality> findForProjectDirector(
+            Long directorId
+    );
 }

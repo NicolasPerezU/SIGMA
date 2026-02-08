@@ -1068,8 +1068,32 @@ public class ModalityService {
             case PROPOSAL_APPROVED ->
                     "Tu modalidad fue aprobada por el comité de currículo de programa.";
 
+            case DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR ->
+                    "El director de proyecto ha propuesto fecha y lugar de sustentación. Pendiente de aprobación por el comité de currículo de programa.";
+
+            case DEFENSE_SCHEDULED ->
+                    "La sustentación ha sido programada por el comité de currículo de programa.";
+
+            case DEFENSE_COMPLETED ->
+                    "La sustentación se ha completado. Pendiente de calificación final.";
+
+            case GRADED_APPROVED ->
+                    "¡Felicitaciones! Tu modalidad de grado ha sido aprobada.";
+
+            case GRADED_FAILED ->
+                    "La modalidad de grado no fue aprobada.";
+
             case MODALITY_CANCELLED ->
                     "La modalidad fue cancelada.";
+
+            case CANCELLATION_REQUESTED ->
+                    "Solicitud de cancelación enviada. Pendiente de revisión.";
+
+            case CANCELLATION_REJECTED ->
+                    "La solicitud de cancelación fue rechazada.";
+
+            case CANCELLED_WITHOUT_REPROVAL ->
+                    "La modalidad fue cancelada sin reprobación.";
 
             case MODALITY_CLOSED ->
                     "La modalidad fue cerrada.";
@@ -1215,7 +1239,6 @@ public class ModalityService {
         User committeeMember = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-
         List<Long> programIds = programAuthorityRepository
                 .findByUser_Id(committeeMember.getId())
                 .stream()
@@ -1227,30 +1250,43 @@ public class ModalityService {
             return ResponseEntity.ok(List.of());
         }
 
-        boolean hasStatusFilter = statuses != null && !statuses.isEmpty();
+
+        List<ModalityProcessStatus> committeeRelevantStatuses = List.of(
+                ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE,
+                ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE,
+                ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE,
+                ModalityProcessStatus.PROPOSAL_APPROVED,
+                ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR,
+                ModalityProcessStatus.DEFENSE_SCHEDULED
+        );
+
+
+        List<ModalityProcessStatus> finalStatuses;
+        if (statuses != null && !statuses.isEmpty()) {
+
+            finalStatuses = statuses.stream()
+                    .filter(committeeRelevantStatuses::contains)
+                    .toList();
+
+
+            if (finalStatuses.isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
+        } else {
+
+            finalStatuses = committeeRelevantStatuses;
+        }
+
         boolean hasNameFilter = name != null && !name.isBlank();
 
         List<StudentModality> modalities;
 
-        if (hasStatusFilter && hasNameFilter) {
-
+        if (hasNameFilter) {
             modalities = studentModalityRepository
-                    .findForProgramHeadWithStatusAndName(programIds, statuses, name);
-
-        } else if (hasStatusFilter) {
-
-            modalities = studentModalityRepository
-                    .findForProgramHeadWithStatus(programIds, statuses);
-
-        } else if (hasNameFilter) {
-
-            modalities = studentModalityRepository
-                    .findForProgramHeadWithName(programIds, name);
-
+                    .findForProgramHeadWithStatusAndName(programIds, finalStatuses, name);
         } else {
-
             modalities = studentModalityRepository
-                    .findForProgramHead(programIds);
+                    .findForProgramHeadWithStatus(programIds, finalStatuses);
         }
 
         List<ModalityListDTO> response =
@@ -1261,7 +1297,8 @@ public class ModalityService {
 
                             boolean pending =
                                     status == ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE ||
-                                            status == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE;
+                                            status == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE ||
+                                            status == ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR;
 
                             return ModalityListDTO.builder()
                                     .studentModalityId(sm.getId())
@@ -1282,6 +1319,70 @@ public class ModalityService {
                                     .build();
                         })
                         .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    public ResponseEntity<?> getAllStudentModalitiesForProjectDirector(List<ModalityProcessStatus> statuses, String name) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User projectDirector = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+
+        List<ProgramAuthority> directorAuthorities = programAuthorityRepository
+                .findByUser_Id(projectDirector.getId())
+                .stream()
+                .filter(pa -> pa.getRole() == ProgramRole.PROJECT_DIRECTOR)
+                .toList();
+
+        if (directorAuthorities.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("El usuario no tiene el rol de PROJECT_DIRECTOR");
+        }
+
+        boolean hasStatusFilter = statuses != null && !statuses.isEmpty();
+        boolean hasNameFilter = name != null && !name.isBlank();
+
+        List<StudentModality> modalities;
+
+        if (hasStatusFilter && hasNameFilter) {
+            modalities = studentModalityRepository
+                    .findForProjectDirectorWithStatusAndName(projectDirector.getId(), statuses, name);
+        } else if (hasStatusFilter) {
+            modalities = studentModalityRepository
+                    .findForProjectDirectorWithStatus(projectDirector.getId(), statuses);
+        } else if (hasNameFilter) {
+            modalities = studentModalityRepository
+                    .findForProjectDirectorWithName(projectDirector.getId(), name);
+        } else {
+            modalities = studentModalityRepository
+                    .findForProjectDirector(projectDirector.getId());
+        }
+
+        List<ModalityListDTO> response = modalities.stream()
+                .map(sm -> {
+                    ModalityProcessStatus status = sm.getStatus();
+
+
+                    boolean pending =
+                            status == ModalityProcessStatus.PROPOSAL_APPROVED ||
+                            status == ModalityProcessStatus.CANCELLATION_REQUESTED;
+
+                    return ModalityListDTO.builder()
+                            .studentModalityId(sm.getId())
+                            .studentName(sm.getStudent().getName() + " " + sm.getStudent().getLastName())
+                            .studentEmail(sm.getStudent().getEmail())
+                            .modalityName(sm.getProgramDegreeModality().getDegreeModality().getName())
+                            .currentStatus(status.name())
+                            .currentStatusDescription(describeModalityStatus(status))
+                            .lastUpdatedAt(sm.getUpdatedAt())
+                            .hasPendingActions(pending)
+                            .build();
+                })
+                .toList();
 
         return ResponseEntity.ok(response);
     }
@@ -1517,6 +1618,112 @@ public class ModalityService {
         );
     }
 
+    public ResponseEntity<?> getStudentModalityDetailForProjectDirector(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User projectDirector = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        if (studentModality.getProjectDirector() == null ||
+                !studentModality.getProjectDirector().getId().equals(projectDirector.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para ver esta modalidad. No es el director asignado.");
+        }
+
+        AcademicProgram academicProgram = studentModality.getProgramDegreeModality().getAcademicProgram();
+        User student = studentModality.getStudent();
+        DegreeModality modality = studentModality.getProgramDegreeModality().getDegreeModality();
+
+        List<ModalityStatusHistoryDTO> history =
+                historyRepository
+                        .findByStudentModalityIdOrderByChangeDateAsc(studentModalityId)
+                        .stream()
+                        .map(h -> ModalityStatusHistoryDTO.builder()
+                                .status(h.getStatus().name())
+                                .description(describeModalityStatus(h.getStatus()))
+                                .changeDate(h.getChangeDate())
+                                .responsible(
+                                        h.getResponsible() != null
+                                                ? h.getResponsible().getEmail()
+                                                : "Sistema"
+                                )
+                                .observations(h.getObservations())
+                                .build()
+                        )
+                        .toList();
+
+        List<RequiredDocument> requiredDocuments =
+                requiredDocumentRepository
+                        .findByModalityIdAndActiveTrue(modality.getId());
+
+        List<StudentDocument> uploadedDocuments =
+                studentDocumentRepository
+                        .findByStudentModalityId(studentModalityId);
+
+        Map<Long, StudentDocument> uploadedMap =
+                uploadedDocuments.stream()
+                        .collect(Collectors.toMap(
+                                d -> d.getDocumentConfig().getId(),
+                                d -> d
+                        ));
+
+        List<DetailDocumentDTO> documents =
+                requiredDocuments.stream()
+                        .map(req -> {
+                            StudentDocument uploaded = uploadedMap.get(req.getId());
+
+                            return DetailDocumentDTO.builder()
+                                    .studentDocumentId(
+                                            uploaded != null ? uploaded.getId() : null
+                                    )
+                                    .documentName(req.getDocumentName())
+                                    .mandatory(req.isMandatory())
+                                    .uploaded(uploaded != null)
+                                    .status(
+                                            uploaded != null
+                                                    ? uploaded.getStatus().name()
+                                                    : "NOT_UPLOADED"
+                                    )
+                                    .statusDescription(
+                                            uploaded != null
+                                                    ? uploaded.getStatus().name()
+                                                    : "Documento aún no cargado por el estudiante."
+                                    )
+                                    .notes(
+                                            uploaded != null ? uploaded.getNotes() : null
+                                    )
+                                    .lastUpdate(
+                                            uploaded != null ? uploaded.getUploadDate() : null
+                                    )
+                                    .build();
+                        })
+                        .toList();
+
+        return ResponseEntity.ok(
+                StudentModalityDTO.builder()
+                        .facultyName(academicProgram.getFaculty().getName())
+                        .academicProgramName(academicProgram.getName())
+                        .studentModalityId(studentModality.getId())
+                        .studentName(student.getName() + " " + student.getLastName())
+                        .studentEmail(student.getEmail())
+                        .modalityName(modality.getName())
+                        .currentStatus(studentModality.getStatus().name())
+                        .currentStatusDescription(
+                                describeModalityStatus(studentModality.getStatus())
+                        )
+                        .lastUpdatedAt(studentModality.getUpdatedAt())
+                        .history(history)
+                        .documents(documents)
+                        .build()
+        );
+    }
+
     public ResponseEntity<?> requestCancellation(Long studentModalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -1589,6 +1796,160 @@ public class ModalityService {
         );
     }
 
+    @Transactional
+    public ResponseEntity<?> approveModalityCancellationByDirector(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User projectDirector = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        if (studentModality.getProjectDirector() == null ||
+                !studentModality.getProjectDirector().getId().equals(projectDirector.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para aprobar la cancelación. No es el director asignado a esta modalidad");
+        }
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no tiene una solicitud de cancelación pendiente",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        studentModality.setStatus(ModalityProcessStatus.CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(projectDirector)
+                        .observations("El director de proyecto aprobó la solicitud de cancelación. Pendiente de revisión del comité de currículo")
+                        .build()
+        );
+
+
+        notificationEventPublisher.publish(
+                new CancellationApprovedEvent(studentModality.getId(), projectDirector.getId())
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Solicitud de cancelación aprobada. Será enviada al comité de currículo para aprobación final"
+                )
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<?> rejectModalityCancellationByDirector(Long studentModalityId, String reason) {
+
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe indicar el motivo del rechazo de la cancelación"
+                    )
+            );
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User projectDirector = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        if (studentModality.getProjectDirector() == null ||
+                !studentModality.getProjectDirector().getId().equals(projectDirector.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para rechazar la cancelación. No es el director asignado a esta modalidad");
+        }
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no tiene una solicitud de cancelación pendiente",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        ModalityProcessStatus previousStatus = ModalityProcessStatus.PROPOSAL_APPROVED;
+
+
+        List<ModalityProcessStatusHistory> history = historyRepository
+                .findByStudentModalityIdOrderByChangeDateAsc(studentModalityId);
+
+        if (history.size() >= 2) {
+
+            previousStatus = history.get(history.size() - 2).getStatus();
+        }
+
+
+        studentModality.setStatus(ModalityProcessStatus.CANCELLATION_REJECTED_BY_PROJECT_DIRECTOR);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.CANCELLATION_REJECTED_BY_PROJECT_DIRECTOR)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(projectDirector)
+                        .observations("El director de proyecto rechazó la solicitud de cancelación. Motivo: " + reason)
+                        .build()
+        );
+
+
+        studentModality.setStatus(previousStatus);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(previousStatus)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(projectDirector)
+                        .observations("Modalidad restaurada al estado anterior tras rechazo de cancelación")
+                        .build()
+        );
+
+
+        notificationEventPublisher.publish(
+                new CancellationRejectedEvent(studentModality.getId(), reason, projectDirector.getId())
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Solicitud de cancelación rechazada. La modalidad continúa en proceso normal",
+                        "restoredStatus", previousStatus
+                )
+        );
+    }
 
     @Transactional
     public ResponseEntity<?> approveCancellation(Long studentModalityId) {
@@ -1617,11 +1978,12 @@ public class ModalityService {
                     .body("No tiene permiso para aprobar la cancelación de esta modalidad");
         }
 
-        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+        // Verificar que la cancelación fue aprobada por el director de proyecto
+        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR) {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "La modalidad no está en estado de cancelación solicitada",
+                            "message", "La cancelación debe ser aprobada primero por el director de proyecto",
                             "currentStatus", modality.getStatus()
                     )
             );
@@ -1692,11 +2054,12 @@ public class ModalityService {
                     .body("No tiene permiso para rechazar la cancelación de esta modalidad");
         }
 
-        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_REQUESTED) {
+        // Verificar que la cancelación fue aprobada por el director de proyecto
+        if (modality.getStatus() != ModalityProcessStatus.CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR) {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "Estado inválido para rechazo",
+                            "message", "Solo se pueden rechazar cancelaciones aprobadas por el director de proyecto",
                             "currentStatus", modality.getStatus()
                     )
             );
@@ -1759,7 +2122,7 @@ public class ModalityService {
         List<StudentModality> modalities =
                 studentModalityRepository
                         .findByStatusAndProgramDegreeModality_AcademicProgram_IdIn(
-                                ModalityProcessStatus.CANCELLATION_REQUESTED,
+                                ModalityProcessStatus.CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR,
                                 academicProgramIds
                         );
 
@@ -1906,35 +2269,22 @@ public class ModalityService {
     }
 
     @Transactional
-    public ResponseEntity<?> scheduleDefense(Long studentModalityId, ScheduleDefenseDTO request) {
+    public ResponseEntity<?> proposeDefenseByDirector(Long studentModalityId, ScheduleDefenseDTO request) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
 
-        User committeeMember = userRepository.findByEmail(email)
+        User projectDirector = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
                 .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
 
 
-        Long academicProgramId =
-                studentModality
-                        .getProgramDegreeModality()
-                        .getAcademicProgram()
-                        .getId();
-
-
-        boolean authorized =
-                programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(
-                        committeeMember.getId(),
-                        academicProgramId,
-                        ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
-                );
-
-        if (!authorized) {
+        if (studentModality.getProjectDirector() == null ||
+                !studentModality.getProjectDirector().getId().equals(projectDirector.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("No tiene permiso para programar sustentaciones en este programa académico");
+                    .body("No tiene permiso para proponer sustentación. No es el director asignado a esta modalidad");
         }
 
 
@@ -1942,7 +2292,7 @@ public class ModalityService {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "La modalidad no se encuentra en estado válido para programar sustentación",
+                            "message", "La modalidad no se encuentra en estado válido para proponer sustentación",
                             "currentStatus", studentModality.getStatus()
                     )
             );
@@ -1956,7 +2306,7 @@ public class ModalityService {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "Debe ingresar fecha y lugar válidos para la sustentación"
+                            "message", "Debe ingresar fecha y lugar válidos para la sustentación propuesta"
                     )
             );
         }
@@ -1964,10 +2314,179 @@ public class ModalityService {
 
         studentModality.setDefenseDate(request.getDefenseDate());
         studentModality.setDefenseLocation(request.getDefenseLocation());
-        studentModality.setStatus(ModalityProcessStatus.DEFENSE_SCHEDULED);
+        studentModality.setStatus(ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR);
         studentModality.setUpdatedAt(LocalDateTime.now());
 
         studentModalityRepository.save(studentModality);
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(projectDirector)
+                        .observations(
+                                "Director de proyecto propone sustentación para el "
+                                        + request.getDefenseDate()
+                                        + " en "
+                                        + request.getDefenseLocation()
+                        )
+                        .build()
+        );
+
+        notificationEventPublisher.publish(
+                new DefenseScheduledEvent(
+                        studentModality.getId(),
+                        request.getDefenseDate(),
+                        request.getDefenseLocation(),
+                        projectDirector.getId()
+                )
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "defenseDate", request.getDefenseDate(),
+                        "defenseLocation", request.getDefenseLocation(),
+                        "newStatus", ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR,
+                        "message", "Propuesta de sustentación enviada correctamente al comité de currículo del programa"
+                )
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<?> getPendingDefenseProposals() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+
+        List<Long> academicProgramIds = programAuthorityRepository
+                .findByUser_Id(committeeMember.getId())
+                .stream()
+                .filter(pa -> pa.getRole() == ProgramRole.PROGRAM_CURRICULUM_COMMITTEE)
+                .map(pa -> pa.getAcademicProgram().getId())
+                .toList();
+
+        if (academicProgramIds.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("El usuario no tiene el rol de PROGRAM_CURRICULUM_COMMITTEE");
+        }
+
+
+        List<StudentModality> pendingProposals = studentModalityRepository
+                .findByStatusAndProgramDegreeModality_AcademicProgram_IdIn(
+                        ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR,
+                        academicProgramIds
+                );
+
+
+        List<DefenseProposalDTO> proposals = pendingProposals.stream()
+                .map(sm -> {
+                    User student = sm.getStudent();
+                    User director = sm.getProjectDirector();
+
+
+                    String studentCode = null;
+                    Optional<StudentProfile> profile = studentProfileRepository.findByUserId(student.getId());
+                    if (profile.isPresent()) {
+                        studentCode = profile.get().getStudentCode();
+                    }
+
+                    return DefenseProposalDTO.builder()
+                            .studentModalityId(sm.getId())
+                            .studentName(student.getName() + " " + student.getLastName())
+                            .studentEmail(student.getEmail())
+                            .studentCode(studentCode)
+                            .modalityName(sm.getProgramDegreeModality().getDegreeModality().getName())
+                            .academicProgram(sm.getProgramDegreeModality().getAcademicProgram().getName())
+                            .faculty(sm.getProgramDegreeModality().getAcademicProgram().getFaculty().getName())
+                            .projectDirectorId(director != null ? director.getId() : null)
+                            .projectDirectorName(director != null ? director.getName() + " " + director.getLastName() : "No asignado")
+                            .projectDirectorEmail(director != null ? director.getEmail() : null)
+                            .proposedDefenseDate(sm.getDefenseDate())
+                            .proposedDefenseLocation(sm.getDefenseLocation())
+                            .proposalSubmittedAt(sm.getUpdatedAt())
+                            .currentStatus(sm.getStatus().name())
+                            .statusDescription(describeModalityStatus(sm.getStatus()))
+                            .build();
+                })
+                .toList();
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "totalProposals", proposals.size(),
+                        "proposals", proposals
+                )
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<?> approveDefenseProposal(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        Long academicProgramId = studentModality
+                .getProgramDegreeModality()
+                .getAcademicProgram()
+                .getId();
+
+
+        boolean authorized = programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(
+                committeeMember.getId(),
+                academicProgramId,
+                ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+        );
+
+        if (!authorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para aprobar sustentaciones en este programa académico");
+        }
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no tiene una propuesta de sustentación pendiente de aprobación",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        if (studentModality.getDefenseDate() == null ||
+                studentModality.getDefenseLocation() == null ||
+                studentModality.getDefenseLocation().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "No hay fecha y lugar propuestos para aprobar"
+                    )
+            );
+        }
+
+
+        LocalDateTime approvedDate = studentModality.getDefenseDate();
+        String approvedLocation = studentModality.getDefenseLocation();
+
+
+        studentModality.setStatus(ModalityProcessStatus.DEFENSE_SCHEDULED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
 
         historyRepository.save(
                 ModalityProcessStatusHistory.builder()
@@ -1976,14 +2495,137 @@ public class ModalityService {
                         .changeDate(LocalDateTime.now())
                         .responsible(committeeMember)
                         .observations(
-                                "Sustentación programada para el "
-                                        + request.getDefenseDate()
-                                        + " en "
-                                        + request.getDefenseLocation()
+                                String.format(
+                                        "Comité de currículo aprobó la propuesta del director de proyecto. " +
+                                        "Sustentación programada para el %s en %s",
+                                        approvedDate,
+                                        approvedLocation
+                                )
                         )
                         .build()
         );
 
+
+        notificationEventPublisher.publish(
+                new DefenseScheduledEvent(
+                        studentModality.getId(),
+                        approvedDate,
+                        approvedLocation,
+                        committeeMember.getId()
+                )
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "defenseDate", approvedDate,
+                        "defenseLocation", approvedLocation,
+                        "newStatus", ModalityProcessStatus.DEFENSE_SCHEDULED,
+                        "action", "APROBADA",
+                        "message", "Propuesta de sustentación aprobada correctamente"
+                )
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<?> rescheduleDefense(Long studentModalityId, ScheduleDefenseDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        Long academicProgramId = studentModality
+                .getProgramDegreeModality()
+                .getAcademicProgram()
+                .getId();
+
+        // Verificar autorización del comité
+        boolean authorized = programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(
+                committeeMember.getId(),
+                academicProgramId,
+                ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+        );
+
+        if (!authorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para reprogramar sustentaciones en este programa académico");
+        }
+
+        // Verificar que la modalidad está en estado válido para reprogramar
+        if (studentModality.getStatus() != ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR &&
+                studentModality.getStatus() != ModalityProcessStatus.PROPOSAL_APPROVED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no se encuentra en estado válido para reprogramar sustentación",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        // Validar que se proporcionen fecha y lugar nuevos
+        if (request.getDefenseDate() == null ||
+                request.getDefenseLocation() == null ||
+                request.getDefenseLocation().isBlank()) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe ingresar fecha y lugar válidos para la reprogramación"
+                    )
+            );
+        }
+
+        // Guardar la propuesta original (si existe)
+        LocalDateTime originalProposedDate = studentModality.getDefenseDate();
+        String originalProposedLocation = studentModality.getDefenseLocation();
+        boolean hadProposal = studentModality.getStatus() == ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR;
+
+        // Actualizar con la nueva fecha y lugar
+        studentModality.setDefenseDate(request.getDefenseDate());
+        studentModality.setDefenseLocation(request.getDefenseLocation());
+        studentModality.setStatus(ModalityProcessStatus.DEFENSE_SCHEDULED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+        // Construir observación según si había propuesta previa o no
+        String observation;
+        if (hadProposal && originalProposedDate != null && originalProposedLocation != null) {
+            observation = String.format(
+                    "Comité de currículo reprogramó la sustentación. " +
+                    "Propuesta original del director: %s en %s. " +
+                    "Nueva programación: %s en %s",
+                    originalProposedDate,
+                    originalProposedLocation,
+                    request.getDefenseDate(),
+                    request.getDefenseLocation()
+            );
+        } else {
+            observation = String.format(
+                    "Comité de currículo programó la sustentación para el %s en %s",
+                    request.getDefenseDate(),
+                    request.getDefenseLocation()
+            );
+        }
+
+        // Registrar en el historial
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.DEFENSE_SCHEDULED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(observation)
+                        .build()
+        );
+
+        // Publicar evento de notificación
         notificationEventPublisher.publish(
                 new DefenseScheduledEvent(
                         studentModality.getId(),
@@ -2000,7 +2642,165 @@ public class ModalityService {
                         "defenseDate", request.getDefenseDate(),
                         "defenseLocation", request.getDefenseLocation(),
                         "newStatus", ModalityProcessStatus.DEFENSE_SCHEDULED,
-                        "message", "Sustentación programada correctamente"
+                        "action", hadProposal ? "REPROGRAMADA" : "PROGRAMADA",
+                        "hadProposal", hadProposal,
+                        "message", hadProposal ? "Sustentación reprogramada correctamente" : "Sustentación programada correctamente"
+                )
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<?> scheduleDefense(Long studentModalityId, ScheduleDefenseDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        Long academicProgramId =
+                studentModality
+                        .getProgramDegreeModality()
+                        .getAcademicProgram()
+                        .getId();
+
+        boolean authorized =
+                programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(
+                        committeeMember.getId(),
+                        academicProgramId,
+                        ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+                );
+
+        if (!authorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No tiene permiso para programar sustentaciones en este programa académico");
+        }
+
+
+        if (studentModality.getStatus() != ModalityProcessStatus.PROPOSAL_APPROVED &&
+                studentModality.getStatus() != ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no se encuentra en estado válido para programar sustentación",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        if (request.getDefenseDate() == null ||
+                request.getDefenseLocation() == null ||
+                request.getDefenseLocation().isBlank()) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe ingresar fecha y lugar válidos para la sustentación"
+                    )
+            );
+        }
+
+
+        boolean wasProposedByDirector =
+                studentModality.getStatus() == ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR;
+
+
+        LocalDateTime originalProposedDate = studentModality.getDefenseDate();
+        String originalProposedLocation = studentModality.getDefenseLocation();
+
+
+        String action;
+        String observationMessage;
+
+        if (wasProposedByDirector) {
+
+            boolean dateChanged = !request.getDefenseDate().equals(originalProposedDate);
+            boolean locationChanged = !request.getDefenseLocation().equals(originalProposedLocation);
+
+            if (!dateChanged && !locationChanged) {
+
+                action = "APROBADA";
+                observationMessage = String.format(
+                        "Comité de currículo aprobó la propuesta del director de proyecto. " +
+                        "Sustentación programada para el %s en %s",
+                        request.getDefenseDate(),
+                        request.getDefenseLocation()
+                );
+            } else {
+
+                action = "REPROGRAMADA";
+                observationMessage = String.format(
+                        "Comité de currículo reprogramó la sustentación. " +
+                        "Propuesta original del director: %s en %s. " +
+                        "Nueva programación: %s en %s",
+                        originalProposedDate,
+                        originalProposedLocation,
+                        request.getDefenseDate(),
+                        request.getDefenseLocation()
+                );
+            }
+        } else {
+
+            action = "PROGRAMADA";
+            observationMessage = String.format(
+                    "Sustentación programada por el comité de currículo para el %s en %s",
+                    request.getDefenseDate(),
+                    request.getDefenseLocation()
+            );
+        }
+
+
+        studentModality.setDefenseDate(request.getDefenseDate());
+        studentModality.setDefenseLocation(request.getDefenseLocation());
+        studentModality.setStatus(ModalityProcessStatus.DEFENSE_SCHEDULED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.DEFENSE_SCHEDULED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(observationMessage)
+                        .build()
+        );
+
+
+        notificationEventPublisher.publish(
+                new DefenseScheduledEvent(
+                        studentModality.getId(),
+                        request.getDefenseDate(),
+                        request.getDefenseLocation(),
+                        committeeMember.getId()
+                )
+        );
+
+
+        String responseMessage;
+        if (action.equals("APROBADA")) {
+            responseMessage = "Propuesta de sustentación del director aprobada correctamente";
+        } else if (action.equals("REPROGRAMADA")) {
+            responseMessage = "Sustentación reprogramada correctamente por el comité";
+        } else {
+            responseMessage = "Sustentación programada correctamente";
+        }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "defenseDate", request.getDefenseDate(),
+                        "defenseLocation", request.getDefenseLocation(),
+                        "newStatus", ModalityProcessStatus.DEFENSE_SCHEDULED,
+                        "action", action,
+                        "wasProposedByDirector", wasProposedByDirector,
+                        "message", responseMessage
                 )
         );
     }
