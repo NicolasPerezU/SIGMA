@@ -9,4 +9,7 @@ public interface StudentDocumentStatusHistoryRepository extends JpaRepository<St
 
     List<StudentDocumentStatusHistory>
     findByStudentDocumentIdOrderByChangeDateAsc(Long studentDocumentId);
+
+    List<StudentDocumentStatusHistory>
+    findByStudentDocumentIdOrderByChangeDateDesc(Long studentDocumentId);
 }

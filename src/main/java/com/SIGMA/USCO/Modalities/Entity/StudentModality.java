@@ -61,4 +61,9 @@ public class StudentModality {
 
     private String defenseLocation;
 
+
+    private LocalDateTime correctionRequestDate;
+    private LocalDateTime correctionDeadline;
+    private Boolean correctionReminderSent;
+
 }

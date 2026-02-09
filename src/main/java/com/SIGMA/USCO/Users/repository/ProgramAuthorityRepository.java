@@ -38,6 +38,7 @@ public interface ProgramAuthorityRepository extends JpaRepository<ProgramAuthori
 
     List<ProgramAuthority> findByUser_IdAndRole(Long userId, ProgramRole role);
 
+    boolean existsByUser_IdAndAcademicProgram_Id(Long userId, Long academicProgramId);
 
     boolean existsByUser_IdAndAcademicProgram_IdAndRoleIn(Long id, Long academicProgramId, List<ProgramRole> programHead);
 }

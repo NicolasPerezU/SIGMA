@@ -7,6 +7,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 
 @Service
@@ -33,6 +34,28 @@ public class NotificationDispatcherService {
                     notification.getRecipient().getEmail(),
                     notification.getSubject(),
                     notification.getMessage()
+            );
+
+            notification.setEmailSent(true);
+            notification.setSentAt(LocalDateTime.now());
+        }
+
+        notification.setInAppDelivered(true);
+
+        notificationRepository.save(notification);
+    }
+
+    @Transactional
+    public void dispatchWithAttachment(Notification notification, Path attachmentPath, String attachmentName) {
+
+        if (shouldSendEmail(notification)) {
+
+            emailService.sendEmailWithAttachment(
+                    notification.getRecipient().getEmail(),
+                    notification.getSubject(),
+                    notification.getMessage(),
+                    attachmentPath.toFile(),
+                    attachmentName
             );
 
             notification.setEmailSent(true);

@@ -343,4 +343,42 @@ public class ModalityController {
         return modalityService.getMyFinalDefenseResult();
     }
 
+    // Endpoints para gestión de correcciones de documentos
+
+    @PostMapping("/{studentModalityId}/documents/{documentId}/resubmit-correction")
+    public ResponseEntity<?> resubmitCorrectedDocument(
+            @PathVariable Long studentModalityId,
+            @PathVariable Long documentId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            return modalityService.resubmitCorrectedDocument(studentModalityId, documentId, file);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "Error al procesar el archivo: " + e.getMessage()
+                    ));
+        }
+    }
+
+    @PostMapping("/documents/{documentId}/approve-correction")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
+    public ResponseEntity<?> approveCorrectedDocument(@PathVariable Long documentId) {
+        return modalityService.approveCorrectedDocument(documentId);
+    }
+
+    @PostMapping("/documents/{documentId}/reject-correction-final")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
+    public ResponseEntity<?> rejectCorrectedDocumentFinal(
+            @PathVariable Long documentId,
+            @RequestBody Map<String, String> request) {
+        String reason = request.get("reason");
+        return modalityService.rejectCorrectedDocumentFinal(documentId, reason);
+    }
+
+    @GetMapping("/{studentModalityId}/correction-deadline-status")
+    public ResponseEntity<?> getCorrectionDeadlineStatus(@PathVariable Long studentModalityId) {
+        return modalityService.getCorrectionDeadlineStatus(studentModalityId);
+    }
+
 }

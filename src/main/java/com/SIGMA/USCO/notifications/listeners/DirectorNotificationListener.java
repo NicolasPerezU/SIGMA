@@ -40,15 +40,20 @@ public class DirectorNotificationListener {
 
         String subject = "Cancelación de modalidad APROBADA";
         String message = """
-                Hola %s,
-
-                La cancelación de la modalidad:
-
-                "%s"
-
-                del estudiante %s ha sido APROBADA por el comité de currículo de programa .
-
-                Sistema SIGMA
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que la cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                correspondiente al estudiante %s, ha sido aprobada por el Comité de Currículo del programa académico.
+                
+                Para mayor información o seguimiento, por favor mantente en contacto con la jefatura de programa.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName(),
@@ -80,17 +85,22 @@ public class DirectorNotificationListener {
             return;
         }
 
-        String subject = "Cancelación de modalidad RECHAZADA";
+        String subject = "Cancelación de modalidad rechazada";
         String message = """
-                Hola %s,
-
-                La cancelación de la modalidad:
-
-                "%s"
-
-                del estudiante %s ha sido RECHAZADA por el comité de currículo de programa.
-
-                Sistema SIGMA
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que la cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                correspondiente al estudiante %s, ha sido rechazada por el Comité de Currículo del programa académico.
+                
+                Para mayor información o seguimiento, te sugerimos contactar a la jefatura de programa.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName(),
@@ -121,17 +131,21 @@ public class DirectorNotificationListener {
             return;
         }
 
-        String subject = "Solicitud de cancelación de modalidad";
+        String subject = "Solicitud de cancelación de modalidad recibida";
         String message = """
-                Hola %s,
-
-                El estudiante %s ha solicitado la cancelación de la modalidad:
-
-                "%s"
-
-                Esta solicitud será evaluada por el comité de currículo de programa.
-
-                Sistema SIGMA
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que el estudiante %s ha solicitado la cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                Dicha solicitud debe ser evaluada por ti y posteriormente será evaluada por el Comité de Currículo del programa académico correspondiente.
+                
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getStudent().getName() + " " + sm.getStudent().getLastName(),
@@ -167,30 +181,31 @@ public class DirectorNotificationListener {
         }
 
         String directorSubject =
-                "Sustentación programada – Estudiante asignado";
+                "Notificación de sustentación programada para estudiante asignado";
 
         String directorMessage = """
-                Hola %s,
-
-                Se ha programado la sustentación de una modalidad
-                de grado bajo tu dirección:
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que se ha programado la sustentación de una modalidad de grado bajo tu dirección académica.
+                
                 Estudiante:
                 %s (%s)
-
-                Modalidad:
-                "%s"
-
-                Fecha y hora:
+                
+                Modalidad de grado:
+                “%s”
+                
+                Fecha y hora de sustentación:
                 %s
-
+                
                 Lugar:
                 %s
-
-                Por favor asegúrate de cumplir con los
-                lineamientos académicos establecidos.
-
-                Sistema SIGMA
+                
+                Por favor, asegúrate de cumplir con los lineamientos académicos establecidos y de brindar el acompañamiento necesario durante este proceso.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 director.getName(),
                 modality.getStudent().getName(),
@@ -228,27 +243,28 @@ public class DirectorNotificationListener {
         User director = userRepository.findById(event.getDirectorId())
                 .orElseThrow();
 
-        String directorSubject = "Nueva modalidad asignada como Director – SIGMA";
+        String directorSubject = "Asignación como Director de Proyecto a modalidad de grado";
 
         String directorMessage = """
-                Hola %s,
-
-                Has sido asignado como Director de Proyecto
-                para la siguiente modalidad de grado:
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que has sido asignado oficialmente como Director de Proyecto para la siguiente modalidad de grado:
+                
                 Estudiante:
                 %s (%s)
-
-                Modalidad:
-                "%s"
-
+                
+                Modalidad de grado:
+                “%s”
+                
                 Fecha de asignación:
                 %s
-
-                Por favor ingresa al sistema SIGMA para realizar
-                el seguimiento correspondiente.
-
-                Sistema SIGMA
+                
+                Te invitamos a ingresar a la plataforma institucional para realizar el seguimiento y acompañamiento correspondientes durante el desarrollo del proyecto de grado.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 director.getName(),
                 student.getName() + " " + student.getLastName(),
@@ -286,27 +302,31 @@ public class DirectorNotificationListener {
         String subject = "Resultado de la sustentación final – Estudiante asignado";
 
         String message = """
-                Hola %s,
-
-                La sustentación final de la modalidad de grado
-                bajo tu dirección ha concluido con el siguiente resultado:
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                La sustentación final de la modalidad de grado bajo tu dirección ha concluido con el siguiente resultado:
+                
                 Estudiante:
                 %s (%s)
-
-                Modalidad:
-                "%s"
-
+                
+                Modalidad de grado:
+                “%s”
+                
                 Resultado final:
                 %s
-
+                
                 Distinción académica:
                 %s
-
+                
                 Observaciones:
                 %s
-
-                Sistema SIGMA
+                
+                Te invitamos a comunicarte con la jefatura del programa para coordinar los próximos pasos y el cierre administrativo correspondiente.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 director.getName(),
                 modality.getStudent().getName(),
@@ -336,14 +356,14 @@ public class DirectorNotificationListener {
     public void onStudentDocumentUpdated(StudentDocumentUpdatedEvent event) {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
-                        .orElseThrow();
+                .orElseThrow();
 
         if (modality.getProjectDirector() == null) {
             return;
         }
 
         StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
-                        .orElseThrow();
+                .orElseThrow();
 
         User student = modality.getStudent();
         User director = modality.getProjectDirector();
@@ -351,20 +371,28 @@ public class DirectorNotificationListener {
         String subject = "Documento actualizado – Estudiante asignado";
 
         String message = """
-                El estudiante %s ha actualizado un documento
-                asociado a la modalidad que diriges.
+            Estimado/a %s,
 
-                Modalidad:
-                "%s"
+            Recibe un cordial saludo.
 
-                Documento:
-                "%s"
+            El estudiante %s ha actualizado un documento
+            asociado a la modalidad de grado que diriges.
 
-                Estado:
-                %s
+            Modalidad:
+            "%s"
 
-                Sistema SIGMA
-                """.formatted(
+            Documento:
+            "%s"
+
+            Estado:
+            %s
+
+            Te invitamos a revisar el documento actualizado en la plataforma para continuar con el seguimiento académico correspondiente.
+
+            Cordialmente,  
+            Sistema de Gestión Académica
+            """.formatted(
+                director.getName(),
                 student.getName() + " " + student.getLastName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 document.getDocumentConfig().getDocumentName(),
@@ -385,4 +413,5 @@ public class DirectorNotificationListener {
         notificationRepository.save(notification);
         dispatcher.dispatch(notification);
     }
+
 }

@@ -1,6 +1,8 @@
 package com.SIGMA.USCO.notifications.listeners;
 
+import com.SIGMA.USCO.Modalities.Entity.AcademicCertificate;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
+import com.SIGMA.USCO.Modalities.Entity.enums.CertificateStatus;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
@@ -12,15 +14,20 @@ import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
 import com.SIGMA.USCO.notifications.event.*;
 import com.SIGMA.USCO.notifications.repository.NotificationRepository;
+import com.SIGMA.USCO.notifications.service.AcademicCertificatePdfService;
 import com.SIGMA.USCO.notifications.service.NotificationDispatcherService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class StudentNotificationListener {
 
     private final StudentModalityRepository studentModalityRepository;
@@ -28,6 +35,7 @@ public class StudentNotificationListener {
     private final NotificationDispatcherService dispatcher;
     private final UserRepository userRepository;
     private final StudentDocumentRepository studentDocumentRepository;
+    private final AcademicCertificatePdfService certificatePdfService;
 
 
     @EventListener
@@ -41,20 +49,27 @@ public class StudentNotificationListener {
                 "Modalidad iniciada – SIGMA";
 
         String message = """
-                Hola %s,
+        Estimado/a %s,
 
-                Te informamos que tu modalidad de grado:
+        Nos permitimos informarte que tu modalidad de grado:
 
-                "%s"
+        "%s"
 
-                ha sido oficialmente iniciada.
+        ha sido **iniciada oficialmente** en el sistema.
 
-                Estado actual:
-                EN PROGRESO: A la espera de aprobación por jefatura de programa y el comité de currículo de programa.
+        **Estado actual del proceso:**
+        En progreso. La modalidad se encuentra pendiente de revisión y
+        aprobación por parte de la Jefatura de Programa y el Comité de
+        Currículo del programa académico correspondiente.
 
-            
-                Sistema SIGMA
-                """.formatted(
+        Te recomendamos estar atento/a a las notificaciones del sistema,
+        ya que a través de este medio se te informará cualquier actualización
+        o requerimiento adicional.
+
+        Cordialmente,
+
+        Sistema interno de gestión académica de la universidad Surcolombiana.
+        """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName()
         );
@@ -83,21 +98,22 @@ public class StudentNotificationListener {
 
         User student = document.getStudentModality().getStudent();
 
-        String subject = "Correcciones solicitadas en un documento";
+        String subject = "Solicitud de correcciones en documento académico";
 
         String message = """
-                Hola %s,
-
-                %s ha solicitado correcciones en el documento:
-
-                "%s"
-
-                Observaciones:
+                Estimado/a %s,
+                
+                Te informamos que %s ha solicitado la realización de correcciones en el siguiente documento asociado a tu modalidad de grado:
+                
+                “%s”
+                
+                Observaciones realizadas:
                 %s
-
-                Por favor, ingresa a SIGMA y corrige el documento para continuar con tu proceso.
-
-                Sistema SIGMA
+                
+                Te solicitamos ingresar a la plataforma institucional y atender las observaciones indicadas, con el fin de continuar oportunamente con tu proceso académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 event.getRequestedBy() == NotificationRecipientType.PROGRAM_HEAD
@@ -129,19 +145,21 @@ public class StudentNotificationListener {
 
         User student = sm.getStudent();
 
-        String subject = "Solicitud de cancelación registrada";
+        String subject = "Solicitud de cancelación de modalidad de grado registrada";
 
         String message = """
-                Hola %s,
-
-                Tu solicitud de cancelación de la modalidad de grado:
-
-                "%s"
-
-                ha sido registrada correctamente y será evaluada
-                por el comité de currículo de programa.
-
-                Sistema SIGMA
+                Estimado/a %s,
+                
+                Te informamos que tu solicitud de cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                ha sido registrada correctamente.
+                
+                Dicha solicitud será evaluada por tu director de proyecto y posteriormente por el Comité de Currículo del programa académico correspondiente. Una vez se emita una decisión, serás notificado/a oportunamente a través de este medio.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName()
@@ -170,19 +188,21 @@ public class StudentNotificationListener {
 
         User student = sm.getStudent();
 
-        String subject = "Cancelación de modalidad APROBADA";
+        String subject = "Cancelación de modalidad de grado aprobada";
 
         String message = """
-                Hola %s,
-
-                El comité de currículo de programa ha APROBADO la cancelación
-                de tu modalidad de grado:
-
-                "%s"
-
-                La modalidad queda cerrada oficialmente.
-
-                Sistema SIGMA
+                Estimado/a %s,
+                
+                Te informamos que el Comité de Currículo del programa académico ha aprobado la solicitud de cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                En consecuencia, la modalidad queda cerrada de manera oficial y el proceso académico correspondiente finaliza a partir de esta decisión.
+                
+                Si requieres información adicional o tienes inquietudes relacionadas con tu situación académica, te recomendamos comunicarte con la jefatura de tu programa.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName()
@@ -211,22 +231,22 @@ public class StudentNotificationListener {
 
         User student = sm.getStudent();
 
-        String subject = "Solicitud de cancelación RECHAZADA";
+        String subject = "Solicitud de cancelación de modalidad de grado rechazada";
 
         String message = """
-                Hola %s,
-
-                El comité de currículo de programa ha RECHAZADO tu solicitud
-                de cancelación de la modalidad:
-
-                "%s"
-
-                Motivo:
+                Estimado/a %s,
+                
+                Te informamos que el Comité de Currículo del programa académico ha rechazado tu solicitud de cancelación de la modalidad de grado:
+                
+                “%s”
+                
+                Motivo de la decisión:
                 %s
-
-                Para mayor información, comunícate con Jefatura de programa.
-
-                Sistema SIGMA
+                
+                Tu modalidad de grado continuará activa bajo las condiciones previamente establecidas. Para mayor claridad sobre esta decisión o para recibir orientación adicional, te sugerimos comunicarte con la jefatura de tu programa académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName(),
@@ -262,28 +282,33 @@ public class StudentNotificationListener {
                 "Sustentación programada – Modalidad de Grado";
 
         String studentMessage = """
-                Hola %s,
+        Hola %s,
 
-                Te informamos que la sustentación de tu modalidad de grado
-                ha sido programada con la siguiente información:
+        Te informamos que la sustentación de tu modalidad de grado
+        ha sido programada con la siguiente información:
 
-                Modalidad:
-                "%s"
+        Modalidad:
+        "%s"
 
-                Fecha y hora:
-                %s
+        Fecha y hora:
+        %s
 
-                Lugar:
-                %s
+        Lugar:
+        %s
 
-                Director asignado:
-                %s
+        Director asignado:
+        %s
 
-                Por favor preséntate con antelación y cumple
-                con los lineamientos académicos establecidos.
+        Recuerda que **con al menos tres (3) días hábiles de anticipación**
+        a la fecha de la sustentación, debes realizar la **divulgación de tu
+        proyecto** en **lugares visibles y de acceso público**, conforme a
+        los lineamientos establecidos por el programa académico.
 
-                Sistema SIGMA
-                """.formatted(
+        Por favor preséntate con antelación y cumple
+        con los lineamientos académicos establecidos.
+
+        Sistema SIGMA
+        """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getDefenseDate(),
@@ -292,6 +317,7 @@ public class StudentNotificationListener {
                         ? director.getName() + " " + director.getLastName()
                         : "No asignado"
         );
+
 
 
 
@@ -321,24 +347,26 @@ public class StudentNotificationListener {
                 .orElseThrow();
 
         String studentSubject =
-                "Director asignado a tu modalidad – SIGMA";
+                "Asignación de Director de Proyecto a modalidad de grado";
 
         String studentMessage = """
-                Hola %s,
-
-                Te informamos que se ha asignado un Director de Proyecto
-                a tu modalidad de grado:
-
-                Modalidad:
-                "%s"
-
+                Estimado/a %s,
+                
+                Te informamos que ha sido asignado oficialmente un Director de Proyecto para tu modalidad de grado, conforme a los lineamientos académicos establecidos.
+                
+                Modalidad de grado:
+                “%s”
+                
                 Director asignado:
-                %s (%s)
-
-                A partir de este momento podrás continuar el proceso académico
-                bajo su acompañamiento.
-
-                Sistema SIGMA
+                %s
+                Correo electrónico: %s
+                
+                A partir de este momento, podrás continuar el desarrollo de tu modalidad de grado bajo el acompañamiento académico del director asignado, quien será tu principal orientador durante el proceso.
+                
+                Te recomendamos establecer contacto oportuno para coordinar las actividades iniciales y definir el plan de trabajo correspondiente.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
@@ -393,29 +421,69 @@ public class StudentNotificationListener {
                 .createdAt(LocalDateTime.now())
                 .build();
         notificationRepository.save(notification);
-        dispatcher.dispatch(notification);
+
+
+        if (approved) {
+            try {
+                log.info("Generando acta de aprobación para la modalidad ID: {}", modality.getId());
+
+
+                AcademicCertificate certificate = certificatePdfService.generateCertificate(modality);
+
+
+                Path pdfPath = certificatePdfService.getCertificatePath(modality.getId());
+
+
+                dispatcher.dispatchWithAttachment(
+                        notification,
+                        pdfPath,
+                        "ACTA_DE_APROBACION" + ".pdf"
+                );
+
+
+                certificatePdfService.updateCertificateStatus(certificate.getId(), CertificateStatus.SENT);
+
+                log.info("Acta PDF generada y enviada exitosamente para la modalidad ID: {}", modality.getId());
+
+            } catch (IOException e) {
+                log.error("Error generando o enviando acta PDF para modalidad ID {}: {}",
+                        modality.getId(), e.getMessage(), e);
+
+
+                dispatcher.dispatch(notification);
+            }
+        } else {
+
+            dispatcher.dispatch(notification);
+        }
     }
 
     private String buildApprovedStudentMessage(User student, StudentModality modality, FinalDefenseResultEvent event) {
         return """
-                Hola %s,
-
-                Felicitaciones! Has aprobado la sustentación
-                de tu modalidad de grado:
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Nos permitimos informarte que, una vez realizada la sustentación y evaluados los resultados por los jurados designados, has aprobado la sustentación de tu modalidad de grado:
+                
                 "%s"
-
+                
                 Mención académica obtenida:
                 %s
-
-                Observaciones:
+                
+                Observaciones registradas:
                 %s
-
+                
+                Adjunto a este correo encontrarás el ACTA DE APROBACIÓN en formato PDF, documento oficial que certifica la culminación exitosa de tu modalidad de grado conforme a la normatividad académica vigente.
+                
                 Próximos pasos:
-                Por favor comunícate con Jefatura de programa para
-                completar los trámites finales.
-
-                Sistema SIGMA
+                Para la culminación del proceso académico, te solicitamos comunicarte con la jefatura de tu programa, con el fin de adelantar los trámites finales correspondientes.
+                
+                Felicitaciones por este importante logro académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                Universidad Surcolombiana
                 """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
@@ -430,21 +498,23 @@ public class StudentNotificationListener {
 
     private String buildRejectedStudentMessage(User student, StudentModality modality, FinalDefenseResultEvent event) {
         return """
-                Hola %s,
-
-                Lamentamos informarte que no has aprobado
-                la sustentación de tu modalidad de grado:
-
-                "%s"
-
-                Observaciones:
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Una vez realizada la sustentación y efectuado el proceso de evaluación por parte de los jurados, te informamos que tu modalidad de grado:
+                
+                “%s”
+                
+                no ha sido aprobada en esta oportunidad.
+                
+                Observaciones registradas:
                 %s
-
-                Te recomendamos revisar las observaciones
-                y comunicarte con tu director de proyecto
-                para definir los próximos pasos a seguir.
-
-                Sistema SIGMA
+                
+                Te recomendamos revisar cuidadosamente las observaciones consignadas y comunicarte con tu Director de Proyecto, así como con la jefatura del programa académico, para definir los pasos a seguir conforme a la normatividad vigente.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
@@ -462,29 +532,34 @@ public class StudentNotificationListener {
         User student = modality.getStudent();
 
         String subject =
-                "Modalidad APROBADA por el Concejo académico – SIGMA";
+                "Modalidad de grado aprobada por el Consejo Académico";
 
         String message = """
-                Hola %s,
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
                 Nos complace informarte que tu modalidad de grado:
-
-                "%s"
-
-                ha sido APROBADA por el Concejo del programa.
-
-                Estado actual:
-                PROPUESTA APROBADA
-
-                Director asignado:
+                
+                “%s”
+                
+                ha sido aprobada por el comité de curriculum del programa, tras la revisión realizada por las instancias académicas competentes.
+                
+                Estado actual del proceso:
+                Propuesta aprobada
+                
+                Director de Proyecto:
                 %s
-
-                Usted puede empezar a trabajar en su proyecto de grado bajo la dirección asignada.
-
+                
+                A partir de esta aprobación, puedes dar inicio formal al desarrollo de tu proyecto de grado bajo la dirección académica asignada, atendiendo los lineamientos y cronogramas establecidos por el programa.
+                
                 Fecha de aprobación:
                 %s
-
-                Sistema SIGMA
+                
+                Te recomendamos mantener comunicación constante con tu Director de Proyecto y con la jefatura del programa para el adecuado seguimiento del proceso.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
@@ -519,21 +594,26 @@ public class StudentNotificationListener {
         User student = modality.getStudent();
 
         String subject =
-                "Modalidad APROBADA por Jefatura de programa – SIGMA";
+                "Modalidad de grado aprobada por Jefatura de programa";
 
         String message = """
-                Hola %s,
-
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
                 Nos complace informarte que tu modalidad de grado:
-
-                "%s"
-
-                ha sido APROBADA por la Jefatura de programa.
-
+                
+                “%s”
+                
+                ha sido aprobada por la Jefatura del programa académico.
+                
                 Próximos pasos:
-                Por favor espera la aprobación por parte del comité de currículo de programa para continuar con el proceso académico.
-
-                Sistema SIGMA
+                Por favor, espera la aprobación por parte del Comité de Currículo del programa para continuar con el proceso académico.
+                
+                Te recomendamos estar atento/a a futuras notificaciones y mantener comunicación con la jefatura de tu programa para cualquier consulta.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
                 """.formatted(
                 student.getName(),
                 modality.getProgramDegreeModality().getDegreeModality().getName()
@@ -555,7 +635,279 @@ public class StudentNotificationListener {
         dispatcher.dispatch(notification);
     }
 
+    // Listeners para gestión de correcciones
 
+    @EventListener
+    public void handleCorrectionDeadlineReminder(CorrectionDeadlineReminderEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
 
+        User student = modality.getStudent();
+
+        String subject = "Recordatorio: Plazo de correcciones – " + event.getDaysRemaining() + " días restantes";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te recordamos que tienes correcciones solicitadas pendientes para tu modalidad de grado:
+                
+                "%s"
+                
+                ⚠️ IMPORTANTE - PLAZO LÍMITE:
+                Días restantes: %d días
+                Fecha límite: %s
+                
+                Debes resubir el documento corregido antes de la fecha límite. Si no lo haces, tu modalidad será CANCELADA AUTOMÁTICAMENTE.
+                
+                ¿Qué hacer?
+                1. Realiza las correcciones solicitadas en tu documento
+                2. Ingresa al sistema SIGMA
+                3. Ve a "Mis Modalidades"
+                4. Selecciona tu modalidad y resubir el documento corregido
+                
+                Si tienes alguna duda o inconveniente, comunícate urgentemente con la jefatura de tu programa académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                event.getDaysRemaining(),
+                event.getDeadline().toLocalDate()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.CORRECTION_DEADLINE_REMINDER)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Recordatorio de plazo de corrección enviado al estudiante {}", student.getId());
+    }
+
+    @EventListener
+    public void handleCorrectionDeadlineExpired(CorrectionDeadlineExpiredEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
+
+        User student = modality.getStudent();
+
+        String subject = "MODALIDAD CANCELADA - Vencimiento de plazo de correcciones";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Lamentamos informarte que tu modalidad de grado:
+                
+                "%s"
+                
+                ha sido CANCELADA AUTOMÁTICAMENTE por vencimiento del plazo establecido para entregar las correcciones solicitadas.
+                
+                Detalles:
+                - Fecha de solicitud de correcciones: %s
+                - Plazo límite: 30 días
+                - Estado final: CANCELADA
+                
+                Próximos pasos:
+                Para continuar con tu proceso de grado, deberás:
+                1. Seleccionar una nueva modalidad de grado
+                2. Iniciar el proceso desde el principio
+                3. Cumplir con todos los requisitos establecidos
+                
+                Te recomendamos comunicarte con la jefatura de tu programa académico para recibir orientación sobre cómo proceder.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                event.getRequestDate().toLocalDate()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.CORRECTION_DEADLINE_EXPIRED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de cancelación por vencimiento enviada al estudiante {}", student.getId());
+    }
+
+    @EventListener
+    public void handleCorrectionResubmitted(CorrectionResubmittedEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
+
+        User student = modality.getStudent();
+
+        String subject = "Documento corregido enviado exitosamente";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Confirmamos que hemos recibido tu documento corregido:
+                
+                Documento: %s
+                Modalidad: "%s"
+                Fecha de envío: %s
+                
+                Tu documento será revisado por el jurado correspondiente. Te notificaremos el resultado de la revisión a la brevedad posible.
+                
+                Estado actual: CORRECCIONES ENVIADAS - PENDIENTE DE REVISIÓN
+                
+                Gracias por tu compromiso con tu proceso académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                """.formatted(
+                student.getName(),
+                event.getDocumentName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                LocalDateTime.now().toLocalDate()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.CORRECTION_RESUBMITTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de resubmisión de corrección enviada al estudiante {}", student.getId());
+    }
+
+    @EventListener
+    public void handleCorrectionApproved(CorrectionApprovedEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
+
+        User student = modality.getStudent();
+
+        String subject = "¡Felicitaciones! Correcciones aprobadas";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Nos complace informarte que las correcciones enviadas han sido APROBADAS.
+                
+                Documento: %s
+                Modalidad: "%s"
+                
+                ✅ Estado: CORRECCIONES APROBADAS
+                
+                Tu modalidad de grado continúa su proceso normal. Te notificaremos sobre los siguientes pasos a seguir.
+                
+                Felicitaciones por tu compromiso y dedicación en este proceso académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                """.formatted(
+                student.getName(),
+                event.getDocumentName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.CORRECTION_APPROVED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de aprobación de corrección enviada al estudiante {}", student.getId());
+    }
+
+    @EventListener
+    public void handleCorrectionRejectedFinal(CorrectionRejectedFinalEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
+
+        User student = modality.getStudent();
+
+        String subject = "MODALIDAD CANCELADA - Correcciones rechazadas";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Lamentamos informarte que tu modalidad de grado:
+                
+                "%s"
+                
+                ha sido CANCELADA después de la revisión de las correcciones enviadas.
+                
+                Documento: %s
+                Estado final: RECHAZADO - MODALIDAD CANCELADA
+                
+                Motivo del rechazo:
+                %s
+                
+                Próximos pasos:
+                Para continuar con tu proceso de grado, deberás:
+                1. Seleccionar una nueva modalidad de grado
+                2. Iniciar el proceso desde el principio
+                3. Cumplir con todos los requisitos establecidos
+                
+                Te recomendamos comunicarte con la jefatura de tu programa académico para recibir retroalimentación detallada y orientación sobre cómo proceder.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                event.getDocumentName(),
+                event.getReason()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.CORRECTION_REJECTED_FINAL)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(null)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de rechazo final de corrección enviada al estudiante {}", student.getId());
+    }
 
 }
