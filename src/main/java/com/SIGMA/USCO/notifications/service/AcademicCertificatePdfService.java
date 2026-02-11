@@ -42,17 +42,17 @@ public class AcademicCertificatePdfService {
     @Transactional
     public AcademicCertificate generateCertificate(StudentModality studentModality) throws IOException {
 
-        // Verificar si ya existe un certificado para esta modalidad
+
         if (certificateRepository.existsByStudentModalityId(studentModality.getId())) {
             log.info("Ya existe un certificado para la modalidad {}. Regenerando con diseño actualizado...",
                     studentModality.getId());
 
-            // Obtener el certificado existente
+
             AcademicCertificate existingCertificate = certificateRepository
                     .findByStudentModalityId(studentModality.getId())
                     .orElseThrow();
 
-            // Eliminar el archivo PDF antiguo si existe
+
             try {
                 Path oldFilePath = Paths.get(existingCertificate.getFilePath());
                 if (Files.exists(oldFilePath)) {
@@ -63,7 +63,7 @@ public class AcademicCertificatePdfService {
                 log.warn("No se pudo eliminar el archivo PDF antiguo: {}", e.getMessage());
             }
 
-            // Eliminar el registro de la base de datos
+
             certificateRepository.delete(existingCertificate);
             log.info("Registro de certificado antiguo eliminado de BD");
         }
@@ -78,7 +78,7 @@ public class AcademicCertificatePdfService {
         String fileName = "ACTA_" + certificateNumber + "_" + student.getId() + ".pdf";
         Path filePath = certificatesPath.resolve(fileName);
 
-        // Generar el nuevo PDF con el diseño actualizado
+
         generatePdfDocument(filePath, studentModality, certificateNumber);
         log.info("Nuevo certificado PDF generado: {}", filePath);
 
@@ -98,7 +98,7 @@ public class AcademicCertificatePdfService {
 
     private void generatePdfDocument(Path filePath, StudentModality studentModality, String certificateNumber) {
         try {
-            // Configuración del documento con márgenes amplios para mejor legibilidad
+
             Document document = new Document(PageSize.A4, 50, 50, 60, 60);
             PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
             document.open();
@@ -106,7 +106,7 @@ public class AcademicCertificatePdfService {
             User student = studentModality.getStudent();
             User director = studentModality.getProjectDirector();
 
-            // Definición de fuentes con jerarquía visual clara
+
             BaseColor institutionalBlue = new BaseColor(0, 51, 102); // Azul institucional
             BaseColor accentGray = new BaseColor(80, 80, 80);
 
@@ -123,15 +123,15 @@ public class AcademicCertificatePdfService {
             Font signatureFont = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, BaseColor.BLACK);
             Font signatureLabelFont = new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, accentGray);
 
-            // ==================== ENCABEZADO INSTITUCIONAL ====================
 
-            // Nombre de la universidad
+
+
             Paragraph institution = new Paragraph("UNIVERSIDAD SURCOLOMBIANA", institutionFont);
             institution.setAlignment(Element.ALIGN_CENTER);
             institution.setSpacingAfter(8);
             document.add(institution);
 
-            // Facultad
+
             Paragraph faculty = new Paragraph(
                     studentModality.getProgramDegreeModality().getAcademicProgram().getFaculty().getName().toUpperCase(),
                     facultyFont
@@ -140,7 +140,7 @@ public class AcademicCertificatePdfService {
             faculty.setSpacingAfter(5);
             document.add(faculty);
 
-            // Programa académico
+
             Paragraph program = new Paragraph(
                     studentModality.getProgramDegreeModality().getAcademicProgram().getName(),
                     programFont
@@ -149,11 +149,11 @@ public class AcademicCertificatePdfService {
             program.setSpacingAfter(15);
             document.add(program);
 
-            // Línea decorativa horizontal
+
             addHorizontalLine(document, institutionalBlue);
             document.add(Chunk.NEWLINE);
 
-            // ==================== TÍTULO DEL DOCUMENTO ====================
+
 
             Paragraph mainTitle = new Paragraph("ACTA DE APROBACIÓN", titleMainFont);
             mainTitle.setAlignment(Element.ALIGN_CENTER);
@@ -165,13 +165,13 @@ public class AcademicCertificatePdfService {
             subtitle.setSpacingAfter(10);
             document.add(subtitle);
 
-            // Número de acta
+
             Paragraph actaNum = new Paragraph("Acta No. " + certificateNumber, actaNumberFont);
             actaNum.setAlignment(Element.ALIGN_CENTER);
             actaNum.setSpacingAfter(25);
             document.add(actaNum);
 
-            // ==================== RESULTADO DE LA EVALUACIÓN ====================
+
 
             Paragraph resultSection = new Paragraph("RESULTADO DE LA EVALUACIÓN", sectionTitleFont);
             resultSection.setSpacingBefore(10);
@@ -190,7 +190,7 @@ public class AcademicCertificatePdfService {
             resultText.setSpacingAfter(20);
             document.add(resultText);
 
-            // ==================== DATOS DEL ESTUDIANTE (Tabla con bordes suaves) ====================
+
 
             Paragraph studentSection = new Paragraph("DATOS DEL ESTUDIANTE", sectionTitleFont);
             studentSection.setSpacingAfter(10);
@@ -215,7 +215,7 @@ public class AcademicCertificatePdfService {
             studentTable.setSpacingAfter(20);
             document.add(studentTable);
 
-            // ==================== DATOS DE LA MODALIDAD ====================
+
 
             Paragraph modalitySection = new Paragraph("INFORMACIÓN DE LA MODALIDAD", sectionTitleFont);
             modalitySection.setSpacingAfter(10);
@@ -234,7 +234,7 @@ public class AcademicCertificatePdfService {
                             : "No registrada",
                     labelFont, dataFont);
 
-            // Mención académica (si aplica)
+
             AcademicDistinction distinction = studentModality.getAcademicDistinction();
             if (distinction != null && distinction != AcademicDistinction.NO_DISTINCTION) {
                 addStyledTableRow(modalityTable, "Mención académica:",
@@ -245,7 +245,7 @@ public class AcademicCertificatePdfService {
             modalityTable.setSpacingAfter(25);
             document.add(modalityTable);
 
-            // ==================== FECHA DE EMISIÓN ====================
+
 
             Paragraph issueDateParagraph = new Paragraph();
             issueDateParagraph.add(new Chunk("Fecha de emisión: ", labelFont));
@@ -258,14 +258,14 @@ public class AcademicCertificatePdfService {
             issueDateParagraph.setSpacingAfter(40);
             document.add(issueDateParagraph);
 
-            // ==================== FIRMAS ====================
+
 
             PdfPTable signaturesTable = new PdfPTable(2);
             signaturesTable.setWidthPercentage(100);
             signaturesTable.setSpacingBefore(20);
             signaturesTable.setSpacingAfter(30);
 
-            // Firma 1: Comité de Currículo
+
             PdfPCell signCell1 = new PdfPCell();
             signCell1.setBorder(Rectangle.NO_BORDER);
             signCell1.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -282,7 +282,7 @@ public class AcademicCertificatePdfService {
             signCell1.addElement(sign1);
             signaturesTable.addCell(signCell1);
 
-            // Firma 2: Jefatura de Programa
+
             PdfPCell signCell2 = new PdfPCell();
             signCell2.setBorder(Rectangle.NO_BORDER);
             signCell2.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -301,9 +301,9 @@ public class AcademicCertificatePdfService {
 
             document.add(signaturesTable);
 
-            // ==================== PIE DE PÁGINA ====================
 
-            // Línea decorativa superior
+
+
             addHorizontalLine(document, BaseColor.LIGHT_GRAY);
 
             Paragraph legalNote = new Paragraph(
@@ -333,7 +333,7 @@ public class AcademicCertificatePdfService {
         }
     }
 
-    // Método auxiliar para crear tablas con estilo profesional
+
     private PdfPTable createStyledDataTable(int columns) {
         PdfPTable table = new PdfPTable(columns);
         table.setWidthPercentage(100);
@@ -342,9 +342,9 @@ public class AcademicCertificatePdfService {
         return table;
     }
 
-    // Método auxiliar para agregar filas con estilo a las tablas
+
     private void addStyledTableRow(PdfPTable table, String label, String value, Font labelFont, Font valueFont) {
-        // Celda de etiqueta
+
         PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
         labelCell.setBorder(Rectangle.NO_BORDER);
         labelCell.setBackgroundColor(new BaseColor(245, 245, 245)); // Fondo gris claro
@@ -352,7 +352,7 @@ public class AcademicCertificatePdfService {
         labelCell.setHorizontalAlignment(Element.ALIGN_LEFT);
         table.addCell(labelCell);
 
-        // Celda de valor
+
         PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
         valueCell.setBorder(Rectangle.NO_BORDER);
         valueCell.setPadding(8);
@@ -360,7 +360,7 @@ public class AcademicCertificatePdfService {
         table.addCell(valueCell);
     }
 
-    // Método auxiliar para agregar líneas horizontales decorativas
+
     private void addHorizontalLine(Document document, BaseColor color) throws DocumentException {
         PdfPTable lineTable = new PdfPTable(1);
         lineTable.setWidthPercentage(100);
@@ -410,9 +410,28 @@ public class AcademicCertificatePdfService {
     }
 
     private String translateDistinction(AcademicDistinction distinction) {
+        if (distinction == null) {
+            return "Sin distinción";
+        }
+
         return switch (distinction) {
-            case MERITORIOUS -> "Meritorio";
-            case LAUREATE -> "Laureado";
+
+            case AGREED_APPROVED -> "Aprobado sin distinción";
+            case AGREED_MERITORIOUS -> "Aprobado con mención meritoria";
+            case AGREED_LAUREATE -> "Aprobado con mención laureada";
+            case AGREED_REJECTED -> "Rechazado";
+
+            // Desacuerdo pendiente
+            case DISAGREEMENT_PENDING_TIEBREAKER -> "En proceso de evaluación por desempate";
+
+
+            case TIEBREAKER_APPROVED -> "Aprobado sin distinción (por desempate)";
+            case TIEBREAKER_MERITORIOUS -> "Aprobado con mención meritoria (por desempate)";
+            case TIEBREAKER_LAUREATE -> "Aprobado con mención laureada (por desempate)";
+            case TIEBREAKER_REJECTED -> "Rechazado (por desempate)";
+
+
+            case NO_DISTINCTION -> "Sin distinción";
             default -> "Sin distinción";
         };
     }

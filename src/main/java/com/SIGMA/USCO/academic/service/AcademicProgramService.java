@@ -116,8 +116,6 @@ public class AcademicProgramService {
 
 
     }
-
-
     public AcademicProgram updateProgram(Long programId, ProgramDTO request) {
 
         AcademicProgram program = academicProgramRepository.findById(programId)

@@ -390,6 +390,33 @@ public class AdminService {
         return authority;
     }
 
+    @Transactional
+    public ProgramAuthority assignExaminer(assignAuthorityProgram request){
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        AcademicProgram program = academicProgramRepository.findById(request.getAcademicProgramId())
+                .orElseThrow(() -> new RuntimeException("Programa académico no encontrado"));
+
+        Role examiner = roleRepository.findByName("EXAMINER")
+                .orElseThrow(() -> new RuntimeException("Rol EXAMINER no encontrado"));
+
+        if (!user.getRoles().contains(examiner)) {
+            user.getRoles().add(examiner);
+            userRepository.save(user);
+        }
+
+        ProgramAuthority authority = ProgramAuthority.builder()
+                .user(user)
+                .academicProgram(program)
+                .role(ProgramRole.EXAMINER)
+                .build();
+
+        programAuthorityRepository.save(authority);
+        return authority;
+    }
+
 
 
     public ResponseEntity<List<ModalityDTO>> getModalities(ModalityStatus status) {
@@ -488,7 +515,8 @@ public class AdminService {
 
         boolean requiresProgram = roleName.equals("PROGRAM_HEAD") ||
                 roleName.equals("PROJECT_DIRECTOR") ||
-                roleName.equals("PROGRAM_CURRICULUM_COMMITTEE");
+                roleName.equals("PROGRAM_CURRICULUM_COMMITTEE") ||
+                roleName.equals("EXAMINER");
 
         if (requiresProgram && request.getAcademicProgramId() == null) {
             return ResponseEntity.badRequest()
@@ -524,6 +552,9 @@ public class AdminService {
                     break;
                 case "PROGRAM_CURRICULUM_COMMITTEE":
                     programRole = ProgramRole.PROGRAM_CURRICULUM_COMMITTEE;
+                    break;
+                case "EXAMINER":
+                    programRole = ProgramRole.EXAMINER;
                     break;
                 default:
                     throw new RuntimeException("Rol de programa no válido");

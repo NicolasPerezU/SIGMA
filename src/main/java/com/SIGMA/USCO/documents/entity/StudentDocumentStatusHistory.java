@@ -25,6 +25,7 @@ public class StudentDocumentStatusHistory {
     private StudentDocument studentDocument;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 100)
     private DocumentStatus status;
 
     private LocalDateTime changeDate;

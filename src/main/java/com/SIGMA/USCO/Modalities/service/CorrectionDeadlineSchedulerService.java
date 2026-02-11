@@ -40,7 +40,7 @@ public class CorrectionDeadlineSchedulerService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // Buscar modalidades con correcciones solicitadas
+
         List<StudentModality> modalitiesWithCorrections = studentModalityRepository.findByStatusIn(
                 List.of(
                         ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD,

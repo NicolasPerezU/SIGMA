@@ -20,4 +20,9 @@ public class ScheduleDefenseDTO {
     private AcademicDistinction academicDistinction;
     private String observations;
 
+
+    private Long primaryExaminer1Id;
+    private Long primaryExaminer2Id;
+    private Long tiebreakerExaminerId;
+
 }

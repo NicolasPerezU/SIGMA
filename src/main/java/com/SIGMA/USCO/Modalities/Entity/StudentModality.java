@@ -10,9 +10,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 
 @Entity
 @Data
@@ -54,8 +56,17 @@ public class StudentModality {
     @ManyToOne
     private User projectDirector;
 
+
+    @OneToMany(mappedBy = "studentModality", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<DefenseExaminer> defenseExaminers;
+
+
     @Enumerated(EnumType.STRING)
+    @Column(length = 100)
     private AcademicDistinction academicDistinction;
+
+
+    private Double finalGrade;
 
     private LocalDateTime defenseDate;
 

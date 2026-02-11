@@ -31,6 +31,7 @@ public class StudentDocument {
     private String filePath;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 60)
     private DocumentStatus status;
 
     @Column(length = 3000)

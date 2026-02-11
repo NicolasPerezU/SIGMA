@@ -15,11 +15,18 @@ import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,6 +188,49 @@ public class StudentService {
 
 
 
+    }
+
+    public ResponseEntity<?> viewMyDocument(Long studentDocumentId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
+                .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+
+        // Verificar que el documento pertenece al estudiante autenticado
+        Long documentOwnerId = document.getStudentModality().getStudent().getId();
+        if (!documentOwnerId.equals(currentUser.getId())) {
+            return ResponseEntity.status(403).body("No tienes permiso para ver este documento");
+        }
+
+        // Leer el archivo desde el sistema de archivos
+        try {
+            Path filePath = Paths.get(document.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists() || !resource.isReadable()) {
+                return ResponseEntity.status(404).body("Archivo no encontrado o no legible");
+            }
+
+            // Detectar tipo de contenido
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+
+            // Retornar el archivo como blob para visualización
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al leer el archivo: " + e.getMessage());
+        }
     }
 
 }

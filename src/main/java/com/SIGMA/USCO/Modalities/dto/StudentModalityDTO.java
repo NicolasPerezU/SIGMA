@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentModalityDTO {
 
-    // Información del estudiante
+
     private Long studentId;
     private String studentName;
     private String studentLastName;
@@ -25,53 +25,54 @@ public class StudentModalityDTO {
     private Double gpa;
     private Long semester;
 
-    // Información institucional
+
     private String facultyName;
     private String academicProgramName;
 
-    // Información de la modalidad
+
     private Long studentModalityId;
+    private Long modalityId;
     private String modalityName;
     private String modalityDescription;
     private Long creditsRequired;
     private String modalityType;
 
-    // Estado actual
+
     private String currentStatus;
     private String currentStatusDescription;
     private LocalDateTime selectionDate;
     private LocalDateTime lastUpdatedAt;
 
-    // Director de proyecto
+
     private Long projectDirectorId;
     private String projectDirectorName;
     private String projectDirectorEmail;
 
-    // Sustentación/Defensa
+
     private LocalDateTime defenseDate;
     private String defenseLocation;
     private String defenseProposedByProjectDirector;
 
-    // Distinción académica
+
     private String academicDistinction;
 
-    // Correcciones
+
     private LocalDateTime correctionRequestDate;
     private LocalDateTime correctionDeadline;
     private Boolean correctionReminderSent;
     private Long daysRemainingForCorrection;
 
-    // Documentos
+
     private List<DetailDocumentDTO> documents;
     private Integer totalDocuments;
     private Integer approvedDocuments;
     private Integer pendingDocuments;
     private Integer rejectedDocuments;
 
-    // Historial de estados
+
     private List<ModalityStatusHistoryDTO> history;
 
-    // Acciones disponibles
+
     private Boolean canUploadDocuments;
     private Boolean canRequestCancellation;
     private Boolean canSubmitCorrections;

@@ -168,6 +168,13 @@ public class ModalityController {
     public ResponseEntity<?> reviewDocumentCommittee(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
         return modalityService.reviewStudentDocumentByCommittee(studentDocumentId, request);
     }
+
+    @PutMapping("/documents/{studentDocumentId}/review-examiner")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
+    public ResponseEntity<?> reviewDocumentExaminer(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
+        return modalityService.reviewStudentDocumentByExaminer(studentDocumentId, request);
+    }
+
     @GetMapping("/students")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
     public ResponseEntity<?> listAllModalitiesForProgramHead(@RequestParam(required = false)
@@ -281,11 +288,7 @@ public class ModalityController {
         return modalityService.proposeDefenseByDirector(studentModalityId, request);
     }
 
-    @PostMapping("/{studentModalityId}/schedule-defense")
-    @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
-    public ResponseEntity<?> scheduleDefense(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
-        return modalityService.scheduleDefense(studentModalityId, request);
-    }
+
 
     @GetMapping("/defense-proposals/pending")
     @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
@@ -305,10 +308,18 @@ public class ModalityController {
         return modalityService.rescheduleDefense(studentModalityId, request);
     }
 
-    @PostMapping("/{studentModalityId}/final-evaluation")
+    @PostMapping("/{studentModalityId}/examiners/assign")
     @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
-    public ResponseEntity<?> registerFinalDefenseEvaluation(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
-        return modalityService.registerFinalDefenseEvaluation(studentModalityId, request);
+    public ResponseEntity<?> assignExaminers(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
+        return modalityService.assignExaminers(studentModalityId, request);
+    }
+
+    @PostMapping("/{studentModalityId}/final-evaluation/register")
+    @PreAuthorize("hasAuthority('PERM_EVALUATE_DEFENSE')")
+    public ResponseEntity<?> registerFinalDefenseEvaluation(
+            @PathVariable Long studentModalityId,
+            @RequestBody ExaminerEvaluationDTO evaluationDTO) {
+        return modalityService.registerFinalDefenseEvaluation(studentModalityId, evaluationDTO);
     }
 
     @GetMapping("/project-directors")
@@ -332,7 +343,22 @@ public class ModalityController {
         return ResponseEntity.ok(modalityService.getProgramCurriculumCommittee(academicProgramId, facultyId));
     }
 
-    @GetMapping("/{studentModalityId}/final-evaluation")
+    @GetMapping("/examiners")
+    @PreAuthorize("hasAuthority('PERM_VIEW_COMMITTEE')")
+    public ResponseEntity<List<ProjectDirectorResponse>> getExaminers(
+            @RequestParam(required = false) Long academicProgramId,
+            @RequestParam(required = false) Long facultyId
+    ) {
+        return ResponseEntity.ok(modalityService.getExaminers(academicProgramId, facultyId));
+    }
+
+    @GetMapping("/examiners/for-committee")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER')")
+    public ResponseEntity<List<ProjectDirectorResponse>> getExaminersForCommittee() {
+        return ResponseEntity.ok(modalityService.getExaminersForCommittee());
+    }
+
+
     @PreAuthorize("hasAuthority('PERM_VIEW_FINAL_DEFENSE_RESULT')")
     public ResponseEntity<?> getFinalDefenseResult(@PathVariable Long studentModalityId) {
         return modalityService.getFinalDefenseResult(studentModalityId);
@@ -343,7 +369,7 @@ public class ModalityController {
         return modalityService.getMyFinalDefenseResult();
     }
 
-    // Endpoints para gestión de correcciones de documentos
+
 
     @PostMapping("/{studentModalityId}/documents/{documentId}/resubmit-correction")
     public ResponseEntity<?> resubmitCorrectedDocument(

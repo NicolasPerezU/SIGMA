@@ -19,7 +19,7 @@ public class ProgramDegreeModalityController {
 
     private final ProgramDegreeModalityService programDegreeModalityService;
 
-    // CREATE
+
     @PostMapping("/create")
     @PreAuthorize("hasAuthority('PERM_CREATE_PROGRAM_DEGREE_MODALITY')")
     public ResponseEntity<?> createProgramDegreeModality(@RequestBody ProgramDegreeModalityRequest request) {

@@ -143,6 +143,24 @@ public class AdminController {
 
     }
 
+    @PostMapping("/assign-examiner")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_EXAMINER')")
+    public ResponseEntity<?> assignExaminer(@RequestBody assignAuthorityProgram request){
+
+        try {
+            ProgramAuthority assigned = adminService.assignExaminer(request);
+            return ResponseEntity.ok(
+                    Map.of(
+                            "message", "Se ha asignado el juez/evaluador (examiner) correctamente"
+                    )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
+
     @PostMapping("/register-user")
     @PreAuthorize("hasAuthority('PERM_CREATE_USER')")
     public ResponseEntity<?> registerUserByAdmin(@RequestBody RegisterUserByAdminRequest request) {

@@ -21,16 +21,16 @@ public class DefenseProposalDTO {
     private String academicProgram;
     private String faculty;
 
-    // Información del director que propuso
+
     private Long projectDirectorId;
     private String projectDirectorName;
     private String projectDirectorEmail;
 
-    // Propuesta de sustentación
+
     private LocalDateTime proposedDefenseDate;
     private String proposedDefenseLocation;
 
-    // Metadatos
+
     private LocalDateTime proposalSubmittedAt;
     private String currentStatus;
     private String statusDescription;
