@@ -297,6 +297,7 @@ public class ModalityService {
 
         return ResponseEntity.ok(modalityDTOs);
     }
+
     public ResponseEntity<?> getModalityDetail(Long modalityId) {
 
         if (!degreeModalityRepository.existsById(modalityId)) {
@@ -335,7 +336,7 @@ public class ModalityService {
                 .toList();
 
         var documents = requiredDocumentRepository
-                .findByModalityIdAndActiveTrueAndIsMandatoryTrue(modalityId)
+                .findByModalityIdAndActiveTrueAndDocumentType(modalityId, DocumentType.MANDATORY)
                 .stream()
                 .map(doc -> RequiredDocumentDTO.builder()
                         .id(doc.getId())
@@ -344,7 +345,7 @@ public class ModalityService {
                         .description(doc.getDescription())
                         .allowedFormat(doc.getAllowedFormat())
                         .maxFileSizeMB(doc.getMaxFileSizeMB())
-                        .mandatory(doc.isMandatory())
+                        .documentType(doc.getDocumentType())
                         .build())
                 .toList();
 
@@ -625,7 +626,7 @@ public class ModalityService {
                 .collect(Collectors.toSet());
 
         List<String> missingDocuments = requiredDocuments.stream()
-                .filter(RequiredDocument::isMandatory)
+                .filter(doc -> doc.getDocumentType() == DocumentType.MANDATORY)
                 .filter(doc -> !uploadedIds.contains(doc.getId()))
                 .map(RequiredDocument::getDocumentName)
                 .toList();
@@ -639,6 +640,123 @@ public class ModalityService {
                 )
         );
     }
+
+    public ResponseEntity<?> getAvailableDocumentsForStudent() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Buscar la modalidad más reciente del estudiante
+        Optional<StudentModality> studentModalityOpt = studentModalityRepository
+                .findTopByStudentIdOrderByUpdatedAtDesc(student.getId());
+
+        if (studentModalityOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "No se encontró una modalidad asociada al estudiante"
+                    ));
+        }
+
+        StudentModality studentModality = studentModalityOpt.get();
+        Long studentModalityId = studentModality.getId();
+        Long modalityId = studentModality.getProgramDegreeModality().getDegreeModality().getId();
+
+        // Obtener documentos MANDATORY
+        List<RequiredDocument> mandatoryDocuments = requiredDocumentRepository
+                .findByModalityIdAndActiveTrueAndDocumentType(modalityId, DocumentType.MANDATORY);
+
+        // Obtener documentos ya subidos por el estudiante
+        List<StudentDocument> uploadedDocuments = studentDocumentRepository
+                .findByStudentModalityId(studentModalityId);
+
+        Set<Long> uploadedDocumentIds = uploadedDocuments.stream()
+                .map(d -> d.getDocumentConfig().getId())
+                .collect(Collectors.toSet());
+
+        // Verificar si faltan documentos MANDATORY
+        List<String> missingMandatoryDocs = mandatoryDocuments.stream()
+                .filter(doc -> !uploadedDocumentIds.contains(doc.getId()))
+                .map(RequiredDocument::getDocumentName)
+                .toList();
+
+        if (!missingMandatoryDocs.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "success", false,
+                            "message", "Debes subir todos los documentos obligatorios antes de acceder a los documentos secundarios",
+                            "missingDocuments", missingMandatoryDocs
+                    ));
+        }
+
+        // Si todos los MANDATORY están subidos, mostrar MANDATORY y SECONDARY
+        List<RequiredDocument> allDocuments = requiredDocumentRepository
+                .findByModalityIdAndActiveTrueAndDocumentTypeIn(
+                        modalityId,
+                        List.of(DocumentType.MANDATORY, DocumentType.SECONDARY)
+                );
+
+        // Crear mapa de documentos subidos para fácil acceso
+        Map<Long, StudentDocument> uploadedMap = uploadedDocuments.stream()
+                .collect(Collectors.toMap(
+                        d -> d.getDocumentConfig().getId(),
+                        d -> d
+                ));
+
+        // Construir respuesta con información detallada
+        List<Map<String, Object>> documentList = allDocuments.stream()
+                .map(requiredDoc -> {
+                    StudentDocument uploaded = uploadedMap.get(requiredDoc.getId());
+
+                    Map<String, Object> docInfo = new HashMap<>();
+                    docInfo.put("requiredDocumentId", requiredDoc.getId());
+                    docInfo.put("documentName", requiredDoc.getDocumentName());
+                    docInfo.put("description", requiredDoc.getDescription());
+                    docInfo.put("documentType", requiredDoc.getDocumentType());
+                    docInfo.put("allowedFormat", requiredDoc.getAllowedFormat());
+                    docInfo.put("maxFileSizeMB", requiredDoc.getMaxFileSizeMB());
+                    docInfo.put("uploaded", uploaded != null);
+
+                    if (uploaded != null) {
+                        docInfo.put("studentDocumentId", uploaded.getId());
+                        docInfo.put("fileName", uploaded.getFileName());
+                        docInfo.put("status", uploaded.getStatus());
+                        docInfo.put("notes", uploaded.getNotes());
+                        docInfo.put("uploadDate", uploaded.getUploadDate());
+                    }
+
+                    return docInfo;
+                })
+                .toList();
+
+        long totalDocuments = documentList.size();
+        long uploadedCount = documentList.stream()
+                .filter(doc -> (Boolean) doc.get("uploaded"))
+                .count();
+        long mandatoryCount = documentList.stream()
+                .filter(doc -> doc.get("documentType") == DocumentType.MANDATORY)
+                .count();
+        long secondaryCount = documentList.stream()
+                .filter(doc -> doc.get("documentType") == DocumentType.SECONDARY)
+                .count();
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "studentModalityId", studentModalityId,
+                "documents", documentList,
+                "statistics", Map.of(
+                        "totalDocuments", totalDocuments,
+                        "uploadedDocuments", uploadedCount,
+                        "pendingDocuments", totalDocuments - uploadedCount,
+                        "mandatoryDocuments", mandatoryCount,
+                        "secondaryDocuments", secondaryCount
+                )
+        ));
+    }
+
     public ResponseEntity<?> getStudentDocuments(Long studentModalityId) {
 
         StudentModality studentModality = studentModalityRepository
@@ -655,7 +773,7 @@ public class ModalityService {
                     Map<String, Object> map = new HashMap<>();
                     map.put("studentDocumentId", doc.getId());
                     map.put("documentName", doc.getDocumentConfig().getDocumentName());
-                    map.put("mandatory", doc.getDocumentConfig().isMandatory());
+                    map.put("documentType", doc.getDocumentConfig().getDocumentType());
                     map.put("status", doc.getStatus());
                     map.put("notes", doc.getNotes());
                     map.put("uploadedAt", doc.getUploadDate());
@@ -803,10 +921,7 @@ public class ModalityService {
 
 
         List<RequiredDocument> mandatoryDocuments =
-                requiredDocumentRepository.findByModalityIdAndActiveTrue(modalityId)
-                        .stream()
-                        .filter(RequiredDocument::isMandatory)
-                        .toList();
+                requiredDocumentRepository.findByModalityIdAndActiveTrueAndDocumentType(modalityId, DocumentType.MANDATORY);
 
         List<StudentDocument> uploadedDocuments =
                 studentDocumentRepository.findByStudentModalityId(studentModalityId);
@@ -1409,7 +1524,7 @@ public class ModalityService {
                 .map(doc -> DetailDocumentDTO.builder()
                         .studentDocumentId(doc.getId())
                         .documentName(doc.getDocumentConfig().getDocumentName())
-                        .mandatory(doc.getDocumentConfig().isMandatory())
+                        .documentType(doc.getDocumentConfig().getDocumentType())
                         .status(doc.getStatus().name())
                         .statusDescription(describeDocumentStatus(doc.getStatus()))
                         .notes(doc.getNotes())
@@ -1785,6 +1900,65 @@ public class ModalityService {
         return ResponseEntity.ok(response);
     }
 
+    public ResponseEntity<?> getAllStudentModalitiesForExaminer(List<ModalityProcessStatus> statuses, String name) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User examiner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+
+        List<DefenseExaminer> examinerAssignments = defenseExaminerRepository
+                .findByExaminerId(examiner.getId());
+
+        if (examinerAssignments.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        boolean hasStatusFilter = statuses != null && !statuses.isEmpty();
+        boolean hasNameFilter = name != null && !name.isBlank();
+
+        List<StudentModality> modalities;
+
+        if (hasStatusFilter && hasNameFilter) {
+            modalities = studentModalityRepository
+                    .findForExaminerWithStatusAndName(examiner.getId(), statuses, name);
+        } else if (hasStatusFilter) {
+            modalities = studentModalityRepository
+                    .findForExaminerWithStatus(examiner.getId(), statuses);
+        } else if (hasNameFilter) {
+            modalities = studentModalityRepository
+                    .findForExaminerWithName(examiner.getId(), name);
+        } else {
+            modalities = studentModalityRepository
+                    .findForExaminer(examiner.getId());
+        }
+
+        List<ModalityListDTO> response = modalities.stream()
+                .map(sm -> {
+                    ModalityProcessStatus status = sm.getStatus();
+
+
+                    boolean pending =
+                            status == ModalityProcessStatus.DEFENSE_SCHEDULED;
+
+                    return ModalityListDTO.builder()
+                            .studentModalityId(sm.getId())
+                            .studentName(sm.getStudent().getName() + " " + sm.getStudent().getLastName())
+                            .studentEmail(sm.getStudent().getEmail())
+                            .modalityName(sm.getProgramDegreeModality().getDegreeModality().getName())
+                            .currentStatus(status.name())
+                            .currentStatusDescription(describeModalityStatus(status))
+                            .lastUpdatedAt(sm.getUpdatedAt())
+                            .hasPendingActions(pending)
+                            .build();
+                })
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
 
     public ResponseEntity<?> getStudentModalityDetailForProgramHead(Long studentModalityId) {
 
@@ -1864,7 +2038,7 @@ public class ModalityService {
                                             uploaded != null ? uploaded.getId() : null
                                     )
                                     .documentName(req.getDocumentName())
-                                    .mandatory(req.isMandatory())
+                                    .documentType(req.getDocumentType())
                                     .uploaded(uploaded != null)
                                     .status(
                                             uploaded != null
@@ -2089,7 +2263,7 @@ public class ModalityService {
                                             uploaded != null ? uploaded.getId() : null
                                     )
                                     .documentName(req.getDocumentName())
-                                    .mandatory(req.isMandatory())
+                                    .documentType(req.getDocumentType())
                                     .uploaded(uploaded != null)
                                     .status(
                                             uploaded != null
@@ -2307,7 +2481,7 @@ public class ModalityService {
                                             uploaded != null ? uploaded.getId() : null
                                     )
                                     .documentName(req.getDocumentName())
-                                    .mandatory(req.isMandatory())
+                                    .documentType(req.getDocumentType())
                                     .uploaded(uploaded != null)
                                     .status(
                                             uploaded != null
@@ -2452,6 +2626,239 @@ public class ModalityService {
         );
     }
 
+    public ResponseEntity<?> getStudentModalityDetailForExaminer(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User examiner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        // Verificar si el usuario es un examinador asignado a esta modalidad
+        DefenseExaminer defenseExaminer = defenseExaminerRepository
+                .findByStudentModalityIdAndExaminerId(studentModalityId, examiner.getId())
+                .orElseThrow(() -> new RuntimeException(
+                        "No tiene permiso para ver esta modalidad. No está asignado como examinador."
+                ));
+
+        AcademicProgram academicProgram = studentModality.getProgramDegreeModality().getAcademicProgram();
+        User student = studentModality.getStudent();
+        DegreeModality modality = studentModality.getProgramDegreeModality().getDegreeModality();
+
+        // Información del perfil del estudiante
+        StudentProfile studentProfile = studentProfileRepository.findByUserId(student.getId())
+                .orElse(null);
+
+        // Historial de estados
+        List<ModalityStatusHistoryDTO> history =
+                historyRepository
+                        .findByStudentModalityIdOrderByChangeDateAsc(studentModalityId)
+                        .stream()
+                        .map(h -> ModalityStatusHistoryDTO.builder()
+                                .status(h.getStatus().name())
+                                .description(describeModalityStatus(h.getStatus()))
+                                .changeDate(h.getChangeDate())
+                                .responsible(
+                                        h.getResponsible() != null
+                                                ? h.getResponsible().getEmail()
+                                                : "Sistema"
+                                )
+                                .observations(h.getObservations())
+                                .build()
+                        )
+                        .toList();
+
+        // Documentos requeridos y cargados
+        List<RequiredDocument> requiredDocuments =
+                requiredDocumentRepository
+                        .findByModalityIdAndActiveTrue(modality.getId());
+
+        List<StudentDocument> uploadedDocuments =
+                studentDocumentRepository
+                        .findByStudentModalityId(studentModalityId);
+
+        Map<Long, StudentDocument> uploadedMap =
+                uploadedDocuments.stream()
+                        .collect(Collectors.toMap(
+                                d -> d.getDocumentConfig().getId(),
+                                d -> d
+                        ));
+
+        List<DetailDocumentDTO> documents =
+                requiredDocuments.stream()
+                        .map(req -> {
+                            StudentDocument uploaded = uploadedMap.get(req.getId());
+
+                            return DetailDocumentDTO.builder()
+                                    .studentDocumentId(
+                                            uploaded != null ? uploaded.getId() : null
+                                    )
+                                    .documentName(req.getDocumentName())
+                                    .documentType(req.getDocumentType())
+                                    .uploaded(uploaded != null)
+                                    .status(
+                                            uploaded != null
+                                                    ? uploaded.getStatus().name()
+                                                    : "NOT_UPLOADED"
+                                    )
+                                    .statusDescription(
+                                            uploaded != null
+                                                    ? describeDocumentStatus(uploaded.getStatus())
+                                                    : "Documento aún no cargado por el estudiante."
+                                    )
+                                    .notes(
+                                            uploaded != null ? uploaded.getNotes() : null
+                                    )
+                                    .lastUpdate(
+                                            uploaded != null ? uploaded.getUploadDate() : null
+                                    )
+                                    .build();
+                        })
+                        .toList();
+
+        // Estadísticas de documentos
+        long approvedDocs = uploadedDocuments.stream()
+                .filter(d -> d.getStatus() == DocumentStatus.ACCEPTED_FOR_PROGRAM_CURRICULUM_COMMITTEE_REVIEW)
+                .count();
+        long pendingDocs = uploadedDocuments.stream()
+                .filter(d -> d.getStatus() == DocumentStatus.PENDING ||
+                        d.getStatus() == DocumentStatus.ACCEPTED_FOR_PROGRAM_HEAD_REVIEW ||
+                        d.getStatus() == DocumentStatus.CORRECTION_RESUBMITTED)
+                .count();
+        long rejectedDocs = uploadedDocuments.stream()
+                .filter(d -> d.getStatus() == DocumentStatus.REJECTED_FOR_PROGRAM_HEAD_REVIEW ||
+                        d.getStatus() == DocumentStatus.REJECTED_FOR_PROGRAM_CURRICULUM_COMMITTEE_REVIEW)
+                .count();
+
+        // Obtener todos los examinadores asignados
+        List<DefenseExaminer> allExaminers = defenseExaminerRepository
+                .findByStudentModalityId(studentModalityId);
+
+        List<StudentModalityExaminerDTO.ExaminerInfo> examinersList = allExaminers.stream()
+                .map(de -> {
+                    // Verificar si este examinador ya evaluó
+                    boolean hasEvaluated = examinerEvaluationRepository
+                            .findByDefenseExaminerId(de.getId())
+                            .isPresent();
+
+                    return StudentModalityExaminerDTO.ExaminerInfo.builder()
+                            .examinerId(de.getExaminer().getId())
+                            .examinerName(de.getExaminer().getName() + " " + de.getExaminer().getLastName())
+                            .examinerEmail(de.getExaminer().getEmail())
+                            .examinerType(de.getExaminerType().name())
+                            .assignmentDate(de.getAssignmentDate())
+                            .hasEvaluated(hasEvaluated)
+                            .build();
+                })
+                .toList();
+
+        // Obtener la evaluación del examinador actual (si existe)
+        StudentModalityExaminerDTO.ExaminerEvaluationInfo myEvaluationInfo = null;
+        boolean hasEvaluated = false;
+
+        ExaminerEvaluation myEvaluation = examinerEvaluationRepository
+                .findByDefenseExaminerId(defenseExaminer.getId())
+                .orElse(null);
+
+        if (myEvaluation != null) {
+            hasEvaluated = true;
+            myEvaluationInfo = StudentModalityExaminerDTO.ExaminerEvaluationInfo.builder()
+                    .evaluationId(myEvaluation.getId())
+                    .grade(myEvaluation.getGrade())
+                    .decision(myEvaluation.getDecision() != null ? myEvaluation.getDecision().name() : null)
+                    .observations(myEvaluation.getObservations())
+                    .evaluationDate(myEvaluation.getEvaluationDate())
+                    .isFinalDecision(myEvaluation.getIsFinalDecision())
+                    .build();
+        }
+
+        // Determinar permisos y acciones
+        ModalityProcessStatus status = studentModality.getStatus();
+
+        // El examinador puede evaluar si la defensa está programada o si es jurado de desempate y necesita evaluar
+        boolean canEvaluate = (status == ModalityProcessStatus.DEFENSE_SCHEDULED && !hasEvaluated) ||
+                             (defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER && !hasEvaluated);
+
+        boolean requiresAction = canEvaluate;
+
+        boolean defenseCompleted = status == ModalityProcessStatus.GRADED_APPROVED ||
+                                  status == ModalityProcessStatus.GRADED_FAILED;
+
+        // Director del proyecto
+        User projectDirector = studentModality.getProjectDirector();
+
+        return ResponseEntity.ok(
+                StudentModalityExaminerDTO.builder()
+                        // Información del estudiante
+                        .studentId(student.getId())
+                        .studentName(student.getName())
+                        .studentLastName(student.getLastName())
+                        .studentEmail(student.getEmail())
+                        .studentCode(studentProfile != null ? studentProfile.getStudentCode() : null)
+                        .approvedCredits(studentProfile != null ? studentProfile.getApprovedCredits() : null)
+                        .gpa(studentProfile != null ? studentProfile.getGpa() : null)
+                        .semester(studentProfile != null ? studentProfile.getSemester() : null)
+
+                        // Información académica
+                        .facultyName(academicProgram.getFaculty().getName())
+                        .academicProgramName(academicProgram.getName())
+
+                        // Información de la modalidad
+                        .studentModalityId(studentModality.getId())
+                        .modalityName(modality.getName())
+                        .modalityDescription(modality.getDescription())
+                        .creditsRequired(studentModality.getProgramDegreeModality().getCreditsRequired())
+
+                        // Estado actual
+                        .currentStatus(status.name())
+                        .currentStatusDescription(describeModalityStatus(status))
+                        .selectionDate(studentModality.getSelectionDate())
+                        .lastUpdatedAt(studentModality.getUpdatedAt())
+
+                        // Director del proyecto
+                        .projectDirectorId(projectDirector != null ? projectDirector.getId() : null)
+                        .projectDirectorName(projectDirector != null
+                                ? projectDirector.getName() + " " + projectDirector.getLastName()
+                                : null)
+                        .projectDirectorEmail(projectDirector != null ? projectDirector.getEmail() : null)
+
+                        // Información de la defensa
+                        .defenseDate(studentModality.getDefenseDate())
+                        .defenseLocation(studentModality.getDefenseLocation())
+
+                        // Examinadores
+                        .examiners(examinersList)
+                        .myEvaluation(myEvaluationInfo)
+
+                        // Distinción académica y calificación final
+                        .academicDistinction(studentModality.getAcademicDistinction() != null
+                                ? studentModality.getAcademicDistinction().name()
+                                : null)
+                        .finalGrade(studentModality.getFinalGrade())
+
+                        // Documentos
+                        .documents(documents)
+                        .totalDocuments(uploadedDocuments.size())
+                        .approvedDocuments((int) approvedDocs)
+                        .pendingDocuments((int) pendingDocs)
+                        .rejectedDocuments((int) rejectedDocs)
+
+                        // Historial
+                        .history(history)
+
+                        // Permisos y acciones
+                        .canEvaluate(canEvaluate)
+                        .hasEvaluated(hasEvaluated)
+                        .requiresAction(requiresAction)
+                        .defenseCompleted(defenseCompleted)
+
+                        .build()
+        );
+    }
+
     public ResponseEntity<?> requestCancellation(Long studentModalityId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -2467,6 +2874,17 @@ public class ModalityService {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No autorizado");
         }
 
+        // Validar que tenga director de proyecto asignado
+        if (studentModality.getProjectDirector() == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "No puede solicitar la cancelación aún. Debe tener un director de proyecto asignado a su modalidad antes de solicitar la cancelación."
+                    )
+            );
+        }
+
+        // Validar que la modalidad no esté ya en proceso de cancelación
         if (studentModality.getStatus() == ModalityProcessStatus.CANCELLATION_REQUESTED ||
                 studentModality.getStatus() == ModalityProcessStatus.MODALITY_CANCELLED) {
 
@@ -2478,48 +2896,68 @@ public class ModalityService {
             );
         }
 
-
+        // CORRECCIÓN CRÍTICA: Validar específicamente documento de tipo CANCELLATION
         List<StudentDocument> documents =
                 studentDocumentRepository.findByStudentModalityId(studentModalityId);
 
-        boolean hasJustification = documents.stream()
-                .anyMatch(doc ->
-                        doc.getDocumentConfig().getModality().getId()
-                                .equals(studentModality.getProgramDegreeModality().getDegreeModality().getId()));
+        boolean hasCancellationDocument = documents.stream()
+                .anyMatch(doc -> doc.getDocumentConfig().getDocumentType() == DocumentType.CANCELLATION);
 
-        if (!hasJustification) {
+        if (!hasCancellationDocument) {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "Debe subir el documento de justificación de cancelación"
+                            "message", "Debe subir el documento de justificación de cancelación antes de solicitar la cancelación de la modalidad"
                     )
             );
         }
 
+        // Validar que el documento de cancelación esté en estado válido
+        Optional<StudentDocument> cancellationDoc = documents.stream()
+                .filter(doc -> doc.getDocumentConfig().getDocumentType() == DocumentType.CANCELLATION)
+                .findFirst();
 
+        if (cancellationDoc.isPresent()) {
+            DocumentStatus docStatus = cancellationDoc.get().getStatus();
+            if (docStatus == DocumentStatus.REJECTED_FOR_PROGRAM_HEAD_REVIEW ||
+                docStatus == DocumentStatus.REJECTED_FOR_PROGRAM_CURRICULUM_COMMITTEE_REVIEW) {
+                return ResponseEntity.badRequest().body(
+                        Map.of(
+                                "success", false,
+                                "message", "El documento de cancelación fue rechazado. Debe subir una nueva versión antes de solicitar la cancelación."
+                        )
+                );
+            }
+        }
+
+
+        // Cambiar estado de la modalidad
         studentModality.setStatus(ModalityProcessStatus.CANCELLATION_REQUESTED);
         studentModality.setUpdatedAt(LocalDateTime.now());
         studentModalityRepository.save(studentModality);
 
-
+        // Registrar en historial
         historyRepository.save(
                 ModalityProcessStatusHistory.builder()
                         .studentModality(studentModality)
                         .status(ModalityProcessStatus.CANCELLATION_REQUESTED)
                         .changeDate(LocalDateTime.now())
                         .responsible(student)
-                        .observations("Solicitud de cancelación enviada por el estudiante")
+                        .observations("Solicitud de cancelación enviada por el estudiante con documento justificativo")
                         .build()
         );
 
-        notificationEventPublisher.publish(new CancellationRequestedEvent(studentModality.getId(), student.getId())
+        // Notificar a las partes interesadas
+        notificationEventPublisher.publish(
+                new CancellationRequestedEvent(studentModality.getId(), student.getId())
         );
-
 
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
-                        "message", "Solicitud de cancelación enviada correctamente"
+                        "message", "Solicitud de cancelación enviada correctamente",
+                        "studentModalityId", studentModalityId,
+                        "newStatus", ModalityProcessStatus.CANCELLATION_REQUESTED
                 )
         );
     }
@@ -4871,6 +5309,102 @@ public class ModalityService {
         ));
     }
 
+
+    @Transactional
+    public ResponseEntity<?> closeModalityByCommittee(Long studentModalityId, String reason) {
+
+
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe proporcionar el motivo del cierre de la modalidad"
+                    )
+            );
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        Long academicProgramId = studentModality.getAcademicProgram().getId();
+
+        boolean isAuthorized = programAuthorityRepository
+                .existsByUser_IdAndAcademicProgram_IdAndRole(
+                        committeeMember.getId(),
+                        academicProgramId,
+                        ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+                );
+
+        if (!isAuthorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "No tiene permiso para cerrar modalidades de este programa académico. Debe ser miembro del comité de currículo del programa."
+                    ));
+        }
+
+
+        if (studentModality.getStatus() == ModalityProcessStatus.MODALITY_CLOSED) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad ya se encuentra cerrada",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        ModalityProcessStatus previousStatus = studentModality.getStatus();
+
+
+        studentModality.setStatus(ModalityProcessStatus.MODALITY_CLOSED);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.MODALITY_CLOSED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(String.format(
+                                "Modalidad cerrada por el comité de currículo del programa. Estado anterior: %s. Motivo: %s",
+                                previousStatus,
+                                reason
+                        ))
+                        .build()
+        );
+
+
+        notificationEventPublisher.publish(
+                new ModalityClosedByCommitteeEvent(
+                        studentModality.getId(),
+                        studentModality.getStudent().getId(),
+                        reason,
+                        committeeMember.getId()
+                )
+        );
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "previousStatus", previousStatus,
+                        "newStatus", ModalityProcessStatus.MODALITY_CLOSED,
+                        "closedBy", committeeMember.getName() + " " + committeeMember.getLastName(),
+                        "reason", reason,
+                        "message", "Modalidad cerrada exitosamente. El estudiante ha sido notificado por correo electrónico."
+                )
+        );
+    }
+
 }
-
-

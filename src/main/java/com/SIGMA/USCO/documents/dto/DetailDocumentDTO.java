@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.documents.dto;
 
+import com.SIGMA.USCO.documents.entity.DocumentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +17,7 @@ public class DetailDocumentDTO {
     private Long studentDocumentId;
 
     private String documentName;
-    private boolean mandatory;
+    private DocumentType documentType;
 
     private String status;
     private String statusDescription;

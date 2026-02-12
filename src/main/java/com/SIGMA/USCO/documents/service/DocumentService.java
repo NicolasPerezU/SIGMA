@@ -8,10 +8,7 @@ import com.SIGMA.USCO.Users.repository.UserRepository;
 
 import com.SIGMA.USCO.documents.dto.StatusHistoryDTO;
 import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
-import com.SIGMA.USCO.documents.entity.RequiredDocument;
-import com.SIGMA.USCO.documents.entity.StudentDocument;
-import com.SIGMA.USCO.documents.entity.StudentDocumentStatusHistory;
+import com.SIGMA.USCO.documents.entity.*;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;
@@ -34,6 +31,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -63,7 +61,7 @@ public class DocumentService {
                 .documentName(request.getDocumentName())
                 .allowedFormat(request.getAllowedFormat())
                 .maxFileSizeMB(request.getMaxFileSizeMB())
-                .isMandatory(request.isMandatory())
+                .documentType(request.getDocumentType())
                 .description(request.getDescription())
                 .active(true)
                 .createdAt(LocalDateTime.now())
@@ -87,7 +85,7 @@ public class DocumentService {
         document.setDescription(request.getDescription());
         document.setAllowedFormat(request.getAllowedFormat());
         document.setMaxFileSizeMB(request.getMaxFileSizeMB());
-        document.setMandatory(request.isMandatory());
+        document.setDocumentType(request.getDocumentType());
         document.setActive(request.isActive());
         document.setUpdatedAt(LocalDateTime.now());
 
@@ -134,7 +132,7 @@ public class DocumentService {
                                 .description(doc.getDescription())
                                 .allowedFormat(doc.getAllowedFormat())
                                 .maxFileSizeMB(doc.getMaxFileSizeMB())
-                                .mandatory(doc.isMandatory())
+                                .documentType(doc.getDocumentType())
                                 .active(doc.isActive())
                                 .build())
                         .toList();
@@ -159,7 +157,7 @@ public class DocumentService {
                                 .description(doc.getDescription())
                                 .allowedFormat(doc.getAllowedFormat())
                                 .maxFileSizeMB(doc.getMaxFileSizeMB())
-                                .mandatory(doc.isMandatory())
+                                .documentType(doc.getDocumentType())
                                 .active(doc.isActive())
                                 .build())
                         .toList();
@@ -240,8 +238,17 @@ public class DocumentService {
 
     public StudentDocument getDocumentCancellation(Long studentModalityId) {
 
-        return studentDocumentRepository.findByStudentModalityIdAndDocumentConfig_DocumentName(studentModalityId, "Justificación de cancelación de modalidad de grado")
-                .orElseThrow(() -> new RuntimeException("Documento de justificación no encontrado"));
+        return studentDocumentRepository
+                .findByStudentModalityIdAndDocumentConfig_DocumentType(
+                        studentModalityId,
+                        DocumentType.CANCELLATION
+                )
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        "No se encontró documento de cancelación para esta modalidad. " +
+                        "El estudiante debe subirlo primero."
+                ));
     }
 
     public void uploadCancellationDocument(Long studentModalityId, MultipartFile file) {
@@ -256,36 +263,83 @@ public class DocumentService {
             throw new RuntimeException("No autorizado");
         }
 
-        RequiredDocument cancellationDocumentConfig = requiredDocumentRepository.findByModalityIdAndActiveTrue(studentModality.getProgramDegreeModality().getDegreeModality().getId())
-                        .stream().filter(doc ->
-                                doc.getDocumentName().equals("Justificación de cancelación de modalidad de grado"))
-                        .findFirst()
-                        .orElseThrow(() ->
-                                new RuntimeException("Configuración del documento no encontrada")
-                        );
+        // Usar DocumentType.CANCELLATION en lugar de buscar por nombre
+        Long modalityId = studentModality.getProgramDegreeModality().getDegreeModality().getId();
+
+        RequiredDocument cancellationDocumentConfig = requiredDocumentRepository
+                .findByModalityIdAndActiveTrueAndDocumentType(
+                        modalityId,
+                        DocumentType.CANCELLATION
+                )
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        "No se encontró configuración de documento de cancelación para esta modalidad"
+                ));
 
         validateFile(file, cancellationDocumentConfig);
 
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        Path destination = Paths.get(uploadDir, fileName);
+
+        // Crear estructura de carpetas para documentos de cancelación
+        String modalityFolder = studentModality.getProgramDegreeModality()
+                .getDegreeModality().getName().replaceAll("[^a-zA-Z0-9]", "_");
+        String studentFolder = studentModality.getStudent().getName() +
+                studentModality.getStudent().getLastName() + "_" +
+                studentModality.getStudent().getLastName() + "_" +
+                studentModality.getId();
+
+        Path destination = Paths.get(uploadDir, modalityFolder, studentFolder, "cancelaciones", fileName);
 
         try {
             Files.createDirectories(destination.getParent());
             Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            throw new RuntimeException("Error guardando el archivo");
+            throw new RuntimeException("Error guardando el archivo: " + e.getMessage());
         }
 
-        StudentDocument studentDocument = StudentDocument.builder()
-                .studentModality(studentModality)
-                .documentConfig(cancellationDocumentConfig)
-                .fileName(fileName)
-                .filePath(destination.toString())
-                .status(DocumentStatus.PENDING)
-                .uploadDate(LocalDateTime.now())
-                .build();
+        // Verificar si ya existe un documento de cancelación
+        Optional<StudentDocument> existingDoc = studentDocumentRepository
+                .findByStudentModalityIdAndDocumentConfig_DocumentType(
+                        studentModalityId,
+                        DocumentType.CANCELLATION
+                )
+                .stream()
+                .findFirst();
+
+        StudentDocument studentDocument;
+
+        if (existingDoc.isPresent()) {
+            // Actualizar documento existente
+            studentDocument = existingDoc.get();
+            studentDocument.setFileName(fileName);
+            studentDocument.setFilePath(destination.toString());
+            studentDocument.setStatus(DocumentStatus.PENDING);
+            studentDocument.setUploadDate(LocalDateTime.now());
+        } else {
+            // Crear nuevo documento
+            studentDocument = StudentDocument.builder()
+                    .studentModality(studentModality)
+                    .documentConfig(cancellationDocumentConfig)
+                    .fileName(fileName)
+                    .filePath(destination.toString())
+                    .status(DocumentStatus.PENDING)
+                    .uploadDate(LocalDateTime.now())
+                    .build();
+        }
 
         studentDocumentRepository.save(studentDocument);
+
+        // Registrar en historial
+        documentHistoryRepository.save(
+            StudentDocumentStatusHistory.builder()
+                .studentDocument(studentDocument)
+                .status(DocumentStatus.PENDING)
+                .changeDate(LocalDateTime.now())
+                .responsible(studentModality.getStudent())
+                .observations("Documento de cancelación cargado por el estudiante")
+                .build()
+        );
     }
 
     private void validateFile(MultipartFile file, RequiredDocument config) {

@@ -31,8 +31,9 @@ public class RequiredDocument {
 
     private Integer maxFileSizeMB;
 
-    @Column(name = "is_mandatory")
-    private boolean isMandatory;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false, length = 20)
+    private DocumentType documentType;
 
     @Column(length = 5000)
     private String description;

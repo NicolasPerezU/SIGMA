@@ -61,6 +61,14 @@ public class StudentService {
 
 
 
+        String studentCode = extractStudentCodeFromEmail(email);
+        if (studentCode == null) {
+            return ResponseEntity.badRequest().body(
+                    "No se pudo extraer el código de estudiante del email. " +
+                    "El formato esperado es: u[NUMEROS]@dominio (ejemplo: u20221204357@usco.edu.co)"
+            );
+        }
+
         if (request.getSemester() < 1 || request.getSemester() > 10) {
             return ResponseEntity.badRequest().body("El semestre debe estar entre 1 y 10.");
         }
@@ -95,7 +103,7 @@ public class StudentService {
         }
 
 
-        // (opcional pero muy recomendada)
+
         if (request.getApprovedCredits() > program.getTotalCredits()) {
             return ResponseEntity.badRequest().body(
                     "Los créditos aprobados no pueden superar el total del programa (" +
@@ -107,7 +115,7 @@ public class StudentService {
 
         studentProfile.setFaculty(faculty);
         studentProfile.setAcademicProgram(program);
-        studentProfile.setStudentCode(request.getStudentCode());
+        studentProfile.setStudentCode(studentCode);
         studentProfile.setSemester(request.getSemester());
         studentProfile.setGpa(request.getGpa());
         studentProfile.setApprovedCredits(request.getApprovedCredits());
@@ -115,6 +123,28 @@ public class StudentService {
         studentProfileRepository.save(studentProfile);
 
         return ResponseEntity.ok("Perfil académico actualizado correctamente");
+    }
+
+
+    private String extractStudentCodeFromEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return null;
+        }
+
+
+        String localPart = email.substring(0, email.indexOf("@"));
+
+
+        if (localPart.startsWith("u") && localPart.length() > 1) {
+            String numbersAfterU = localPart.substring(1);
+
+
+            if (numbersAfterU.matches("\\d+")) {
+                return numbersAfterU;
+            }
+        }
+
+        return null;
     }
 
 
@@ -167,9 +197,10 @@ public class StudentService {
 
         List<StudentDocument> documents = studentDocumentRepository.findByStudentModalityId(studentModalityId);
 
-
-
+        // Filtrar solo documentos MANDATORY y SECONDARY (excluir CANCELLATION)
         List<Map<String, Object>> response = documents.stream()
+                .filter(doc -> doc.getDocumentConfig().getDocumentType() == com.SIGMA.USCO.documents.entity.DocumentType.MANDATORY ||
+                              doc.getDocumentConfig().getDocumentType() == com.SIGMA.USCO.documents.entity.DocumentType.SECONDARY)
                 .map(doc -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("notes", doc.getNotes());
@@ -177,7 +208,7 @@ public class StudentService {
                     map.put("studentDocumentId", doc.getId());
                     map.put("uploadedAt", doc.getUploadDate());
                     map.put("documentName", doc.getDocumentConfig().getDocumentName());
-                    map.put("mandatory", doc.getDocumentConfig().isMandatory());
+                    map.put("documentType", doc.getDocumentConfig().getDocumentType());
                     map.put("status", doc.getStatus());
                     return map;
                 })

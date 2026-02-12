@@ -466,7 +466,7 @@ public class AdminService {
                                                 .description(doc.getDescription())
                                                 .allowedFormat(doc.getAllowedFormat())
                                                 .maxFileSizeMB(doc.getMaxFileSizeMB())
-                                                .mandatory(doc.isMandatory())
+                                                .documentType(doc.getDocumentType())
                                                 .active(doc.isActive())
                                                 .build())
                                         .toList()

@@ -145,4 +145,58 @@ WHERE sm.projectDirector.id = :directorId
     List<StudentModality> findForProjectDirector(
             Long directorId
     );
+
+    @Query("""
+SELECT DISTINCT sm FROM StudentModality sm
+JOIN DefenseExaminer de ON de.studentModality.id = sm.id
+WHERE de.examiner.id = :examinerId
+AND sm.status IN :statuses
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+ORDER BY sm.updatedAt DESC
+""")
+    List<StudentModality> findForExaminerWithStatusAndName(
+            Long examinerId,
+            List<ModalityProcessStatus> statuses,
+            String name
+    );
+
+    @Query("""
+SELECT DISTINCT sm FROM StudentModality sm
+JOIN DefenseExaminer de ON de.studentModality.id = sm.id
+WHERE de.examiner.id = :examinerId
+AND sm.status IN :statuses
+ORDER BY sm.updatedAt DESC
+""")
+    List<StudentModality> findForExaminerWithStatus(
+            Long examinerId,
+            List<ModalityProcessStatus> statuses
+    );
+
+    @Query("""
+SELECT DISTINCT sm FROM StudentModality sm
+JOIN DefenseExaminer de ON de.studentModality.id = sm.id
+WHERE de.examiner.id = :examinerId
+AND (
+    LOWER(sm.student.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    OR LOWER(sm.student.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+)
+ORDER BY sm.updatedAt DESC
+""")
+    List<StudentModality> findForExaminerWithName(
+            Long examinerId,
+            String name
+    );
+
+    @Query("""
+SELECT DISTINCT sm FROM StudentModality sm
+JOIN DefenseExaminer de ON de.studentModality.id = sm.id
+WHERE de.examiner.id = :examinerId
+ORDER BY sm.updatedAt DESC
+""")
+    List<StudentModality> findForExaminer(
+            Long examinerId
+    );
 }

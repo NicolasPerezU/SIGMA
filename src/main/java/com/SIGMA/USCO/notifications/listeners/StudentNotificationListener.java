@@ -910,4 +910,71 @@ public class StudentNotificationListener {
         log.info("Notificación de rechazo final de corrección enviada al estudiante {}", student.getId());
     }
 
+    @EventListener
+    public void handleModalityClosedByCommittee(ModalityClosedByCommitteeEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow();
+
+        User student = modality.getStudent();
+        User committeeMember = userRepository.findById(event.getCommitteeMemberId())
+                .orElseThrow();
+
+        String subject = "MODALIDAD CERRADA - Decisión del Comité de Currículo";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que tu modalidad de grado:
+                
+                "%s"
+                
+                ha sido CERRADA por decisión del Comité de Currículo del Programa.
+                
+                Programa académico: %s
+                Estado: MODALIDAD CERRADA
+                Decisión tomada por: %s %s
+                Fecha: %s
+                
+                Motivo del cierre:
+                %s
+                
+                Próximos pasos:
+                Para continuar con tu proceso de grado, te recomendamos:
+                1. Comunicarte con la jefatura de tu programa académico para obtener más detalles
+                2. Recibir asesoría sobre las opciones disponibles
+                3. En caso de ser necesario, iniciar una nueva modalidad de grado
+                
+                Si tienes dudas o deseas recibir retroalimentación adicional, por favor comunícate con la coordinación de tu programa académico.
+                
+                Cordialmente,
+                Sistema de Gestión Académica
+                Universidad Surcolombiana
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                committeeMember.getName(),
+                committeeMember.getLastName(),
+                LocalDateTime.now().toString(),
+                event.getReason()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_CLOSED_BY_COMMITTEE)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(committeeMember)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de cierre de modalidad por comité enviada al estudiante {}", student.getId());
+    }
+
 }

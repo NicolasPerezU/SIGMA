@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.documents.dto;
 
+import com.SIGMA.USCO.documents.entity.DocumentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,7 @@ public class RequiredDocumentDTO {
     private String documentName;
     private String allowedFormat;
     private Integer maxFileSizeMB;
-    private boolean mandatory;
+    private DocumentType documentType;
     private String description;
     private boolean active;
 

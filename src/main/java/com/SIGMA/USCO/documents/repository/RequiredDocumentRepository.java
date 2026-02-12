@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.documents.repository;
 
+import com.SIGMA.USCO.documents.entity.DocumentType;
 import com.SIGMA.USCO.documents.entity.RequiredDocument;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -12,8 +13,8 @@ public interface RequiredDocumentRepository extends JpaRepository<RequiredDocume
 
     List<RequiredDocument> findByModalityIdAndActive(Long modalityId, boolean active);
 
-    List<RequiredDocument> findByModalityIdAndActiveTrueAndIsMandatoryTrue(Long modalityId);
+    List<RequiredDocument> findByModalityIdAndActiveTrueAndDocumentType(Long modalityId, DocumentType documentType);
 
-
+    List<RequiredDocument> findByModalityIdAndActiveTrueAndDocumentTypeIn(Long modalityId, List<DocumentType> documentTypes);
 
 }

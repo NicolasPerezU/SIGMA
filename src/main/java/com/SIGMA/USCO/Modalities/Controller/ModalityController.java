@@ -137,6 +137,11 @@ public class ModalityController {
         return modalityService.validateAllDocumentsUploaded(id);
     }
 
+    @GetMapping("/my-available-documents")
+    public ResponseEntity<?> getMyAvailableDocuments() {
+        return modalityService.getAvailableDocumentsForStudent();
+    }
+
     @GetMapping("/{studentModalityId}/documents")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
     public ResponseEntity<?> listStudentDocuments(@PathVariable Long studentModalityId) {
@@ -199,6 +204,14 @@ public class ModalityController {
         return modalityService.getAllStudentModalitiesForProjectDirector(statuses, name);
     }
 
+    @GetMapping("/students/examiner")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    public ResponseEntity<?> listAllModalitiesForExaminer(@RequestParam(required = false)
+                                                           List<ModalityProcessStatus> statuses,
+                                                           @RequestParam(required = false) String name) {
+        return modalityService.getAllStudentModalitiesForExaminer(statuses, name);
+    }
+
     @GetMapping("/students/{studentModalityId}")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
     public ResponseEntity<?> getModalityDetailForProgramHead(@PathVariable Long studentModalityId) {
@@ -214,6 +227,12 @@ public class ModalityController {
     @PreAuthorize("hasAuthority('PERM_VIEW_MODALITY')")
     public ResponseEntity<?> getModalityDetailForProjectDirector(@PathVariable Long studentModalityId) {
         return modalityService.getStudentModalityDetailForProjectDirector(studentModalityId);
+    }
+
+    @GetMapping("/students/{studentModalityId}/examiner")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    public ResponseEntity<?> getModalityDetailForExaminer(@PathVariable Long studentModalityId) {
+        return modalityService.getStudentModalityDetailForExaminer(studentModalityId);
     }
 
     @PostMapping("/{studentModalityId}/cancellation/director/approve")
@@ -405,6 +424,17 @@ public class ModalityController {
     @GetMapping("/{studentModalityId}/correction-deadline-status")
     public ResponseEntity<?> getCorrectionDeadlineStatus(@PathVariable Long studentModalityId) {
         return modalityService.getCorrectionDeadlineStatus(studentModalityId);
+    }
+
+
+    @PostMapping("/{studentModalityId}/close-by-committee")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_CANCELLATION') or hasAuthority('PERM_REVIEW_DOCUMENT_COMMITTEE')")
+    public ResponseEntity<?> closeModalityByCommittee(
+            @PathVariable Long studentModalityId,
+            @RequestBody Map<String, String> request
+    ) {
+        String reason = request.get("reason");
+        return modalityService.closeModalityByCommittee(studentModalityId, reason);
     }
 
 }

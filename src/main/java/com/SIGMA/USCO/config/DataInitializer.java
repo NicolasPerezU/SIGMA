@@ -77,6 +77,7 @@ public class DataInitializer {
             Permission approveCancellationByProjectDirector = createPermission("APPROVE_CANCELLATION_DIRECTOR");
             Permission assignExaminer = createPermission("ASSIGN_EXAMINER");
             Permission evaluateDefense = createPermission("EVALUATE_DEFENSE");
+            Permission viewExaminerModalities = createPermission("VIEW_EXAMINER_MODALITIES");
 
 
             // Crear roles y asignar permisos
@@ -90,7 +91,7 @@ public class DataInitializer {
 
             createRole("PROJECT_DIRECTOR", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewModality, proposeDefense, approveCancellationByProjectDirector) );
 
-            createRole("EXAMINER", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality, assignProgramHead, viewFaculties, updateFaculty, deleteFaculty, viewPrograms, updateProgram, viewProgramHead, evaluateDefense) );
+            createRole("EXAMINER", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality, assignProgramHead, viewFaculties, updateFaculty, deleteFaculty, viewPrograms, updateProgram, viewProgramHead, evaluateDefense, viewExaminerModalities) );
         };
     }
 
