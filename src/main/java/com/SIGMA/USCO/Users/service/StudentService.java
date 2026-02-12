@@ -65,7 +65,7 @@ public class StudentService {
         if (studentCode == null) {
             return ResponseEntity.badRequest().body(
                     "No se pudo extraer el código de estudiante del email. " +
-                    "El formato esperado es: u[NUMEROS]@dominio (ejemplo: u20221204357@usco.edu.co)"
+                    "El formato esperado es: u[NUMEROS]@dominio (ejemplo: 202xxxxxxxx@usco.edu.co)"
             );
         }
 

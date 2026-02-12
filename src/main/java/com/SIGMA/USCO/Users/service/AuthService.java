@@ -52,6 +52,13 @@ public class AuthService {
                     .body("El correo debe ser institucional con dominio @usco.edu.co");
         }
 
+
+        String emailPattern = "^u\\d+@usco\\.edu\\.co$";
+        if (!email.matches(emailPattern)) {
+            return ResponseEntity.badRequest()
+                    .body("El formato del correo institucional es inválido. El formato esperado es: u[NUMEROS]@usco.edu.co (ejemplo: u20221204357@usco.edu.co)");
+        }
+
         if (userRepository.existsByEmail(email)) {
             return ResponseEntity.badRequest()
                     .body("Este correo ya está en uso");
