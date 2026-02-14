@@ -210,7 +210,7 @@ public class DocumentService {
         StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
-        if (!document.getStudentModality().getStudent().getId().equals(student.getId())) {
+        if (!document.getStudentModality().getLeader().getId().equals(student.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No authorized access to document history.");
         }
 
@@ -259,7 +259,7 @@ public class DocumentService {
         StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
                 .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
 
-        if (!studentModality.getStudent().getEmail().equals(email)) {
+        if (!studentModality.getLeader().getEmail().equals(email)) {
             throw new RuntimeException("No autorizado");
         }
 
@@ -284,9 +284,9 @@ public class DocumentService {
         // Crear estructura de carpetas para documentos de cancelación
         String modalityFolder = studentModality.getProgramDegreeModality()
                 .getDegreeModality().getName().replaceAll("[^a-zA-Z0-9]", "_");
-        String studentFolder = studentModality.getStudent().getName() +
-                studentModality.getStudent().getLastName() + "_" +
-                studentModality.getStudent().getLastName() + "_" +
+        String studentFolder = studentModality.getLeader().getName() +
+                studentModality.getLeader().getLastName() + "_" +
+                studentModality.getLeader().getLastName() + "_" +
                 studentModality.getId();
 
         Path destination = Paths.get(uploadDir, modalityFolder, studentFolder, "cancelaciones", fileName);
@@ -336,7 +336,7 @@ public class DocumentService {
                 .studentDocument(studentDocument)
                 .status(DocumentStatus.PENDING)
                 .changeDate(LocalDateTime.now())
-                .responsible(studentModality.getStudent())
+                .responsible(studentModality.getLeader())
                 .observations("Documento de cancelación cargado por el estudiante")
                 .build()
         );

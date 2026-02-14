@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.Users.service;
 
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
+import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.academic.entity.AcademicProgram;
 import com.SIGMA.USCO.academic.entity.Faculty;
@@ -39,6 +40,7 @@ public class StudentService {
     private final UserRepository userRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final StudentModalityRepository studentModalityRepository;
+    private final StudentModalityMemberRepository studentModalityMemberRepository;
     private final StudentDocumentRepository studentDocumentRepository;
     private final FacultyRepository facultyRepository;
     private final AcademicProgramRepository academicProgramRepository;
@@ -186,14 +188,18 @@ public class StudentService {
             return ResponseEntity.status(404).body("Usuario no encontrado");
         }
         User currentUser = user.get();
-        Optional<StudentModality> modalityOpt =
-                studentModalityRepository.findTopByStudentIdOrderByUpdatedAtDesc(currentUser.getId());
 
-        if (modalityOpt.isEmpty()) {
-            return ResponseEntity.status(404).body("No se encontró ninguna modalidad asociada al estudiante");
+        // Buscar la modalidad activa donde el usuario es miembro
+        List<StudentModality> activeModalities =
+                studentModalityMemberRepository.findActiveModalitiesByUserId(currentUser.getId());
+
+        if (activeModalities.isEmpty()) {
+            return ResponseEntity.status(404).body("No se encontró ninguna modalidad activa asociada al estudiante");
         }
 
-        Long studentModalityId = modalityOpt.get().getId();
+        // Obtener la modalidad más reciente
+        StudentModality latestModality = activeModalities.get(0);
+        Long studentModalityId = latestModality.getId();
 
         List<StudentDocument> documents = studentDocumentRepository.findByStudentModalityId(studentModalityId);
 
@@ -232,9 +238,14 @@ public class StudentService {
         StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
                 .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
 
-        // Verificar que el documento pertenece al estudiante autenticado
-        Long documentOwnerId = document.getStudentModality().getStudent().getId();
-        if (!documentOwnerId.equals(currentUser.getId())) {
+        // Verificar que el usuario sea un miembro activo de la modalidad
+        Long studentModalityId = document.getStudentModality().getId();
+        boolean isActiveMember = studentModalityMemberRepository.isActiveMember(
+                studentModalityId,
+                currentUser.getId()
+        );
+
+        if (!isActiveMember) {
             return ResponseEntity.status(403).body("No tienes permiso para ver este documento");
         }
 

@@ -37,6 +37,9 @@ public class StudentModalityDTO {
     private Long creditsRequired;
     private String modalityType;
 
+    // Lista de miembros (para modalidades grupales)
+    private List<ModalityMemberDTO> members;
+
 
     private String currentStatus;
     private String currentStatusDescription;

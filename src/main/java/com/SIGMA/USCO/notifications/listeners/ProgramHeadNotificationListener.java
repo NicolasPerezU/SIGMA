@@ -35,7 +35,7 @@ public class ProgramHeadNotificationListener {
 
         StudentModality studentModality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
         List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
-        String subject = "Nueva modalidad iniciada - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
+        String subject = "Nueva modalidad iniciada - Estudiante: " + studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName();
 
         String message = """
                 Hola Jefatura de Programa,
@@ -51,7 +51,7 @@ public class ProgramHeadNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 studentModality.getProgramDegreeModality().getDegreeModality().getName(),
-                studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
+                studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName()
         );
         for (User programHead : programHeads) {
             Notification notification = Notification.builder()
@@ -80,7 +80,7 @@ public class ProgramHeadNotificationListener {
         StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
                         .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         List<User> programHeads =
                 userRepository.findAllByRoles_Name("PROGRAM_HEAD");
@@ -143,7 +143,7 @@ public class ProgramHeadNotificationListener {
 
         List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
-        String subject = "Sustentación programada - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
+        String subject = "Sustentación programada - Estudiante: " + studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName();
 
         String message = """
                 Hola jefatura del programa,
@@ -162,7 +162,7 @@ public class ProgramHeadNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 studentModality.getProgramDegreeModality().getDegreeModality().getName(),
-                studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName(),
+                studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName(),
                 event.getDefenseDate().toString(),
                 event.getDefenseLocation()
         );
@@ -192,7 +192,7 @@ public class ProgramHeadNotificationListener {
         List<User> programHeads =
                 userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
-        String subject = "Nuevo director asignado - Estudiante: " + studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName();
+        String subject = "Nuevo director asignado - Estudiante: " + studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName();
 
         String message = """
                 Hola jefatura del programa,
@@ -205,7 +205,7 @@ public class ProgramHeadNotificationListener {
                 
                 """.formatted(
                 studentModality.getProgramDegreeModality().getDegreeModality().getName(),
-                studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
+                studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName()
         );
         for (User programHead : programHeads) {
 
@@ -242,7 +242,7 @@ public class ProgramHeadNotificationListener {
 
 
 
-        String subject = "Resultado de la defensa final - Estudiante: " + modality.getStudent().getName() + " " + modality.getStudent().getLastName();
+        String subject = "Resultado de la defensa final - Estudiante: " + modality.getLeader().getName() + " " + modality.getLeader().getLastName();
 
         String message = """
                 Hola %s,
@@ -268,8 +268,8 @@ public class ProgramHeadNotificationListener {
                 Sistema SIGMA
                 """.formatted(
                 director.getName(),
-                modality.getStudent().getName(),
-                modality.getStudent().getEmail(),
+                modality.getLeader().getName(),
+                modality.getLeader().getEmail(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getFinalStatus().toString(),
                 event.getAcademicDistinction().toString(),
@@ -303,7 +303,7 @@ public class ProgramHeadNotificationListener {
 
         List<User> programHeads = userRepository.findAllByRoles_Name("PROGRAM_HEAD");
 
-        String subject = "Modalidad aprobada por el comité de currículo de programa - Estudiante: " + modality.getStudent().getName() + " " + modality.getStudent().getLastName();
+        String subject = "Modalidad aprobada por el comité de currículo de programa - Estudiante: " + modality.getLeader().getName() + " " + modality.getLeader().getLastName();
 
         String message = """
                 Hola Jefatura de programa,
@@ -321,8 +321,8 @@ public class ProgramHeadNotificationListener {
 
                 Sistema SIGMA
                 """.formatted(
-                modality.getStudent().getName(),
-                modality.getStudent().getEmail(),
+                modality.getLeader().getName(),
+                modality.getLeader().getEmail(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 modality.getSelectionDate()
         );

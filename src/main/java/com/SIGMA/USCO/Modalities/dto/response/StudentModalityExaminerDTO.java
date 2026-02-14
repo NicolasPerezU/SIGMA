@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.Modalities.dto.response;
 
+import com.SIGMA.USCO.Modalities.dto.ModalityMemberDTO;
 import com.SIGMA.USCO.Modalities.dto.ModalityStatusHistoryDTO;
 import com.SIGMA.USCO.documents.dto.DetailDocumentDTO;
 import lombok.AllArgsConstructor;
@@ -35,6 +36,10 @@ public class StudentModalityExaminerDTO {
     private String modalityName;
     private String modalityDescription;
     private Long creditsRequired;
+    private String modalityType;
+
+    // Lista de miembros (para modalidades grupales)
+    private List<ModalityMemberDTO> members;
 
     // Estado actual
     private String currentStatus;

@@ -57,7 +57,7 @@ public class DirectorNotificationListener {
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName(),
-                sm.getStudent().getName() + " " + sm.getStudent().getLastName()
+                sm.getLeader().getName() + " " + sm.getLeader().getLastName()
         );
 
         Notification notification = Notification.builder()
@@ -104,7 +104,7 @@ public class DirectorNotificationListener {
                 """.formatted(
                 sm.getProjectDirector().getName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName(),
-                sm.getStudent().getName() + " " + sm.getStudent().getLastName()
+                sm.getLeader().getName() + " " + sm.getLeader().getLastName()
         );
 
 
@@ -148,7 +148,7 @@ public class DirectorNotificationListener {
                 Sistema de Gestión Académica
                 """.formatted(
                 sm.getProjectDirector().getName(),
-                sm.getStudent().getName() + " " + sm.getStudent().getLastName(),
+                sm.getLeader().getName() + " " + sm.getLeader().getLastName(),
                 sm.getProgramDegreeModality().getDegreeModality().getName()
         );
 
@@ -208,8 +208,8 @@ public class DirectorNotificationListener {
                 Sistema de Gestión Académica
                 """.formatted(
                 director.getName(),
-                modality.getStudent().getName(),
-                modality.getStudent().getEmail(),
+                modality.getLeader().getName(),
+                modality.getLeader().getEmail(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getDefenseDate(),
                 event.getDefenseLocation()
@@ -239,7 +239,7 @@ public class DirectorNotificationListener {
                         .orElseThrow();
 
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
         User director = userRepository.findById(event.getDirectorId())
                 .orElseThrow();
 
@@ -329,8 +329,8 @@ public class DirectorNotificationListener {
                 Sistema de Gestión Académica
                 """.formatted(
                 director.getName(),
-                modality.getStudent().getName(),
-                modality.getStudent().getEmail(),
+                modality.getLeader().getName(),
+                modality.getLeader().getEmail(),
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getFinalStatus().toString(),
                 event.getAcademicDistinction().toString(),
@@ -365,7 +365,7 @@ public class DirectorNotificationListener {
         StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
         User director = modality.getProjectDirector();
 
         String subject = "Documento actualizado – Estudiante asignado";

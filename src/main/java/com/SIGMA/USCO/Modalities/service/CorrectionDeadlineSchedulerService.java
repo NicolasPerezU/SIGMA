@@ -81,13 +81,13 @@ public class CorrectionDeadlineSchedulerService {
      */
     private void sendDeadlineReminder(StudentModality modality, int daysRemaining) {
         log.info("Enviando recordatorio a estudiante {} para modalidad {}",
-                 modality.getStudent().getId(), modality.getId());
+                 modality.getLeader().getId(), modality.getId());
 
         // Publicar evento de recordatorio
         notificationEventPublisher.publish(
                 new CorrectionDeadlineReminderEvent(
                         modality.getId(),
-                        modality.getStudent().getId(),
+                        modality.getLeader().getId(),
                         modality.getCorrectionDeadline(),
                         daysRemaining
                 )
@@ -131,7 +131,7 @@ public class CorrectionDeadlineSchedulerService {
         notificationEventPublisher.publish(
                 new CorrectionDeadlineExpiredEvent(
                         modality.getId(),
-                        modality.getStudent().getId(),
+                        modality.getLeader().getId(),
                         modality.getCorrectionRequestDate()
                 )
         );

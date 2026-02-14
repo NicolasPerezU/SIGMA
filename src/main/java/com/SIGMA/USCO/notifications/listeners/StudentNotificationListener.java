@@ -4,6 +4,7 @@ import com.SIGMA.USCO.Modalities.Entity.AcademicCertificate;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.enums.CertificateStatus;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 public class StudentNotificationListener {
 
     private final StudentModalityRepository studentModalityRepository;
+    private final StudentModalityMemberRepository studentModalityMemberRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationDispatcherService dispatcher;
     private final UserRepository userRepository;
@@ -43,7 +45,7 @@ public class StudentNotificationListener {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject =
                 "Modalidad iniciada – SIGMA";
@@ -96,7 +98,7 @@ public class StudentNotificationListener {
         StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
                 .orElseThrow();
 
-        User student = document.getStudentModality().getStudent();
+        User student = document.getStudentModality().getLeader();
 
         String subject = "Solicitud de correcciones en documento académico";
 
@@ -143,7 +145,7 @@ public class StudentNotificationListener {
         StudentModality sm = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = sm.getStudent();
+        User student = sm.getLeader();
 
         String subject = "Solicitud de cancelación de modalidad de grado registrada";
 
@@ -168,7 +170,7 @@ public class StudentNotificationListener {
         Notification notification = Notification.builder()
                 .type(NotificationType.MODALITY_CANCELLATION_REQUESTED)
                 .recipientType(NotificationRecipientType.STUDENT)
-                .recipient(sm.getStudent())
+                .recipient(sm.getLeader())
                 .triggeredBy(null)
                 .studentModality(sm)
                 .subject(subject)
@@ -186,7 +188,7 @@ public class StudentNotificationListener {
         StudentModality sm = studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
-        User student = sm.getStudent();
+        User student = sm.getLeader();
 
         String subject = "Cancelación de modalidad de grado aprobada";
 
@@ -212,7 +214,7 @@ public class StudentNotificationListener {
         Notification notification = Notification.builder()
                 .type(NotificationType.MODALITY_CANCELLATION_APPROVED)
                 .recipientType(NotificationRecipientType.STUDENT)
-                .recipient(sm.getStudent())
+                .recipient(sm.getLeader())
                 .triggeredBy(null)
                 .studentModality(sm)
                 .subject(subject)
@@ -229,7 +231,7 @@ public class StudentNotificationListener {
         StudentModality sm = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = sm.getStudent();
+        User student = sm.getLeader();
 
         String subject = "Solicitud de cancelación de modalidad de grado rechazada";
 
@@ -258,7 +260,7 @@ public class StudentNotificationListener {
         Notification notification = Notification.builder()
                 .type(NotificationType.MODALITY_CANCELLATION_REJECTED)
                 .recipientType(NotificationRecipientType.STUDENT)
-                .recipient(sm.getStudent())
+                .recipient(sm.getLeader())
                 .triggeredBy(null)
                 .studentModality(sm)
                 .subject(subject)
@@ -275,7 +277,7 @@ public class StudentNotificationListener {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
         User director = modality.getProjectDirector();
 
         String studentSubject =
@@ -342,7 +344,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
         User director = userRepository.findById(event.getDirectorId())
                 .orElseThrow();
 
@@ -396,7 +398,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         boolean approved = event.getFinalStatus() == ModalityProcessStatus.GRADED_APPROVED;
 
@@ -529,7 +531,7 @@ public class StudentNotificationListener {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject =
                 "Modalidad de grado aprobada por el Consejo Académico";
@@ -591,7 +593,7 @@ public class StudentNotificationListener {
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId()).orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject =
                 "Modalidad de grado aprobada por Jefatura de programa";
@@ -642,7 +644,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "Recordatorio: Plazo de correcciones – " + event.getDaysRemaining() + " días restantes";
 
@@ -699,7 +701,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "MODALIDAD CANCELADA - Vencimiento de plazo de correcciones";
 
@@ -756,7 +758,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "Documento corregido enviado exitosamente";
 
@@ -807,7 +809,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "¡Felicitaciones! Correcciones aprobadas";
 
@@ -856,7 +858,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "MODALIDAD CANCELADA - Correcciones rechazadas";
 
@@ -915,7 +917,7 @@ public class StudentNotificationListener {
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                 .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
         User committeeMember = userRepository.findById(event.getCommitteeMemberId())
                 .orElseThrow();
 
@@ -977,4 +979,253 @@ public class StudentNotificationListener {
         log.info("Notificación de cierre de modalidad por comité enviada al estudiante {}", student.getId());
     }
 
+    @EventListener
+    public void onModalityInvitationSent(ModalityInvitationSentEvent event) {
+
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User invitee = userRepository.findById(event.getInviteeId())
+                .orElseThrow(() -> new RuntimeException("Estudiante invitado no encontrado"));
+
+        User inviter = userRepository.findById(event.getInviterId())
+                .orElseThrow(() -> new RuntimeException("Estudiante que invita no encontrado"));
+
+        String subject = "Invitación para unirte a una modalidad de grado grupal – SIGMA";
+
+        String message = """
+                Estimado/a %s,
+                
+                Has recibido una invitación para unirte a una modalidad de grado grupal.
+                
+                **Detalles de la invitación:**
+                
+                - **Modalidad:** %s
+                - **Programa académico:** %s
+                - **Invitado por:** %s
+                - **Fecha de invitación:** %s
+                
+                **¿Qué significa esto?**
+                
+                %s te ha invitado a formar parte de su grupo para desarrollar la modalidad de grado de manera colaborativa. 
+                Si aceptas esta invitación, formarás parte del equipo y podrás trabajar en conjunto en todos los documentos 
+                y actividades requeridas para completar la modalidad.
+                
+                **Consideraciones importantes:**
+                
+                - Solo puedes pertenecer a una modalidad de grado a la vez.
+                - Al aceptar la invitación, te comprometes a trabajar de forma colaborativa con el grupo.
+                - Puedes aceptar o rechazar la invitación desde la plataforma.
+                
+                
+                **¿Cómo responder?**
+                
+                1. Ingresa a la plataforma SIGMA
+                2. Dirígete a la sección de "Mis Invitaciones" o "Notificaciones"
+                3. Revisa los detalles de la invitación
+                4. Acepta o rechaza según tu decisión
+                
+                Te recomendamos coordinar con %s antes de tomar una decisión, para asegurar 
+                que todos los miembros del grupo estén alineados con los objetivos y compromisos del proyecto.
+                
+                Cordialmente,
+                
+                Sistema Interno de Gestión Académica
+                Universidad Surcolombiana - SIGMA
+                """.formatted(
+                invitee.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                inviter.getName() + " " + inviter.getLastName(),
+                LocalDateTime.now().toString(),
+                inviter.getName() + " " + inviter.getLastName(),
+                inviter.getName()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_INVITATION_RECEIVED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(invitee)
+                .triggeredBy(inviter)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de invitación a modalidad grupal enviada al estudiante {} por el estudiante {}",
+                invitee.getId(), inviter.getId());
+    }
+
+
+    @EventListener
+    public void onModalityInvitationAccepted(ModalityInvitationAcceptedEvent event) {
+
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User acceptedBy = userRepository.findById(event.getAcceptedById())
+                .orElseThrow(() -> new RuntimeException("Estudiante que aceptó no encontrado"));
+
+        User leader = userRepository.findById(event.getLeaderId())
+                .orElseThrow(() -> new RuntimeException("Líder del grupo no encontrado"));
+
+        String subject = "Un estudiante aceptó tu invitación a la modalidad grupal – SIGMA";
+
+        String message = """
+                Estimado/a %s,
+                
+                ¡Buenas noticias! Un estudiante ha aceptado tu invitación para unirse a tu modalidad de grado grupal.
+                
+                **Detalles de la aceptación:**
+                
+                - **Estudiante:** %s
+                - **Modalidad:** %s
+                - **Programa académico:** %s
+                - **Fecha de aceptación:** %s
+                
+                **¿Qué sigue ahora?**
+                
+                %s ahora es parte oficial de tu grupo de modalidad. Pueden trabajar juntos en:
+                
+                - Subir y actualizar documentos compartidos.
+                - Coordinar actividades y entregas.
+                - Preparar presentaciones y sustentaciones en equipo.
+                
+                **Próximos pasos:**
+                
+                1. Coordina con tu equipo los roles y responsabilidades
+                2. Establece canales de comunicación efectivos
+                3. Planifica el desarrollo del proyecto o actividad
+                4. Comienza a trabajar en los documentos requeridos
+                
+                Recuerda que todos los miembros del grupo tienen los mismos derechos y responsabilidades 
+                dentro de la modalidad, y todos pueden subir o actualizar los documentos necesarios.
+                
+                ¡Mucho éxito en su trabajo colaborativo!
+                
+                Cordialmente,
+                
+                Sistema Interno de Gestión Académica
+                Universidad Surcolombiana - SIGMA
+                """.formatted(
+                leader.getName(),
+                acceptedBy.getName() + " " + acceptedBy.getLastName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                LocalDateTime.now().toString(),
+                acceptedBy.getName()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_INVITATION_ACCEPTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(leader)
+                .triggeredBy(acceptedBy)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de aceptación de invitación enviada al líder {} por el estudiante {}",
+                leader.getId(), acceptedBy.getId());
+    }
+
+
+    @EventListener
+    public void onModalityInvitationRejected(ModalityInvitationRejectedEvent event) {
+
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User rejectedBy = userRepository.findById(event.getRejectedById())
+                .orElseThrow(() -> new RuntimeException("Estudiante que rechazó no encontrado"));
+
+        User leader = userRepository.findById(event.getLeaderId())
+                .orElseThrow(() -> new RuntimeException("Líder del grupo no encontrado"));
+
+        String subject = "Un estudiante rechazó tu invitación a la modalidad grupal – SIGMA";
+
+        String message = """
+                Estimado/a %s,
+                
+                Te informamos que un estudiante ha rechazado tu invitación para unirse a tu modalidad de grado grupal.
+                
+                **Detalles del rechazo:**
+                
+                - **Estudiante:** %s
+                - **Modalidad:** %s
+                - **Programa académico:** %s
+                - **Fecha de rechazo:** %s
+                
+                **¿Qué significa esto?**
+                
+                %s decidió no formar parte de tu grupo para esta modalidad. Esto puede deberse a diversas razones:
+                
+                - Ya tiene compromisos con otros grupos o proyectos
+                - Prefiere realizar la modalidad de forma individual
+                - No puede cumplir con los requisitos o tiempos del proyecto
+                - Tiene otros planes académicos
+                
+                **¿Qué puedes hacer ahora?**
+                
+                1. **Invitar a otro estudiante:** Puedes enviar una nueva invitación a otro compañero que esté disponible
+                2. **Continuar con el grupo actual:** Si ya tienes otros miembros, pueden continuar con la modalidad
+                3. **Realizar la modalidad de forma individual:** Si prefieres, puedes continuar solo
+                
+                Recuerda que tienes hasta **%d** miembros máximo (incluyéndote) para formar el grupo. 
+                Actualmente tienes %d miembro(s) activo(s) en tu modalidad.
+                
+                **Próximos pasos:**
+                
+                - Revisa la lista de estudiantes elegibles para invitar
+                - Coordina con los miembros actuales del grupo (si los hay)
+                - Asegúrate de que todos estén alineados con los objetivos del proyecto
+                
+                No te desanimes, puedes invitar a otros compañeros que estén interesados en trabajar contigo.
+                
+                Cordialmente,
+                
+                Sistema Interno de Gestión Académica
+                Universidad Surcolombiana - SIGMA
+                """.formatted(
+                leader.getName(),
+                rejectedBy.getName() + " " + rejectedBy.getLastName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                LocalDateTime.now().toString(),
+                rejectedBy.getName(),
+                3, // MAX_GROUP_SIZE
+                studentModalityMemberRepository.countByStudentModalityIdAndStatus(
+                        modality.getId(),
+                        com.SIGMA.USCO.Modalities.Entity.enums.MemberStatus.ACTIVE
+                )
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_INVITATION_REJECTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(leader)
+                .triggeredBy(rejectedBy)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de rechazo de invitación enviada al líder {} por el estudiante {}",
+                leader.getId(), rejectedBy.getId());
+    }
+
 }
+

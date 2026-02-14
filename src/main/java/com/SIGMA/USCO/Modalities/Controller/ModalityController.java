@@ -129,7 +129,7 @@ public class ModalityController {
 
     @PostMapping("/{modalityId}/start")
     public ResponseEntity<?> startModality(@PathVariable Long modalityId) {
-        return modalityService.startStudentModality(modalityId);
+        return modalityService.startStudentModalityIndividual(modalityId);
     }
 
     @GetMapping("/{id}/validate-documents")

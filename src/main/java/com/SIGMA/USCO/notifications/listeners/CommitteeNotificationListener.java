@@ -53,7 +53,7 @@ public class CommitteeNotificationListener {
 
                 Sistema SIGMA
                 """.formatted(
-                studentModality.getStudent().getName() + " " + studentModality.getStudent().getLastName()
+                studentModality.getLeader().getName() + " " + studentModality.getLeader().getLastName()
         );
 
         for (User committeeMember : committeeMembers) {
@@ -62,7 +62,7 @@ public class CommitteeNotificationListener {
                     .type(NotificationType.MODALITY_CANCELLATION_REQUESTED)
                     .recipientType(NotificationRecipientType.PROGRAM_CURRICULUM_COMMITTEE)
                     .recipient(committeeMember)
-                    .triggeredBy(studentModality.getStudent())
+                    .triggeredBy(studentModality.getLeader())
                     .studentModality(studentModality)
                     .subject(subject)
                     .message(message)
@@ -94,7 +94,7 @@ public class CommitteeNotificationListener {
 
                 Sistema SIGMA
                 """.formatted(
-                modality.getStudent().getName() + " " + modality.getStudent().getLastName()
+                modality.getLeader().getName() + " " + modality.getLeader().getLastName()
         );
 
         for (User committeMember : committeeMembers) {
@@ -103,7 +103,7 @@ public class CommitteeNotificationListener {
                     .type(NotificationType.MODALITY_APPROVED_BY_PROGRAM_HEAD)
                     .recipientType(NotificationRecipientType.PROGRAM_CURRICULUM_COMMITTEE)
                     .recipient(committeMember)
-                    .triggeredBy(modality.getStudent())
+                    .triggeredBy(modality.getLeader())
                     .studentModality(modality)
                     .subject(subject)
                     .message(message)
@@ -141,7 +141,7 @@ public class CommitteeNotificationListener {
         StudentDocument document = studentDocumentRepository.findById(event.getStudentDocumentId())
                         .orElseThrow();
 
-        User student = modality.getStudent();
+        User student = modality.getLeader();
 
         String subject = "Documento actualizado – Modalidad en revisión";
 

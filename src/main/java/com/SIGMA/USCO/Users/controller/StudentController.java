@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.Users.controller;
 
+import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
 import com.SIGMA.USCO.Modalities.service.ModalityService;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
@@ -36,6 +37,7 @@ public class StudentController {
     private final DocumentService documentService;
     private final StudentDocumentRepository studentDocumentRepository;
     private final UserRepository userRepository;
+    private final StudentModalityMemberRepository studentModalityMemberRepository;
 
 
     @PostMapping("/profile")
@@ -103,9 +105,14 @@ public class StudentController {
 
         StudentDocument document = docOpt.get();
 
-        // ✅ VERIFICAR QUE EL DOCUMENTO PERTENECE AL ESTUDIANTE AUTENTICADO
-        Long documentOwnerId = document.getStudentModality().getStudent().getId();
-        if (!documentOwnerId.equals(currentUser.getId())) {
+        // Verificar que el usuario sea un miembro activo de la modalidad
+        Long studentModalityId = document.getStudentModality().getId();
+        boolean isActiveMember = studentModalityMemberRepository.isActiveMember(
+                studentModalityId,
+                currentUser.getId()
+        );
+
+        if (!isActiveMember) {
             return ResponseEntity.status(403).body("No tienes permiso para ver este documento");
         }
 

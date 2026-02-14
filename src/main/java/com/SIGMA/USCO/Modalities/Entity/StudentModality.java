@@ -2,6 +2,7 @@ package com.SIGMA.USCO.Modalities.Entity;
 
 import com.SIGMA.USCO.Modalities.Entity.enums.AcademicDistinction;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityType;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.academic.entity.AcademicProgram;
 import com.SIGMA.USCO.academic.entity.ProgramDegreeModality;
@@ -28,9 +29,22 @@ public class StudentModality {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50, nullable = false)
+    private ModalityType modalityType;
+
     @ManyToOne(optional = false)
-    @JoinColumn(name = "student_id")
-    private User student;
+    @JoinColumn(name = "leader_id")
+    private User leader;
+
+
+    @OneToMany(mappedBy = "studentModality", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<StudentModalityMember> members;
+
+
+    @OneToMany(mappedBy = "studentModality", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ModalityInvitation> invitations;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "academic_program_id")

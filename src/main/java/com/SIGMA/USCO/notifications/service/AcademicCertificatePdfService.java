@@ -68,7 +68,7 @@ public class AcademicCertificatePdfService {
             log.info("Registro de certificado antiguo eliminado de BD");
         }
 
-        User student = studentModality.getStudent();
+        User student = studentModality.getLeader();
         String certificateNumber = generateCertificateNumber(studentModality);
 
         Path certificatesPath = Paths.get(uploadDir, "certificates",
@@ -103,7 +103,7 @@ public class AcademicCertificatePdfService {
             PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
             document.open();
 
-            User student = studentModality.getStudent();
+            User student = studentModality.getLeader();
             User director = studentModality.getProjectDirector();
 
 
