@@ -91,4 +91,9 @@ public class StudentModality {
     private LocalDateTime correctionDeadline;
     private Boolean correctionReminderSent;
 
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer correctionAttempts = 0;
+
 }

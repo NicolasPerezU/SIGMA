@@ -7,6 +7,7 @@ import com.SIGMA.USCO.Modalities.dto.response.ProjectDirectorResponse;
 import com.SIGMA.USCO.Modalities.service.ModalityService;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.service.DocumentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -301,6 +302,13 @@ public class ModalityController {
         return modalityService.assignProjectDirector(studentModalityId, directorId);
     }
 
+
+    @PutMapping("/{studentModalityId}/change-director")
+    @PreAuthorize("hasAuthority('PERM_ASSIGN_PROJECT_DIRECTOR')")
+    public ResponseEntity<?> changeProjectDirector(@PathVariable Long studentModalityId, @RequestBody @Valid ChangeDirectorDTO request) {
+        return modalityService.changeProjectDirector(studentModalityId, request.getNewDirectorId(), request.getReason());
+    }
+
     @PostMapping("/{studentModalityId}/propose-defense-director")
     @PreAuthorize("hasAuthority('PERM_PROPOSE_DEFENSE')")
     public ResponseEntity<?> proposeDefenseByDirector(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
@@ -435,6 +443,89 @@ public class ModalityController {
     ) {
         String reason = request.get("reason");
         return modalityService.closeModalityByCommittee(studentModalityId, reason);
+    }
+
+
+    @PostMapping("/{studentModalityId}/approve-final-by-committee")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY_BY_COMMITTEE')")
+    public ResponseEntity<?> approveFinalModalityByCommittee(@PathVariable Long studentModalityId, @RequestBody(required = false) Map<String, String> request) {
+        String observations = request != null ? request.get("observations") : null;
+        return modalityService.approveFinalModalityByCommittee(studentModalityId, observations);
+    }
+
+    @PostMapping("/{studentModalityId}/reject-final-by-committee")
+    @PreAuthorize("hasAuthority('PERM_REJECT_MODALITY_BY_COMMITTEE')")
+    public ResponseEntity<?> rejectFinalModalityByCommittee(@PathVariable Long studentModalityId, @RequestBody Map<String, String> request) {
+        String reason = request.get("reason");
+        return modalityService.rejectFinalModalityByCommittee(studentModalityId, reason);
+    }
+
+
+    @PostMapping("/seminar/create")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> createSeminar(@Valid @RequestBody SeminarDTO request) {
+        return modalityService.createSeminar(request);
+    }
+
+    @GetMapping("/seminar/available")
+    @PreAuthorize("hasRole('ROLE_STUDENT')")
+    public ResponseEntity<?> listActiveSeminarsWithSeats() {
+        return modalityService.listActiveSeminarsWithSeats();
+    }
+
+
+    @PostMapping("/seminar/{seminarId}/enroll")
+    @PreAuthorize("hasRole('ROLE_STUDENT')")
+    public ResponseEntity<?> enrollInSeminar(@PathVariable Long seminarId) {
+        return modalityService.enrollInSeminar(seminarId);
+    }
+
+
+    @GetMapping("/seminar/{seminarId}/detail")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> getSeminarDetail(@PathVariable Long seminarId) {
+        return modalityService.getSeminarDetailForProgramHead(seminarId);
+    }
+
+
+    @GetMapping("/seminars")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> listSeminars(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean active) {
+        return modalityService.listSeminarsForProgramHead(status, active);
+    }
+
+
+    @PostMapping("/seminar/{seminarId}/start")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> startSeminar(@PathVariable Long seminarId) {
+        return modalityService.startSeminar(seminarId);
+    }
+
+    @PostMapping("/seminar/{seminarId}/cancel")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> cancelSeminar(@PathVariable Long seminarId, @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return modalityService.cancelSeminar(seminarId, reason);
+    }
+
+    @PutMapping("/seminar/{seminarId}")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> updateSeminar(@PathVariable Long seminarId, @Valid @RequestBody SeminarDTO request) {
+        return modalityService.updateSeminar(seminarId, request);
+    }
+
+    @PostMapping("/seminar/{seminarId}/close-registrations")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> closeRegistrations(@PathVariable Long seminarId) {
+        return modalityService.closeRegistrations(seminarId);
+    }
+
+    @PostMapping("/seminar/{seminarId}/complete")
+    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
+    public ResponseEntity<?> completeSeminar(@PathVariable Long seminarId) {
+        return modalityService.completeSeminar(seminarId);
     }
 
 }

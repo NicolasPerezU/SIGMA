@@ -1227,5 +1227,287 @@ public class StudentNotificationListener {
                 leader.getId(), rejectedBy.getId());
     }
 
-}
 
+    @EventListener
+    public void handleModalityFinalApprovedByCommittee(ModalityFinalApprovedByCommitteeEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User student = userRepository.findById(event.getStudentId())
+                .orElseThrow(() -> new RuntimeException("Estudiante no encontrado"));
+
+        User committeeMember = userRepository.findById(event.getCommitteeMemberId())
+                .orElseThrow(() -> new RuntimeException("Miembro del comité no encontrado"));
+
+        String subject = "¡FELICITACIONES! - Modalidad de Grado APROBADA";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial y afectuoso saludo.
+                
+                ¡FELICITACIONES! Es un placer informarte que tu modalidad de grado:
+                
+                📚 "%s"
+                
+                Ha sido APROBADA DEFINITIVAMENTE por el Comité de Currículo del Programa Académico.
+                
+                📋 INFORMACIÓN DEL PROCESO:
+                
+                • Programa académico: %s
+                • Estado final: APROBADO 
+                • Aprobado por: %s %s
+                • Fecha de aprobación: %s
+                
+                %s
+                
+               
+                📌 IMPORTANTE:
+                
+                Este logro representa la culminación exitosa de tu proceso de formación profesional. 
+                Tu dedicación y esfuerzo han sido reconocidos por las instancias académicas competentes.
+                
+                Te recomendamos estar atento a tu correo electrónico institucional para recibir 
+                información adicional sobre los procedimientos administrativos finales.
+                
+                Una vez más, ¡MUCHAS FELICITACIONES por este importante logro académico!
+                
+                Cordialmente,
+                
+                Comité de Currículo del Programa
+                Sistema de Gestión Académica - SIGMA
+                Universidad Surcolombiana
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                committeeMember.getName(),
+                committeeMember.getLastName(),
+                LocalDateTime.now().toString(),
+                event.getObservations() != null && !event.getObservations().isBlank()
+                        ? "📝 OBSERVACIONES DEL COMITÉ:\n" + event.getObservations() + "\n"
+                        : ""
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_FINAL_APPROVED_BY_COMMITTEE)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(committeeMember)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+
+        log.info("Notificación de aprobación final de modalidad enviada al estudiante {} por el comité",
+                student.getId());
+    }
+
+
+    @EventListener
+    public void handleModalityRejectedByCommittee(ModalityRejectedByCommitteeEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User student = userRepository.findById(event.getStudentId())
+                .orElseThrow(() -> new RuntimeException("Estudiante no encontrado"));
+
+        User committeeMember = userRepository.findById(event.getCommitteeMemberId())
+                .orElseThrow(() -> new RuntimeException("Miembro del comité no encontrado"));
+
+        String subject = "IMPORTANTE: Modalidad de Grado NO APROBADA - Decisión del Comité";
+
+        String message = """
+                Estimado/a %s,
+                
+                Recibe un cordial saludo.
+                
+                Te informamos que después de la evaluación realizada por el Comité de Currículo del Programa, 
+                tu modalidad de grado:
+                
+                "%s"
+                
+                NO ha sido aprobada.
+                
+                📋 INFORMACIÓN DEL PROCESO:
+                
+                • Programa académico: %s
+                • Estado: NO APROBADO
+                • Fecha: %s
+                
+                📝 MOTIVO DE LA DECISIÓN:
+                
+                %s
+                
+                🔄 OPCIONES DISPONIBLES:
+                
+                Aunque esta modalidad no fue aprobada, tienes las siguientes alternativas para continuar 
+                con tu proceso de grado:
+                
+                1. **Iniciar una nueva modalidad de grado:** Puedes seleccionar otra modalidad diferente 
+                   que se ajuste mejor a tu perfil académico y profesional
+                
+                2. **Recibir asesoría académica:** Solicita una reunión con la jefatura de tu programa 
+                   para recibir orientación sobre las mejores opciones para ti
+                
+                3. **Revisar requisitos:** Asegúrate de cumplir con todos los requisitos académicos y 
+                   administrativos para la nueva modalidad que elijas
+                
+                📞 PRÓXIMOS PASOS:
+                
+                • Comunícate con la Jefatura de Programa para recibir asesoría personalizada
+                • Solicita retroalimentación detallada sobre los aspectos a mejorar
+                • Revisa las diferentes modalidades de grado disponibles en tu programa
+                • Evalúa con tu director académico cuál opción se ajusta mejor a tus capacidades
+                
+                📌 IMPORTANTE:
+                
+                Este resultado NO afecta tu expediente académico de manera permanente. Es una oportunidad 
+                para replantear tu estrategia y elegir una modalidad más adecuada a tus fortalezas.
+                
+                Te invitamos a no desanimarte y a buscar el apoyo necesario para continuar exitosamente 
+                con tu proceso de grado. El equipo académico está disponible para orientarte.
+                
+                Para cualquier duda o aclaración, por favor comunícate con:
+                
+                • Jefatura de Programa: %s
+                • Comité de Currículo del Programa
+                • Secretaría Académica de tu facultad
+                
+                Recuerda que el objetivo del comité es garantizar la calidad académica y el éxito de 
+                nuestros estudiantes en su proceso de graduación.
+                
+                Cordialmente,
+                
+                Comité de Currículo del Programa
+                Sistema de Gestión Académica - SIGMA
+                Universidad Surcolombiana
+                """.formatted(
+                student.getName(),
+                modality.getProgramDegreeModality().getDegreeModality().getName(),
+                modality.getAcademicProgram().getName(),
+                committeeMember.getName(),
+                committeeMember.getLastName(),
+                LocalDateTime.now().toString(),
+                event.getReason(),
+                modality.getAcademicProgram().getName()
+        );
+
+        Notification notification = Notification.builder()
+                .type(NotificationType.MODALITY_REJECTED_BY_COMMITTEE)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .recipient(student)
+                .triggeredBy(committeeMember)
+                .studentModality(modality)
+                .subject(subject)
+                .message(message)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+    @EventListener
+    public void onSeminarStarted(SeminarStartedEvent event) {
+        String subject = "Inicio de Seminario: " + event.getSeminarName();
+
+        String body = String.format("""
+                Estimado/a %s,
+                
+                Le informamos que el seminario "%s" ha iniciado oficialmente.
+                
+                Detalles del seminario:
+                - Nombre: %s
+                - Programa: %s
+                - Fecha de inicio: %s
+                - Intensidad horaria: %d horas
+                
+                Es importante que esté atento/a a las indicaciones y horarios del seminario.
+                Le recordamos que la asistencia es obligatoria (mínimo 80%% de la intensidad horaria).
+                
+                Cualquier duda o consulta, puede comunicarse con la jefatura del programa.
+                
+                Cordialmente,
+                Sistema de Gestión de Modalidades de Grado - SIGMA
+                %s
+                Universidad Surcolombiana
+                """,
+                event.getRecipientName(),
+                event.getSeminarName(),
+                event.getSeminarName(),
+                event.getProgramName(),
+                event.getStartDate(),
+                event.getTotalHours(),
+                event.getProgramName()
+        );
+
+        User recipient = userRepository.findByEmail(event.getRecipientEmail()).orElse(null);
+
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .subject(subject)
+                .message(body)
+                .type(NotificationType.SEMINAR_STARTED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+    @EventListener
+    public void onSeminarCancelled(SeminarCancelledEvent event) {
+        String subject = "Cancelación de Seminario: " + event.getSeminarName();
+
+        String body = String.format("""
+                Estimado/a %s,
+                
+                Le informamos que el seminario "%s" ha sido CANCELADO.
+                
+                Detalles del seminario:
+                - Nombre: %s
+                - Programa: %s
+                - Fecha de cancelación: %s
+                %s
+                
+                La inscripción al seminario ha sido suspendida automáticamente.
+                Podrá inscribirse a otro seminario disponible cuando lo desee.
+                
+                Lamentamos los inconvenientes que esto pueda causar.
+                
+                Cordialmente,
+                Sistema de Gestión de Modalidades de Grado - SIGMA
+                %s
+                Universidad Surcolombiana
+                """,
+                event.getRecipientName(),
+                event.getSeminarName(),
+                event.getSeminarName(),
+                event.getProgramName(),
+                event.getCancelledDate(),
+                event.getReason() != null ? "\nMotivo: " + event.getReason() : "",
+                event.getProgramName()
+        );
+
+        User recipient = userRepository.findByEmail(event.getRecipientEmail()).orElse(null);
+
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .subject(subject)
+                .message(body)
+                .type(NotificationType.SEMINAR_CANCELLED)
+                .recipientType(NotificationRecipientType.STUDENT)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationRepository.save(notification);
+        dispatcher.dispatch(notification);
+    }
+
+}

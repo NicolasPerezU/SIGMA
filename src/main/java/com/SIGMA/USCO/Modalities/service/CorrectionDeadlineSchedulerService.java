@@ -28,18 +28,33 @@ public class CorrectionDeadlineSchedulerService {
     private final NotificationEventPublisher notificationEventPublisher;
 
     /**
-     * Tarea programada que se ejecuta diariamente a las 8:00 AM
-     * Verifica plazos de corrección y toma acciones:
-     * - A los 20 días: envía recordatorio
-     * - A los 30 días: cancela la modalidad automáticamente
+     * ========================================
+     * SCHEDULER - GESTIÓN DE PLAZOS DE CORRECCIÓN
+     * ========================================
+     *
+     * Este scheduler implementa el reglamento de modalidades de grado:
+     *
+     * 📋 REGLAS:
+     * 1. El estudiante tiene 30 días calendario para presentar correcciones
+     * 2. Se envía recordatorio automático a los 20 días
+     * 3. El estudiante tiene MÁXIMO 3 OPORTUNIDADES para corregir
+     * 4. Si pasa el plazo de 30 días → Propuesta RECHAZADA automáticamente
+     * 5. Si se agotan los 3 intentos → Propuesta RECHAZADA automáticamente
+     *
+     * 🔄 FRECUENCIA DE EJECUCIÓN:
+     * - PRODUCCIÓN: Diariamente a las 8:00 AM
+     * - TESTING: Cada minuto (cambiar cron para testing)
+     *
+     * ⚠️ IMPORTANTE: Para testing, cambiar días por minutos en la lógica
      */
-    @Scheduled(cron = "0 0 8 * * ?") // Ejecutar todos los días a las 8:00 AM
+    @Scheduled(cron = "0 0 8 * * ?") // PRODUCCIÓN: Ejecutar todos los días a las 8:00 AM
+    // @Scheduled(cron = "0 * * * * ?") // TESTING: Ejecutar cada minuto
     @Transactional
     public void checkCorrectionDeadlines() {
-        log.info("Iniciando verificación de plazos de corrección...");
+        log.info("🔍 ========== INICIANDO VERIFICACIÓN DE PLAZOS DE CORRECCIÓN ==========");
+        log.info("⏰ Fecha y hora de ejecución: {}", LocalDateTime.now());
 
         LocalDateTime now = LocalDateTime.now();
-
 
         List<StudentModality> modalitiesWithCorrections = studentModalityRepository.findByStatusIn(
                 List.of(
@@ -48,40 +63,59 @@ public class CorrectionDeadlineSchedulerService {
                 )
         );
 
-        log.info("Encontradas {} modalidades con correcciones solicitadas", modalitiesWithCorrections.size());
+        log.info("📋 Encontradas {} modalidades con correcciones solicitadas", modalitiesWithCorrections.size());
+
+        if (modalitiesWithCorrections.isEmpty()) {
+            log.info("✅ No hay modalidades pendientes de corrección. Finalizando verificación.");
+            log.info("========== VERIFICACIÓN COMPLETADA ==========\n");
+            return;
+        }
+
+        int recordatoriosEnviados = 0;
+        int modalidadesRechazadas = 0;
 
         for (StudentModality modality : modalitiesWithCorrections) {
 
             if (modality.getCorrectionRequestDate() == null || modality.getCorrectionDeadline() == null) {
-                log.warn("Modalidad {} no tiene fechas de corrección configuradas. Saltando...", modality.getId());
+                log.warn("⚠️ Modalidad {} no tiene fechas de corrección configuradas. Saltando...", modality.getId());
                 continue;
             }
 
             long daysSinceRequest = ChronoUnit.DAYS.between(modality.getCorrectionRequestDate(), now);
             long daysUntilDeadline = ChronoUnit.DAYS.between(now, modality.getCorrectionDeadline());
 
-            log.debug("Modalidad {}: {} días desde solicitud, {} días hasta plazo límite",
-                     modality.getId(), daysSinceRequest, daysUntilDeadline);
+            log.info("📊 Modalidad {}: {} días desde solicitud, {} días hasta plazo límite, {} intentos usados",
+                     modality.getId(), daysSinceRequest, daysUntilDeadline, modality.getCorrectionAttempts());
 
-            // Caso 1: Han pasado 30 días o más - Cancelar automáticamente
+            // CASO 1: Han pasado 30 días o más → RECHAZAR automáticamente
             if (daysUntilDeadline <= 0) {
-                cancelModalityByTimeout(modality);
+                log.warn("❌ Modalidad {} superó el plazo de 30 días. Rechazando propuesta...", modality.getId());
+                rejectModalityByTimeout(modality, "Plazo de 30 días vencido");
+                modalidadesRechazadas++;
             }
-            // Caso 2: Han pasado 20 días - Enviar recordatorio (solo una vez)
+            // CASO 2: Han pasado 20 días → Enviar recordatorio (solo una vez)
             else if (daysSinceRequest >= 20 && (modality.getCorrectionReminderSent() == null || !modality.getCorrectionReminderSent())) {
+                log.info("📧 Modalidad {} ha alcanzado 20 días. Enviando recordatorio...", modality.getId());
                 sendDeadlineReminder(modality, (int) daysUntilDeadline);
+                recordatoriosEnviados++;
+            } else {
+                log.debug("✓ Modalidad {} aún dentro del plazo normal", modality.getId());
             }
         }
 
-        log.info("Verificación de plazos de corrección completada");
+        log.info("📊 RESUMEN DE EJECUCIÓN:");
+        log.info("   - Recordatorios enviados: {}", recordatoriosEnviados);
+        log.info("   - Propuestas rechazadas por timeout: {}", modalidadesRechazadas);
+        log.info("========== VERIFICACIÓN COMPLETADA ==========\n");
     }
 
     /**
      * Envía un recordatorio al estudiante sobre el plazo de corrección
      */
     private void sendDeadlineReminder(StudentModality modality, int daysRemaining) {
-        log.info("Enviando recordatorio a estudiante {} para modalidad {}",
-                 modality.getLeader().getId(), modality.getId());
+        log.info("📧 Enviando recordatorio para modalidad {}", modality.getId());
+        log.info("   Días restantes: {}", daysRemaining);
+        log.info("   Intentos usados: {} de 3", modality.getCorrectionAttempts());
 
         // Publicar evento de recordatorio
         notificationEventPublisher.publish(
@@ -97,17 +131,24 @@ public class CorrectionDeadlineSchedulerService {
         modality.setCorrectionReminderSent(true);
         studentModalityRepository.save(modality);
 
-        log.info("Recordatorio enviado exitosamente para modalidad {}", modality.getId());
+        log.info("✅ Recordatorio enviado exitosamente para modalidad {}", modality.getId());
     }
 
     /**
-     * Cancela automáticamente la modalidad por vencimiento del plazo
+     * Rechaza automáticamente la propuesta por vencimiento del plazo de 30 días
+     * o por agotar los 3 intentos de corrección
+     *
+     * @param modality Modalidad a rechazar
+     * @param reason Razón del rechazo
      */
-    private void cancelModalityByTimeout(StudentModality modality) {
-        log.info("Cancelando modalidad {} por vencimiento de plazo de corrección", modality.getId());
+    private void rejectModalityByTimeout(StudentModality modality, String reason) {
+        log.warn("🔴 Rechazando propuesta de modalidad {} por: {}", modality.getId(), reason);
+        log.warn("   Intentos usados: {} de 3", modality.getCorrectionAttempts());
+        log.warn("   Fecha de solicitud: {}", modality.getCorrectionRequestDate());
+        log.warn("   Plazo límite: {}", modality.getCorrectionDeadline());
 
-        // Cambiar estado a cancelado por timeout
-        modality.setStatus(ModalityProcessStatus.CANCELLED_BY_CORRECTION_TIMEOUT);
+        // Cambiar estado a CORRECTIONS_REJECTED_FINAL
+        modality.setStatus(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL);
         modality.setUpdatedAt(LocalDateTime.now());
         studentModalityRepository.save(modality);
 
@@ -115,19 +156,20 @@ public class CorrectionDeadlineSchedulerService {
         historyRepository.save(
                 ModalityProcessStatusHistory.builder()
                         .studentModality(modality)
-                        .status(ModalityProcessStatus.CANCELLED_BY_CORRECTION_TIMEOUT)
+                        .status(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL)
                         .changeDate(LocalDateTime.now())
-                        .responsible(null) // Cancelación automática del sistema
+                        .responsible(null) // Rechazo automático del sistema
                         .observations(
-                                "Modalidad cancelada automáticamente por vencimiento del plazo de 30 días " +
-                                "para entregar correcciones solicitadas. " +
-                                "Fecha de solicitud: " + modality.getCorrectionRequestDate() +
-                                ". Plazo límite: " + modality.getCorrectionDeadline()
+                                "Propuesta rechazada automáticamente. " +
+                                "Razón: " + reason + ". " +
+                                "Fecha de solicitud de correcciones: " + modality.getCorrectionRequestDate() + ". " +
+                                "Plazo límite: " + modality.getCorrectionDeadline() + ". " +
+                                "Intentos de corrección usados: " + modality.getCorrectionAttempts() + " de 3."
                         )
                         .build()
         );
 
-        // Publicar evento de vencimiento
+        // Publicar evento de rechazo
         notificationEventPublisher.publish(
                 new CorrectionDeadlineExpiredEvent(
                         modality.getId(),
@@ -136,7 +178,7 @@ public class CorrectionDeadlineSchedulerService {
                 )
         );
 
-        log.info("Modalidad {} cancelada exitosamente por timeout", modality.getId());
+        log.info("✅ Propuesta de modalidad {} rechazada exitosamente", modality.getId());
     }
 }
 

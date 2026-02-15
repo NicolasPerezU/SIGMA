@@ -63,6 +63,7 @@ public class ModalityService {
     private final ProgramAuthorityRepository programAuthorityRepository;
     private final DefenseExaminerRepository defenseExaminerRepository;
     private final ExaminerEvaluationRepository examinerEvaluationRepository;
+    private final SeminarRepository seminarRepository;
 
 
     @Value("${file.upload-dir}")
@@ -974,12 +975,95 @@ public class ModalityService {
 
         if (request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_PROGRAM_HEAD) {
             StudentModality studentModality = document.getStudentModality();
+
+
+            int currentAttempts = studentModality.getCorrectionAttempts() == null ? 0 : studentModality.getCorrectionAttempts();
+            int newAttempts = currentAttempts + 1;
+
+
+            if (newAttempts > 3) {
+                studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL);
+                studentModality.setCorrectionAttempts(newAttempts);
+                studentModality.setUpdatedAt(LocalDateTime.now());
+                studentModalityRepository.save(studentModality);
+
+                historyRepository.save(
+                        ModalityProcessStatusHistory.builder()
+                                .studentModality(studentModality)
+                                .status(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL)
+                                .changeDate(LocalDateTime.now())
+                                .responsible(programHead)
+                                .observations("Propuesta rechazada definitivamente. El estudiante agotó las 3 oportunidades " +
+                                        "de corrección permitidas según reglamento. Último documento revisado: " +
+                                        document.getDocumentConfig().getDocumentName())
+                                .build()
+                );
+
+
+                documentHistoryRepository.save(
+                        StudentDocumentStatusHistory.builder()
+                                .studentDocument(document)
+                                .status(request.getStatus())
+                                .changeDate(LocalDateTime.now())
+                                .responsible(programHead)
+                                .observations("RECHAZO FINAL: " + request.getNotes() + " - Máximo de intentos agotado (3/3)")
+                                .build()
+                );
+
+                return ResponseEntity.ok(
+                        Map.of(
+                                "success", true,
+                                "message", "La propuesta ha sido rechazada definitivamente. El estudiante agotó las 3 " +
+                                        "oportunidades de corrección permitidas por el reglamento.",
+                                "documentId", document.getId(),
+                                "newModalityStatus", ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL,
+                                "attemptsUsed", newAttempts
+                        )
+                );
+            }
+
             LocalDateTime now = LocalDateTime.now();
+
+
+            studentModality.setCorrectionAttempts(newAttempts);
+
+
+            studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD);
             studentModality.setCorrectionRequestDate(now);
             studentModality.setCorrectionDeadline(now.plusDays(30));
             studentModality.setCorrectionReminderSent(false);
             studentModality.setUpdatedAt(now);
             studentModalityRepository.save(studentModality);
+
+
+            historyRepository.save(
+                    ModalityProcessStatusHistory.builder()
+                            .studentModality(studentModality)
+                            .status(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD)
+                            .changeDate(now)
+                            .responsible(programHead)
+                            .observations("Jefe de programa solicitó correcciones en documento: " +
+                                    document.getDocumentConfig().getDocumentName() +
+                                    ". Notas: " + request.getNotes() +
+                                    ". Intento " + newAttempts + " de 3.")
+                            .build()
+            );
+
+
+            List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                    .findByStudentModalityIdAndStatus(studentModality.getId(), MemberStatus.ACTIVE);
+
+            for (StudentModalityMember member : activeMembers) {
+                notificationEventPublisher.publish(
+                        new DocumentCorrectionsRequestedEvent(
+                                document.getId(),
+                                member.getStudent().getId(),
+                                request.getNotes(),
+                                NotificationRecipientType.PROGRAM_HEAD,
+                                programHead.getId()
+                        )
+                );
+            }
         }
 
         documentHistoryRepository.save(
@@ -1272,12 +1356,68 @@ public class ModalityService {
                 DocumentStatus.CORRECTIONS_REQUESTED_BY_PROGRAM_CURRICULUM_COMMITTEE) {
 
 
+            int currentAttempts = studentModality.getCorrectionAttempts() == null ? 0 : studentModality.getCorrectionAttempts();
+            int newAttempts = currentAttempts + 1;
+
+
+
+
+            if (newAttempts > 3) {
+                studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL);
+                studentModality.setCorrectionAttempts(newAttempts);
+                studentModality.setUpdatedAt(LocalDateTime.now());
+                studentModalityRepository.save(studentModality);
+
+                historyRepository.save(
+                        ModalityProcessStatusHistory.builder()
+                                .studentModality(studentModality)
+                                .status(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL)
+                                .changeDate(LocalDateTime.now())
+                                .responsible(committeeMember)
+                                .observations("Propuesta rechazada definitivamente por el comité. El estudiante agotó las 3 " +
+                                        "oportunidades de corrección permitidas según reglamento. Último documento revisado: " +
+                                        document.getDocumentConfig().getDocumentName())
+                                .build()
+                );
+
+                return ResponseEntity.ok(
+                        Map.of(
+                                "success", true,
+                                "message", "La propuesta ha sido rechazada definitivamente. El estudiante agotó las 3 " +
+                                        "oportunidades de corrección permitidas por el reglamento.",
+                                "documentId", document.getId(),
+                                "newModalityStatus", ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL,
+                                "attemptsUsed", newAttempts
+                        )
+                );
+            }
+
             LocalDateTime now = LocalDateTime.now();
+
+
+            studentModality.setCorrectionAttempts(newAttempts);
+
+
+            studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE);
             studentModality.setCorrectionRequestDate(now);
             studentModality.setCorrectionDeadline(now.plusDays(30));
             studentModality.setCorrectionReminderSent(false);
             studentModality.setUpdatedAt(now);
             studentModalityRepository.save(studentModality);
+
+            // Registrar cambio de estado en el historial
+            historyRepository.save(
+                    ModalityProcessStatusHistory.builder()
+                            .studentModality(studentModality)
+                            .status(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE)
+                            .changeDate(now)
+                            .responsible(committeeMember)
+                            .observations("Comité de currículo solicitó correcciones en documento: " +
+                                    document.getDocumentConfig().getDocumentName() +
+                                    ". Notas: " + request.getNotes() +
+                                    ". Intento " + newAttempts + " de 3.")
+                            .build()
+            );
 
 
             List<StudentModalityMember> activeMembers = studentModalityMemberRepository
@@ -1527,6 +1667,57 @@ public class ModalityService {
 
 
         return true;
+    }
+
+
+    private Map<String, Object> validateAllRequiredDocumentsUploaded(Long studentModalityId) {
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        Long modalityId = studentModality.getProgramDegreeModality().getDegreeModality().getId();
+
+
+        List<RequiredDocument> requiredDocuments = requiredDocumentRepository
+                .findByModalityIdAndActiveTrueAndDocumentTypeIn(
+                        modalityId,
+                        List.of(DocumentType.MANDATORY, DocumentType.SECONDARY)
+                );
+
+
+        List<StudentDocument> uploadedDocuments = studentDocumentRepository
+                .findByStudentModalityId(studentModalityId);
+
+
+        Map<Long, StudentDocument> uploadedMap = uploadedDocuments.stream()
+                .collect(Collectors.toMap(
+                        d -> d.getDocumentConfig().getId(),
+                        d -> d
+                ));
+
+
+        List<Map<String, Object>> missingDocuments = new ArrayList<>();
+
+        for (RequiredDocument required : requiredDocuments) {
+            if (!uploadedMap.containsKey(required.getId())) {
+                Map<String, Object> docInfo = new HashMap<>();
+                docInfo.put("documentId", required.getId());
+                docInfo.put("documentName", required.getDocumentName());
+                docInfo.put("documentType", required.getDocumentType().toString());
+                docInfo.put("description", required.getDescription() != null ? required.getDescription() : "Sin descripción");
+                missingDocuments.add(docInfo);
+            }
+        }
+
+        boolean allUploaded = missingDocuments.isEmpty();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("allDocumentsUploaded", allUploaded);
+        result.put("totalRequired", requiredDocuments.size());
+        result.put("totalUploaded", uploadedDocuments.size());
+        result.put("missingDocuments", missingDocuments);
+        result.put("missingCount", missingDocuments.size());
+
+        return result;
     }
 
     private String describeModalityStatus(ModalityProcessStatus status) {
@@ -3789,6 +3980,186 @@ public class ModalityService {
         );
     }
 
+
+    @Transactional
+    public ResponseEntity<?> changeProjectDirector(Long studentModalityId, Long newDirectorId, String reason) {
+
+
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe proporcionar una razón para el cambio de director"
+                    )
+            );
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad del estudiante no encontrada"));
+
+        User newDirector = userRepository.findById(newDirectorId)
+                .orElseThrow(() -> new RuntimeException("Director no encontrado"));
+
+
+        User currentDirector = studentModality.getProjectDirector();
+        if (currentDirector == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no tiene un director asignado actualmente. Use el método de asignación inicial."
+                    )
+            );
+        }
+
+
+        if (currentDirector.getId().equals(newDirectorId)) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "El director seleccionado ya está asignado a esta modalidad",
+                            "currentDirector", currentDirector.getEmail()
+                    )
+            );
+        }
+
+        Long academicProgramId = studentModality.getProgramDegreeModality().getAcademicProgram().getId();
+
+
+        boolean committeeAuthorized = programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(committeeMember.getId(), academicProgramId,
+                ProgramRole.PROGRAM_CURRICULUM_COMMITTEE);
+
+        if (!committeeAuthorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "No tiene permiso para cambiar director en este programa académico"
+                    ));
+        }
+
+
+        boolean hasDirectorRole = newDirector.getRoles().stream()
+                .anyMatch(role -> role.getName().equalsIgnoreCase("PROJECT_DIRECTOR"));
+
+        if (!hasDirectorRole) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "El usuario seleccionado no tiene rol de Director de Proyecto"
+                    )
+            );
+        }
+
+
+        boolean newDirectorAuthorized = programAuthorityRepository.existsByUser_IdAndAcademicProgram_IdAndRole(
+                newDirector.getId(),
+                academicProgramId,
+                ProgramRole.PROJECT_DIRECTOR
+        );
+
+        if (!newDirectorAuthorized) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "El nuevo director no pertenece a este programa académico"
+                    )
+            );
+        }
+
+
+        if (studentModality.getStatus() == ModalityProcessStatus.MODALITY_CLOSED ||
+                studentModality.getStatus() == ModalityProcessStatus.MODALITY_CANCELLED ||
+                studentModality.getStatus() == ModalityProcessStatus.GRADED_APPROVED ||
+                studentModality.getStatus() == ModalityProcessStatus.GRADED_FAILED ||
+                studentModality.getStatus() == ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "No se puede cambiar el director en modalidades finalizadas, cerradas o canceladas",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+
+        studentModality.setProjectDirector(newDirector);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        String observation = String.format(
+                "CAMBIO DE DIRECTOR DE PROYECTO. Director anterior: %s (%s %s). Nuevo director: %s (%s %s). Razón: %s",
+                currentDirector.getEmail(),
+                currentDirector.getName(),
+                currentDirector.getLastName(),
+                newDirector.getEmail(),
+                newDirector.getName(),
+                newDirector.getLastName(),
+                reason
+        );
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(studentModality.getStatus())
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(observation)
+                        .build()
+        );
+
+
+        notificationEventPublisher.publish(
+                new DirectorAssignedEvent(
+                        studentModality.getId(),
+                        newDirector.getId(),
+                        committeeMember.getId()
+                )
+        );
+
+
+        List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(studentModality.getId(), MemberStatus.ACTIVE);
+
+        for (StudentModalityMember member : activeMembers) {
+            notificationEventPublisher.publish(
+                    new DirectorChangedEvent(
+                            studentModality.getId(),
+                            member.getStudent().getId(),
+                            currentDirector.getId(),
+                            newDirector.getId(),
+                            reason
+                    )
+            );
+        }
+
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModality.getId(),
+                        "previousDirector", Map.of(
+                                "id", currentDirector.getId(),
+                                "email", currentDirector.getEmail(),
+                                "name", currentDirector.getName() + " " + currentDirector.getLastName()
+                        ),
+                        "newDirector", Map.of(
+                                "id", newDirector.getId(),
+                                "email", newDirector.getEmail(),
+                                "name", newDirector.getName() + " " + newDirector.getLastName()
+                        ),
+                        "reason", reason,
+                        "message", "Director de proyecto cambiado exitosamente"
+                )
+        );
+    }
+
     @Transactional
     public ResponseEntity<?> proposeDefenseByDirector(Long studentModalityId, ScheduleDefenseDTO request) {
 
@@ -5768,6 +6139,1282 @@ public class ModalityService {
                         "message", "Modalidad cerrada exitosamente. El estudiante ha sido notificado por correo electrónico."
                 )
         );
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> approveFinalModalityByCommittee(Long studentModalityId, String observations) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        Long academicProgramId = studentModality.getAcademicProgram().getId();
+
+        boolean isAuthorized = programAuthorityRepository
+                .existsByUser_IdAndAcademicProgram_IdAndRole(
+                        committeeMember.getId(),
+                        academicProgramId,
+                        ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+                );
+
+        if (!isAuthorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "No tiene permiso para aprobar modalidades de este programa académico. Debe ser miembro del comité de currículo del programa."
+                    ));
+        }
+
+
+        Map<String, Object> documentValidation = validateAllRequiredDocumentsUploaded(studentModalityId);
+        boolean allDocumentsUploaded = (boolean) documentValidation.get("allDocumentsUploaded");
+
+        if (!allDocumentsUploaded) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "No se puede aprobar la modalidad porque faltan documentos obligatorios por subir",
+                            "missingDocumentsCount", documentValidation.get("missingCount"),
+                            "totalRequired", documentValidation.get("totalRequired"),
+                            "totalUploaded", documentValidation.get("totalUploaded"),
+                            "missingDocuments", documentValidation.get("missingDocuments")
+                    )
+            );
+        }
+
+
+        if (!(studentModality.getStatus() == ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE ||
+                studentModality.getStatus() == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE ||
+                studentModality.getStatus() == ModalityProcessStatus.PROPOSAL_APPROVED)) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no está en estado válido para aprobación final por el comité",
+                            "currentStatus", studentModality.getStatus(),
+                            "validStates", "READY_FOR_PROGRAM_CURRICULUM_COMMITTEE, UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE, PROPOSAL_APPROVED"
+                    )
+            );
+        }
+
+
+        if (studentModality.getStatus() == ModalityProcessStatus.GRADED_APPROVED ||
+                studentModality.getStatus() == ModalityProcessStatus.GRADED_FAILED) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad ya ha sido calificada definitivamente",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        ModalityProcessStatus previousStatus = studentModality.getStatus();
+
+
+        studentModality.setStatus(ModalityProcessStatus.GRADED_APPROVED);
+        studentModality.setAcademicDistinction(AcademicDistinction.NO_DISTINCTION);
+        studentModality.setFinalGrade(null);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.GRADED_APPROVED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(String.format(
+                                "Modalidad aprobada definitivamente por el comité de currículo del programa. " +
+                                "Estado anterior: %s. Distinción académica: NO_DISTINCTION. %s",
+                                previousStatus,
+                                observations != null ? "Observaciones: " + observations : ""
+                        ))
+                        .build()
+        );
+
+
+        List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(studentModality.getId(), MemberStatus.ACTIVE);
+
+        for (StudentModalityMember member : activeMembers) {
+            notificationEventPublisher.publish(
+                    new ModalityFinalApprovedByCommitteeEvent(
+                            studentModality.getId(),
+                            member.getStudent().getId(),
+                            observations,
+                            committeeMember.getId()
+                    )
+            );
+        }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "previousStatus", previousStatus,
+                        "newStatus", ModalityProcessStatus.GRADED_APPROVED,
+                        "academicDistinction", AcademicDistinction.NO_DISTINCTION,
+                        "finalGrade", "N/A",
+                        "approvedBy", committeeMember.getName() + " " + committeeMember.getLastName(),
+                        "observations", observations != null ? observations : "Sin observaciones",
+                        "message", "Modalidad aprobada definitivamente. Todos los estudiantes han sido notificados."
+                )
+        );
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> rejectFinalModalityByCommittee(Long studentModalityId, String reason) {
+
+
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Debe proporcionar la razón del rechazo de la modalidad"
+                    )
+            );
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User committeeMember = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+
+        Long academicProgramId = studentModality.getAcademicProgram().getId();
+
+        boolean isAuthorized = programAuthorityRepository
+                .existsByUser_IdAndAcademicProgram_IdAndRole(
+                        committeeMember.getId(),
+                        academicProgramId,
+                        ProgramRole.PROGRAM_CURRICULUM_COMMITTEE
+                );
+
+        if (!isAuthorized) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "No tiene permiso para rechazar modalidades de este programa académico. Debe ser miembro del comité de currículo del programa."
+                    ));
+        }
+
+        // Validar que todos los documentos MANDATORY y SECONDARY estén subidos
+        Map<String, Object> documentValidation = validateAllRequiredDocumentsUploaded(studentModalityId);
+        boolean allDocumentsUploaded = (boolean) documentValidation.get("allDocumentsUploaded");
+
+        if (!allDocumentsUploaded) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "No se puede rechazar la modalidad porque faltan documentos obligatorios por subir. " +
+                                    "El estudiante debe completar la documentación antes de que el comité pueda tomar una decisión definitiva.",
+                            "missingDocumentsCount", documentValidation.get("missingCount"),
+                            "totalRequired", documentValidation.get("totalRequired"),
+                            "totalUploaded", documentValidation.get("totalUploaded"),
+                            "missingDocuments", documentValidation.get("missingDocuments")
+                    )
+            );
+        }
+
+        // Validar que la modalidad esté en un estado válido para rechazo
+        if (!(studentModality.getStatus() == ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE ||
+                studentModality.getStatus() == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE ||
+                studentModality.getStatus() == ModalityProcessStatus.PROPOSAL_APPROVED)) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad no está en estado válido para rechazo por el comité",
+                            "currentStatus", studentModality.getStatus(),
+                            "validStates", "READY_FOR_PROGRAM_CURRICULUM_COMMITTEE, UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE, PROPOSAL_APPROVED"
+                    )
+            );
+        }
+
+
+        if (studentModality.getStatus() == ModalityProcessStatus.GRADED_APPROVED ||
+                studentModality.getStatus() == ModalityProcessStatus.GRADED_FAILED) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "La modalidad ya ha sido calificada definitivamente",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
+
+        ModalityProcessStatus previousStatus = studentModality.getStatus();
+
+
+        studentModality.setStatus(ModalityProcessStatus.GRADED_FAILED);
+        studentModality.setFinalGrade(null);
+        studentModality.setAcademicDistinction(AcademicDistinction.REJECTED_BY_COMMITTEE);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.GRADED_FAILED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(committeeMember)
+                        .observations(String.format(
+                                "Modalidad rechazada definitivamente por el comité de currículo del programa. " +
+                                "Estado anterior: %s. Motivo: %s",
+                                previousStatus,
+                                reason
+                        ))
+                        .build()
+        );
+
+
+        List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(studentModality.getId(), MemberStatus.ACTIVE);
+
+        for (StudentModalityMember member : activeMembers) {
+            notificationEventPublisher.publish(
+                    new ModalityRejectedByCommitteeEvent(
+                            studentModality.getId(),
+                            member.getStudent().getId(),
+                            reason,
+                            committeeMember.getId()
+                    )
+            );
+        }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "previousStatus", previousStatus,
+                        "newStatus", ModalityProcessStatus.GRADED_FAILED,
+                        "rejectedBy", committeeMember.getName() + " " + committeeMember.getLastName(),
+                        "reason", reason,
+                        "message", "Modalidad rechazada definitivamente. Todos los estudiantes han sido notificados."
+                )
+        );
+    }
+
+
+
+    @Transactional
+    public ResponseEntity<?> createSeminar(SeminarDTO request) {
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+
+            ProgramAuthority programAuthority = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El usuario no tiene el rol de jefe de programa (PROGRAM_HEAD)"
+                    ));
+
+            AcademicProgram academicProgram = programAuthority.getAcademicProgram();
+
+
+            if (request.getMinParticipants() < 15) {
+                throw new IllegalArgumentException(
+                        "El número mínimo de participantes debe ser al menos 15 según el Artículo 43"
+                );
+            }
+
+            if (request.getMaxParticipants() > 35) {
+                throw new IllegalArgumentException(
+                        "El número máximo de participantes no puede exceder 35 según el Artículo 43"
+                );
+            }
+
+            if (request.getMinParticipants() > request.getMaxParticipants()) {
+                throw new IllegalArgumentException(
+                        "El número mínimo de participantes no puede ser mayor al máximo"
+                );
+            }
+
+            if (request.getTotalHours() < 160) {
+                throw new IllegalArgumentException(
+                        "La intensidad horaria mínima debe ser de 160 horas según el Artículo 42"
+                );
+            }
+
+
+            Seminar seminar = Seminar.builder()
+                    .academicProgram(academicProgram)
+                    .name(request.getName())
+                    .description(request.getDescription())
+                    .totalCost(request.getTotalCost())
+                    .minParticipants(request.getMinParticipants())
+                    .maxParticipants(request.getMaxParticipants())
+                    .totalHours(request.getTotalHours())
+                    .currentParticipants(0)
+                    .active(true)
+                    .status(SeminarStatus.OPEN)
+                    .startDate(request.getStartDate())
+                    .endDate(request.getEndDate())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            seminar = seminarRepository.save(seminar);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    Map.of(
+                            "success", true,
+                            "message", "Seminario creado exitosamente",
+                            "seminarId", seminar.getId(),
+                            "programName", academicProgram.getName(),
+                            "seminarName", seminar.getName()
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al crear el seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+    public ResponseEntity<?> listActiveSeminarsWithSeats() {
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+
+            StudentProfile studentProfile = studentProfileRepository.findById(user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No se encontró el perfil de estudiante para este usuario"
+                    ));
+
+            AcademicProgram studentProgram = studentProfile.getAcademicProgram();
+
+            List<Seminar> seminars = seminarRepository.findActiveWithAvailableSeatsByProgram(
+                    studentProgram.getId()
+            );
+
+
+            List<SeminarResponseDTO> seminarDTOs = seminars.stream()
+                    .map(seminar -> {
+                        int availableSeats = seminar.getMaxParticipants() - seminar.getCurrentParticipants();
+
+                        String statusDescription;
+                        if (availableSeats > 0) {
+                            statusDescription = "Cupos disponibles: " + availableSeats;
+                        } else {
+                            statusDescription = "Sin cupos disponibles";
+                        }
+
+                        return SeminarResponseDTO.builder()
+                                .id(seminar.getId())
+                                .name(seminar.getName())
+                                .description(seminar.getDescription())
+                                .totalCost(seminar.getTotalCost())
+                                .minParticipants(seminar.getMinParticipants())
+                                .maxParticipants(seminar.getMaxParticipants())
+                                .currentParticipants(seminar.getCurrentParticipants())
+                                .availableSpots(availableSeats)
+                                .totalHours(seminar.getTotalHours())
+                                .status(seminar.getStatus() != null ? seminar.getStatus().name() : null)
+                                .statusDescription(statusDescription)
+                                .academicProgramId(seminar.getAcademicProgram().getId())
+                                .academicProgramName(seminar.getAcademicProgram().getName())
+                                .facultyName(seminar.getAcademicProgram().getFaculty().getName())
+                                .startDate(seminar.getStartDate())
+                                .endDate(seminar.getEndDate())
+                                .createdAt(seminar.getCreatedAt())
+                                .updatedAt(seminar.getUpdatedAt())
+                                .canEnroll(null)
+                                .build();
+                    })
+                    .toList();
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "seminars", seminarDTOs
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación al listar seminarios: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            log.error("Error inesperado al listar seminarios: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al listar los seminarios: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+
+
+    @Transactional
+    public ResponseEntity<?> enrollInSeminar(Long seminarId) {
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+
+            StudentProfile studentProfile = studentProfileRepository.findById(user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No se encontró el perfil de estudiante para este usuario"
+                    ));
+
+
+            List<StudentModality> leaderModalities = studentModalityRepository
+                    .findByLeaderId(studentProfile.getId());
+
+            boolean hasSeminarioGradoModality = leaderModalities.stream()
+                    .anyMatch(sm -> {
+                        ProgramDegreeModality pdm = sm.getProgramDegreeModality();
+                        String modalityName = pdm.getDegreeModality().getName();
+                        ModalityProcessStatus status = sm.getStatus();
+
+                        return modalityName.equalsIgnoreCase("SEMINARIO DE GRADO") &&
+                               (status == ModalityProcessStatus.MODALITY_SELECTED ||
+                               status == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_HEAD);
+                    });
+
+            if (!hasSeminarioGradoModality) {
+                throw new IllegalArgumentException(
+                        "Para inscribirse en un seminario, debes tener iniciada la modalidad 'SEMINARIO DE GRADO'. " +
+                        "Por favor, solicita primero esta modalidad de grado."
+                );
+            }
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+
+            if (!seminar.isActive()) {
+                throw new IllegalArgumentException("El seminario no está activo");
+            }
+
+
+            if (seminar.getStatus() != SeminarStatus.OPEN) {
+                throw new IllegalArgumentException(
+                        "El seminario no está abierto para inscripciones. Estado actual: " + seminar.getStatus()
+                );
+            }
+
+
+            if (!seminar.getAcademicProgram().getId().equals(studentProfile.getAcademicProgram().getId())) {
+                throw new IllegalArgumentException(
+                        "El seminario no pertenece a tu programa académico"
+                );
+            }
+
+
+            boolean alreadyEnrolled = seminarRepository.isStudentEnrolled(seminarId, studentProfile.getId());
+            if (alreadyEnrolled) {
+
+                throw new IllegalArgumentException("Ya estás inscrito en este seminario");
+            }
+
+
+            if (seminar.getCurrentParticipants() >= seminar.getMaxParticipants()) {
+                throw new IllegalArgumentException(
+                        "No hay cupos disponibles. El seminario ha alcanzado el máximo de " +
+                        seminar.getMaxParticipants() + " participantes"
+                );
+            }
+
+
+
+            seminarRepository.enrollStudent(seminarId, studentProfile.getId());
+
+
+            seminar.setCurrentParticipants(seminar.getCurrentParticipants() + 1);
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminarRepository.save(seminar);
+
+
+
+            int availableSeats = seminar.getMaxParticipants() - seminar.getCurrentParticipants();
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    Map.of(
+                            "success", true,
+                            "message", "Te has inscrito exitosamente en el seminario",
+                            "seminarName", seminar.getName(),
+                            "enrollmentDate", LocalDateTime.now(),
+                            "currentParticipants", seminar.getCurrentParticipants(),
+                            "maxParticipants", seminar.getMaxParticipants(),
+                            "availableSeats", availableSeats
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al inscribirse en el seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+
+    public ResponseEntity<?> getSeminarDetailForProgramHead(Long seminarId) {
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+
+            List<StudentProfile> enrolledStudents = seminarRepository.findEnrolledStudentsBySeminarId(seminarId);
+
+
+            List<SeminarDetailDTO.EnrolledStudentDTO> enrolledStudentDTOs = enrolledStudents.stream()
+                    .map(studentProfile -> {
+                        User student = userRepository.findById(studentProfile.getId())
+                                .orElse(null);
+
+                        if (student == null) {
+                            return null;
+                        }
+
+
+                        List<StudentModality> modalities = studentModalityRepository
+                                .findByLeaderId(studentProfile.getId());
+
+                        StudentModality seminarioModality = modalities.stream()
+                                .filter(sm -> {
+                                    String modalityName = sm.getProgramDegreeModality()
+                                            .getDegreeModality().getName();
+                                    return modalityName.equalsIgnoreCase("SEMINARIO DE GRADO");
+                                })
+                                .findFirst()
+                                .orElse(null);
+
+                        SeminarDetailDTO.ModalityInfoDTO modalityInfo = null;
+                        if (seminarioModality != null) {
+                            modalityInfo = SeminarDetailDTO.ModalityInfoDTO.builder()
+                                    .modalityId(seminarioModality.getId())
+                                    .modalityName(seminarioModality.getProgramDegreeModality()
+                                            .getDegreeModality().getName())
+                                    .modalityType(seminarioModality.getModalityType().name())
+                                    .status(seminarioModality.getStatus().name())
+                                    .selectionDate(seminarioModality.getSelectionDate())
+                                    .build();
+                        }
+
+                        return SeminarDetailDTO.EnrolledStudentDTO.builder()
+                                .studentId(studentProfile.getId())
+                                .studentCode(studentProfile.getStudentCode())
+                                .name(student.getName())
+                                .lastName(student.getLastName())
+                                .email(student.getEmail())
+                                .documentType(null)
+                                .documentNumber(null)
+                                .phone(null)
+                                .approvedCredits(studentProfile.getApprovedCredits() != null ? studentProfile.getApprovedCredits().intValue() : null)
+                                .totalCreditsProgram(studentProfile.getAcademicProgram().getTotalCredits() != null ? studentProfile.getAcademicProgram().getTotalCredits().intValue() : null)
+                                .academicAverage(studentProfile.getGpa())
+                                .modalityInfo(modalityInfo)
+                                .enrollmentDate(null)
+                                .build();
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            int availableSeats = seminar.getMaxParticipants() - seminar.getCurrentParticipants();
+            double fillPercentage = (seminar.getCurrentParticipants() * 100.0) / seminar.getMaxParticipants();
+            boolean hasMinimumParticipants = seminar.getCurrentParticipants() >= seminar.getMinParticipants();
+
+            SeminarDetailDTO detailDTO = SeminarDetailDTO.builder()
+                    .id(seminar.getId())
+                    .name(seminar.getName())
+                    .description(seminar.getDescription())
+                    .totalCost(seminar.getTotalCost())
+                    .minParticipants(seminar.getMinParticipants())
+                    .maxParticipants(seminar.getMaxParticipants())
+                    .currentParticipants(seminar.getCurrentParticipants())
+                    .totalHours(seminar.getTotalHours())
+                    .active(seminar.isActive())
+                    .status(seminar.getStatus() != null ? seminar.getStatus().name() : null)
+                    .startDate(seminar.getStartDate())
+                    .endDate(seminar.getEndDate())
+                    .createdAt(seminar.getCreatedAt())
+                    .updatedAt(seminar.getUpdatedAt())
+                    .academicProgramId(seminar.getAcademicProgram().getId())
+                    .academicProgramName(seminar.getAcademicProgram().getName())
+                    .facultyName(seminar.getAcademicProgram().getFaculty().getName())
+                    .availableSeats(availableSeats)
+                    .fillPercentage(fillPercentage)
+                    .hasMinimumParticipants(hasMinimumParticipants)
+                    .enrolledStudents(enrolledStudentDTOs)
+                    .build();
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "seminar", detailDTO
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al obtener el detalle del seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+
+    public ResponseEntity<?> listSeminarsForProgramHead(String status, Boolean active) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            List<Seminar> seminars;
+
+            if (status != null && active != null) {
+                SeminarStatus seminarStatus = SeminarStatus.valueOf(status.toUpperCase());
+                seminars = seminarRepository.findByAcademicProgramIdAndStatusAndActiveOrderByCreatedAtDesc(
+                        userProgramId, seminarStatus, active
+                );
+            } else if (status != null) {
+                SeminarStatus seminarStatus = SeminarStatus.valueOf(status.toUpperCase());
+                seminars = seminarRepository.findByAcademicProgramIdAndStatusOrderByCreatedAtDesc(
+                        userProgramId, seminarStatus
+                );
+            } else if (active != null) {
+                seminars = seminarRepository.findByAcademicProgramIdAndActiveOrderByCreatedAtDesc(
+                        userProgramId, active
+                );
+            } else {
+                seminars = seminarRepository.findByAcademicProgramIdOrderByCreatedAtDesc(userProgramId);
+            }
+
+            List<SeminarListDTO> seminarDTOs = seminars.stream()
+                    .map(seminar -> {
+                        int availableSeats = seminar.getMaxParticipants() - seminar.getCurrentParticipants();
+                        double fillPercentage = (seminar.getCurrentParticipants() * 100.0) / seminar.getMaxParticipants();
+                        boolean hasMinimumParticipants = seminar.getCurrentParticipants() >= seminar.getMinParticipants();
+                        boolean isFull = seminar.getCurrentParticipants() >= seminar.getMaxParticipants();
+
+                        return SeminarListDTO.builder()
+                                .id(seminar.getId())
+                                .name(seminar.getName())
+                                .description(seminar.getDescription())
+                                .totalCost(seminar.getTotalCost())
+                                .minParticipants(seminar.getMinParticipants())
+                                .maxParticipants(seminar.getMaxParticipants())
+                                .currentParticipants(seminar.getCurrentParticipants())
+                                .totalHours(seminar.getTotalHours())
+                                .active(seminar.isActive())
+                                .status(seminar.getStatus() != null ? seminar.getStatus().name() : null)
+                                .startDate(seminar.getStartDate())
+                                .endDate(seminar.getEndDate())
+                                .createdAt(seminar.getCreatedAt())
+                                .updatedAt(seminar.getUpdatedAt())
+                                .availableSeats(availableSeats)
+                                .fillPercentage(fillPercentage)
+                                .hasMinimumParticipants(hasMinimumParticipants)
+                                .isFull(isFull)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "seminars", seminarDTOs,
+                            "total", seminarDTOs.size()
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al listar seminarios: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> startSeminar(Long seminarId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+            if (!seminar.isActive()) {
+                throw new IllegalArgumentException("El seminario no está activo");
+            }
+
+            if (seminar.getStatus() == SeminarStatus.IN_PROGRESS) {
+                throw new IllegalArgumentException("El seminario ya está en progreso");
+            }
+
+            if (seminar.getStatus() == SeminarStatus.COMPLETED) {
+                throw new IllegalArgumentException("El seminario ya ha sido completado");
+            }
+
+            if (seminar.getCurrentParticipants() < seminar.getMinParticipants()) {
+                throw new IllegalArgumentException(
+                        "No se puede iniciar el seminario. Se requieren al menos " +
+                        seminar.getMinParticipants() + " participantes. Actualmente hay " +
+                        seminar.getCurrentParticipants()
+                );
+            }
+
+            seminar.setStatus(SeminarStatus.IN_PROGRESS);
+            seminar.setStartDate(LocalDateTime.now());
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminarRepository.save(seminar);
+
+            List<StudentProfile> enrolledStudents = seminarRepository.findEnrolledStudentsBySeminarId(seminarId);
+
+            int emailsSent = 0;
+            for (StudentProfile studentProfile : enrolledStudents) {
+                User student = userRepository.findById(studentProfile.getId()).orElse(null);
+                if (student != null && student.getEmail() != null) {
+                    try {
+                        SeminarStartedEvent event = SeminarStartedEvent.builder()
+                                .recipientEmail(student.getEmail())
+                                .recipientName(student.getName() + " " + student.getLastName())
+                                .seminarName(seminar.getName())
+                                .startDate(seminar.getStartDate())
+                                .totalHours(seminar.getTotalHours())
+                                .programName(seminar.getAcademicProgram().getName())
+                                .build();
+
+                        notificationEventPublisher.publishSeminarStartedEvent(event);
+                        emailsSent++;
+                    } catch (Exception e) {
+                        // Continuar con el siguiente estudiante si falla el envío
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Seminario iniciado exitosamente",
+                            "seminarId", seminar.getId(),
+                            "seminarName", seminar.getName(),
+                            "status", seminar.getStatus().name(),
+                            "startDate", seminar.getStartDate(),
+                            "enrolledStudents", enrolledStudents.size(),
+                            "emailsSent", emailsSent
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al iniciar el seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+
+
+    public ResponseEntity<?> cancelSeminar(Long seminarId, String reason) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+            if (seminar.getStatus() != SeminarStatus.OPEN) {
+                throw new IllegalArgumentException(
+                        "Solo se pueden cancelar seminarios que estén en estado ABIERTO (OPEN). " +
+                        "Estado actual: " + seminar.getStatus() + ". " +
+                        "No se puede cancelar un seminario que ya ha iniciado o está completado."
+                );
+            }
+
+            List<StudentProfile> enrolledStudents = seminarRepository.findEnrolledStudentsBySeminarId(seminarId);
+
+            seminar.setStatus(SeminarStatus.CLOSED);
+            seminar.setActive(false);
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminar.getEnrolledStudents().clear();
+            seminarRepository.save(seminar);
+
+            int emailsSent = 0;
+            for (StudentProfile studentProfile : enrolledStudents) {
+                User student = userRepository.findById(studentProfile.getId()).orElse(null);
+                if (student != null && student.getEmail() != null) {
+                    try {
+                        SeminarCancelledEvent event = SeminarCancelledEvent.builder()
+                                .recipientEmail(student.getEmail())
+                                .recipientName(student.getName() + " " + student.getLastName())
+                                .seminarName(seminar.getName())
+                                .cancelledDate(LocalDateTime.now())
+                                .programName(seminar.getAcademicProgram().getName())
+                                .reason(reason)
+                                .build();
+
+                        notificationEventPublisher.publishSeminarCancelledEvent(event);
+                        emailsSent++;
+                    } catch (Exception e) {
+                        // Continuar con el siguiente estudiante si falla el envío
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Seminario cancelado exitosamente",
+                            "seminarId", seminar.getId(),
+                            "seminarName", seminar.getName(),
+                            "status", seminar.getStatus().name(),
+                            "previouslyEnrolledStudents", enrolledStudents.size(),
+                            "emailsSent", emailsSent
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al cancelar el seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<?> updateSeminar(Long seminarId, SeminarDTO request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+            if (seminar.getStatus() == SeminarStatus.COMPLETED) {
+                throw new IllegalArgumentException(
+                        "No se puede editar un seminario que ya ha sido completado"
+                );
+            }
+
+            if (seminar.getStatus() == SeminarStatus.CLOSED) {
+                throw new IllegalArgumentException(
+                        "No se puede editar un seminario que ha sido cancelado"
+                );
+            }
+
+            if (request.getMinParticipants() != null && request.getMaxParticipants() != null) {
+                if (request.getMinParticipants() > request.getMaxParticipants()) {
+                    throw new IllegalArgumentException(
+                            "El mínimo de participantes no puede ser mayor al máximo"
+                    );
+                }
+            }
+
+            if (request.getMaxParticipants() != null && seminar.getCurrentParticipants() > request.getMaxParticipants()) {
+                throw new IllegalArgumentException(
+                        "No se puede reducir el máximo de participantes por debajo del número actual de inscritos (" +
+                        seminar.getCurrentParticipants() + ")"
+                );
+            }
+
+            if (request.getName() != null && !request.getName().isBlank()) {
+                seminar.setName(request.getName());
+            }
+
+            if (request.getDescription() != null) {
+                seminar.setDescription(request.getDescription());
+            }
+
+            if (request.getTotalCost() != null) {
+                seminar.setTotalCost(request.getTotalCost());
+            }
+
+            if (request.getMinParticipants() != null) {
+                seminar.setMinParticipants(request.getMinParticipants());
+            }
+
+            if (request.getMaxParticipants() != null) {
+                seminar.setMaxParticipants(request.getMaxParticipants());
+            }
+
+            if (request.getTotalHours() != null) {
+                seminar.setTotalHours(request.getTotalHours());
+            }
+
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminarRepository.save(seminar);
+
+            Map<String, Object> seminarData = new HashMap<>();
+            seminarData.put("id", seminar.getId());
+            seminarData.put("name", seminar.getName());
+            seminarData.put("description", seminar.getDescription() != null ? seminar.getDescription() : "");
+            seminarData.put("totalCost", seminar.getTotalCost());
+            seminarData.put("minParticipants", seminar.getMinParticipants());
+            seminarData.put("maxParticipants", seminar.getMaxParticipants());
+            seminarData.put("currentParticipants", seminar.getCurrentParticipants());
+            seminarData.put("totalHours", seminar.getTotalHours());
+            seminarData.put("status", seminar.getStatus().name());
+            seminarData.put("active", seminar.isActive());
+            seminarData.put("updatedAt", seminar.getUpdatedAt());
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Seminario actualizado exitosamente",
+                            "seminar", seminarData
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al actualizar el seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<?> closeRegistrations(Long seminarId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+            if (seminar.getStatus() == SeminarStatus.COMPLETED) {
+                throw new IllegalArgumentException(
+                        "No se pueden cerrar inscripciones de un seminario ya completado"
+                );
+            }
+
+            if (seminar.getStatus() == SeminarStatus.CLOSED) {
+                throw new IllegalArgumentException(
+                        "No se pueden cerrar inscripciones de un seminario cancelado"
+                );
+            }
+
+            if (seminar.getStatus() == SeminarStatus.REGISTRATION_CLOSED) {
+                throw new IllegalArgumentException(
+                        "Las inscripciones de este seminario ya están cerradas"
+                );
+            }
+
+            seminar.setStatus(SeminarStatus.REGISTRATION_CLOSED);
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminarRepository.save(seminar);
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Inscripciones cerradas exitosamente",
+                            "seminarId", seminar.getId(),
+                            "seminarName", seminar.getName(),
+                            "status", seminar.getStatus().name(),
+                            "currentParticipants", seminar.getCurrentParticipants(),
+                            "maxParticipants", seminar.getMaxParticipants(),
+                            "updatedAt", seminar.getUpdatedAt()
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al cerrar inscripciones del seminario: " + e.getMessage()
+                    )
+            );
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<?> completeSeminar(Long seminarId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Long userProgramId = programAuthorityRepository
+                    .findByUser_IdAndRole(user.getId(), ProgramRole.PROGRAM_HEAD)
+                    .stream()
+                    .findFirst()
+                    .map(pa -> pa.getAcademicProgram().getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No tienes permisos de jefe de programa"
+                    ));
+
+            Seminar seminar = seminarRepository.findById(seminarId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El seminario con ID " + seminarId + " no existe"
+                    ));
+
+            if (!seminar.getAcademicProgram().getId().equals(userProgramId)) {
+                throw new IllegalArgumentException(
+                        "Este seminario no pertenece a tu programa académico"
+                );
+            }
+
+            if (seminar.getStatus() != SeminarStatus.IN_PROGRESS) {
+                throw new IllegalArgumentException(
+                        "Solo se pueden completar seminarios que estén en estado EN PROGRESO (IN_PROGRESS). " +
+                        "Estado actual: " + seminar.getStatus()
+                );
+            }
+
+            seminar.setStatus(SeminarStatus.COMPLETED);
+            seminar.setActive(false);
+            seminar.setEndDate(LocalDateTime.now());
+            seminar.setUpdatedAt(LocalDateTime.now());
+            seminarRepository.save(seminar);
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Seminario completado exitosamente",
+                            "seminarId", seminar.getId(),
+                            "seminarName", seminar.getName(),
+                            "status", seminar.getStatus().name(),
+                            "startDate", seminar.getStartDate(),
+                            "endDate", seminar.getEndDate(),
+                            "totalParticipants", seminar.getCurrentParticipants()
+                    )
+            );
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "error", e.getMessage()
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of(
+                            "success", false,
+                            "error", "Error al completar el seminario: " + e.getMessage()
+                    )
+            );
+        }
     }
 
 }
