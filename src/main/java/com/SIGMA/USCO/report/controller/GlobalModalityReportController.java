@@ -246,9 +246,7 @@ public class GlobalModalityReportController {
      */
     @PostMapping("/directors/assigned-modalities/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportDirectorAssignedModalitiesReportToPDF(
-            @RequestBody(required = false) DirectorReportFilterDTO filters
-    ) {
+    public ResponseEntity<Resource> exportDirectorAssignedModalitiesReportToPDF(@RequestBody(required = false) DirectorReportFilterDTO filters) {
         try {
             DirectorAssignedModalitiesReportDTO report = reportService.generateDirectorAssignedModalitiesReport(filters);
             ByteArrayOutputStream pdfStream = directorPdfGenerator.generatePDF(report);
@@ -432,10 +430,7 @@ public class GlobalModalityReportController {
         }
     }
 
-    /**
-     * Genera un reporte filtrado por tipo de modalidad
-     * RF-46 - Filtrado por Tipo de Modalidad
-     */
+
     @PostMapping("/modalities/filtered")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
     public ResponseEntity<?> getFilteredModalityReport(@RequestBody ModalityReportFilterDTO filters) {
@@ -552,9 +547,7 @@ public class GlobalModalityReportController {
      */
     @PostMapping("/modalities/comparison/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportModalityTypeComparisonToPDF(
-            @RequestBody(required = false) ModalityComparisonFilterDTO filters
-    ) {
+    public ResponseEntity<Resource> exportModalityTypeComparisonToPDF(@RequestBody(required = false) ModalityComparisonFilterDTO filters) {
         try {
             ModalityTypeComparisonReportDTO report = reportService.generateModalityTypeComparison(filters);
             ByteArrayOutputStream pdfStream = comparisonPdfGenerator.generatePDF(report);
@@ -619,10 +612,7 @@ public class GlobalModalityReportController {
      */
     @GetMapping("/modalities/{modalityTypeId}/historical/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportModalityHistoricalReportToPDF(
-            @PathVariable Long modalityTypeId,
-            @RequestParam(required = false, defaultValue = "8") Integer periods
-    ) {
+    public ResponseEntity<Resource> exportModalityHistoricalReportToPDF(@PathVariable Long modalityTypeId, @RequestParam(required = false, defaultValue = "8") Integer periods) {
         try {
             ModalityHistoricalReportDTO report = reportService.generateModalityHistoricalReport(modalityTypeId, periods);
             ByteArrayOutputStream pdfStream = modalityHistoricalPdfGenerator.generatePDF(report);
@@ -692,9 +682,7 @@ public class GlobalModalityReportController {
      */
     @PostMapping("/students/listing/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportStudentListingReportToPDF(
-            @RequestBody(required = false) StudentListingFilterDTO filters
-    ) {
+    public ResponseEntity<Resource> exportStudentListingReportToPDF(@RequestBody(required = false) StudentListingFilterDTO filters) {
         try {
             StudentListingReportDTO report = reportService.generateStudentListingReport(filters);
             ByteArrayOutputStream pdfStream = studentListingPdfGenerator.generatePDF(report);

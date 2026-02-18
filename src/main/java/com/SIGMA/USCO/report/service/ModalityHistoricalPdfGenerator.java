@@ -20,28 +20,24 @@ import java.util.List;
 @Service
 public class ModalityHistoricalPdfGenerator {
 
-    // Colores institucionales
-    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
-    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
-    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+    // COLORES INSTITUCIONALES - USO EXCLUSIVO
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E - Color primario
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0 - Color secundario
+    private static final BaseColor WHITE = BaseColor.WHITE; // Color primario
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono muy claro de dorado para fondos sutiles
+    private static final BaseColor TEXT_BLACK = BaseColor.BLACK; // Texto principal
+    private static final BaseColor TEXT_GRAY = new BaseColor(80, 80, 80); // Texto secundario
 
     // Fuentes con colores institucionales
     private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, INSTITUTIONAL_RED);
     private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, INSTITUTIONAL_RED);
     private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
     private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED);
-    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
-    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY);
-    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
-    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
-
-    // Colores auxiliares
-    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);
-    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);
-    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);
-    private static final BaseColor INFO_COLOR = new BaseColor(23, 162, 184);
-    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);
+    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_BLACK);
+    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_BLACK);
+    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_GRAY);
+    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
+    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, WHITE);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter SIMPLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -125,11 +121,11 @@ public class ModalityHistoricalPdfGenerator {
         bandContent.setAlignment(Element.ALIGN_CENTER);
 
         Chunk universityName = new Chunk("UNIVERSIDAD SURCOLOMBIANA\n",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.WHITE));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, WHITE));
         bandContent.add(universityName);
 
         Chunk programName = new Chunk(report.getAcademicProgramName() + "\n",
-            FontFactory.getFont(FontFactory.HELVETICA, 14, BaseColor.WHITE));
+            FontFactory.getFont(FontFactory.HELVETICA, 14, WHITE));
         bandContent.add(programName);
 
         Chunk programCode = new Chunk("Código: " + report.getAcademicProgramCode(),
@@ -276,9 +272,9 @@ public class ModalityHistoricalPdfGenerator {
         PdfPTable metricsTable = createMetricsTable();
 
         addMetricCell(metricsTable, "Instancias Activas",
-            String.valueOf(current.getActiveInstances()), INFO_COLOR);
+            String.valueOf(current.getActiveInstances()), INSTITUTIONAL_GOLD);
         addMetricCell(metricsTable, "Estudiantes Inscritos",
-            String.valueOf(current.getTotalStudentsEnrolled()), SUCCESS_COLOR);
+            String.valueOf(current.getTotalStudentsEnrolled()), INSTITUTIONAL_GOLD);
         addMetricCell(metricsTable, "Directores Asignados",
             String.valueOf(current.getAssignedDirectors()), INSTITUTIONAL_GOLD);
         addMetricCell(metricsTable, "Popularidad Actual",
@@ -298,9 +294,9 @@ public class ModalityHistoricalPdfGenerator {
         statusTable.setSpacingAfter(15);
         statusTable.setHorizontalAlignment(Element.ALIGN_CENTER);
 
-        addStatusRow(statusTable, "Completadas:", current.getCompletedInstances(), SUCCESS_COLOR);
-        addStatusRow(statusTable, "En Progreso:", current.getInProgressInstances(), INFO_COLOR);
-        addStatusRow(statusTable, "En Revisión:", current.getInReviewInstances(), WARNING_COLOR);
+        addStatusRow(statusTable, "Completadas:", current.getCompletedInstances(), INSTITUTIONAL_GOLD);
+        addStatusRow(statusTable, "En Progreso:", current.getInProgressInstances(), INSTITUTIONAL_GOLD);
+        addStatusRow(statusTable, "En Revisión:", current.getInReviewInstances(), INSTITUTIONAL_RED);
 
         document.add(statusTable);
 
@@ -484,8 +480,8 @@ public class ModalityHistoricalPdfGenerator {
 
         // Parte coloreada
         PdfPCell filledCell = new PdfPCell(new Phrase(String.valueOf(value),
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, BaseColor.WHITE)));
-        filledCell.setBackgroundColor(INFO_COLOR);
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, WHITE)));
+        filledCell.setBackgroundColor(INSTITUTIONAL_RED);  // Barra con color institucional rojo
         filledCell.setBorder(Rectangle.NO_BORDER);
         filledCell.setPadding(3);
         filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -533,9 +529,9 @@ public class ModalityHistoricalPdfGenerator {
 
         Paragraph trendText = new Paragraph();
         trendText.add(new Chunk("TENDENCIA GENERAL: ",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, WHITE)));
         trendText.add(new Chunk(translateTrend(trends.getOverallTrend()),
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, WHITE)));
 
         trendText.setAlignment(Element.ALIGN_CENTER);
         trendCell.addElement(trendText);
@@ -564,17 +560,17 @@ public class ModalityHistoricalPdfGenerator {
         // Pico
         if (trends.getPeakYear() != null && trends.getPeakSemester() != null) {
             PdfPCell peakCell = new PdfPCell();
-            peakCell.setBackgroundColor(SUCCESS_COLOR);
+            peakCell.setBackgroundColor(INSTITUTIONAL_GOLD);  // Pico: dorado (positivo)
             peakCell.setPadding(10);
             peakCell.setBorder(Rectangle.NO_BORDER);
 
             Paragraph peakContent = new Paragraph();
             peakContent.add(new Chunk("PICO MÁXIMO\n",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
             peakContent.add(new Chunk(trends.getPeakYear() + "-" + trends.getPeakSemester() + "\n",
-                FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
             peakContent.add(new Chunk(trends.getPeakInstances() + " instancias",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
             peakContent.setAlignment(Element.ALIGN_CENTER);
 
             peakCell.addElement(peakContent);
@@ -584,17 +580,17 @@ public class ModalityHistoricalPdfGenerator {
         // Valle
         if (trends.getLowestYear() != null && trends.getLowestSemester() != null) {
             PdfPCell valleyCell = new PdfPCell();
-            valleyCell.setBackgroundColor(WARNING_COLOR);
+            valleyCell.setBackgroundColor(INSTITUTIONAL_RED);  // Valle: rojo (alerta)
             valleyCell.setPadding(10);
             valleyCell.setBorder(Rectangle.NO_BORDER);
 
             Paragraph valleyContent = new Paragraph();
             valleyContent.add(new Chunk("VALLE MÍNIMO\n",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
             valleyContent.add(new Chunk(trends.getLowestYear() + "-" + trends.getLowestSemester() + "\n",
-                FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
             valleyContent.add(new Chunk(trends.getLowestInstances() + " instancias",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.WHITE)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
             valleyContent.setAlignment(Element.ALIGN_CENTER);
 
             valleyCell.addElement(valleyContent);
@@ -765,7 +761,7 @@ public class ModalityHistoricalPdfGenerator {
         addMetricCell(summaryTable, "Directores Actuales",
             String.valueOf(dirStats.getCurrentActiveDirectors()), INSTITUTIONAL_GOLD);
         addMetricCell(summaryTable, "Promedio Instancias/Director",
-            String.format("%.1f", dirStats.getAverageInstancesPerDirector()), INFO_COLOR);
+            String.format("%.1f", dirStats.getAverageInstancesPerDirector()), INSTITUTIONAL_GOLD);
         addMetricCell(summaryTable, "Director Más Experimentado",
             dirStats.getMostExperiencedDirector() != null ?
                 dirStats.getMostExperiencedDirector() : "N/D",
@@ -847,7 +843,7 @@ public class ModalityHistoricalPdfGenerator {
         addMetricCell(metricsTable, "Estudiantes Actuales",
             String.valueOf(studStats.getCurrentStudents()), INSTITUTIONAL_GOLD);
         addMetricCell(metricsTable, "Promedio Est./Instancia",
-            String.format("%.1f", studStats.getAverageStudentsPerInstance()), INFO_COLOR);
+            String.format("%.1f", studStats.getAverageStudentsPerInstance()), INSTITUTIONAL_GOLD);
         addMetricCell(metricsTable, "Tipo Preferido",
             studStats.getPreferredType() != null ? studStats.getPreferredType() : "MIXTO",
             INSTITUTIONAL_GOLD);
@@ -929,9 +925,9 @@ public class ModalityHistoricalPdfGenerator {
 
         Paragraph verdictText = new Paragraph();
         verdictText.add(new Chunk("CALIFICACIÓN DE DESEMPEÑO: ",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, WHITE)));
         verdictText.add(new Chunk(translatePerformanceVerdict(perf.getPerformanceVerdict()),
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, WHITE)));
         verdictText.setAlignment(Element.ALIGN_CENTER);
 
         verdictCell.addElement(verdictText);
@@ -975,7 +971,7 @@ public class ModalityHistoricalPdfGenerator {
             com.itextpdf.text.List strengthList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
             strengthList.setIndentationLeft(20);
             strengthList.setListSymbol(new Chunk("✓ ",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, SUCCESS_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_GOLD)));
 
             for (String strength : perf.getStrengthPoints()) {
                 ListItem item = new ListItem(strength, NORMAL_FONT);
@@ -994,7 +990,7 @@ public class ModalityHistoricalPdfGenerator {
             com.itextpdf.text.List improvementList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
             improvementList.setIndentationLeft(20);
             improvementList.setListSymbol(new Chunk("! ",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WARNING_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED)));
 
             for (String improvement : perf.getImprovementAreas()) {
                 ListItem item = new ListItem(improvement, NORMAL_FONT);
@@ -1066,7 +1062,7 @@ public class ModalityHistoricalPdfGenerator {
             com.itextpdf.text.List oppList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
             oppList.setIndentationLeft(20);
             oppList.setListSymbol(new Chunk("⚈ ",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, SUCCESS_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, INSTITUTIONAL_GOLD)));
 
             for (String opportunity : proj.getOpportunities()) {
                 ListItem item = new ListItem(opportunity, NORMAL_FONT);
@@ -1085,7 +1081,7 @@ public class ModalityHistoricalPdfGenerator {
             com.itextpdf.text.List riskList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
             riskList.setIndentationLeft(20);
             riskList.setListSymbol(new Chunk("⚠ ",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, DANGER_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, INSTITUTIONAL_RED)));
 
             for (String risk : proj.getRisks()) {
                 ListItem item = new ListItem(risk, NORMAL_FONT);
@@ -1151,7 +1147,7 @@ public class ModalityHistoricalPdfGenerator {
         if (report.getPerformanceAnalysis() != null) {
             addStatCell(statsTable, "Tasa de Éxito",
                 String.format("%.1f%%", report.getPerformanceAnalysis().getSuccessRate()),
-                "", SUCCESS_COLOR);
+                "", INSTITUTIONAL_GOLD);  // Tasa de éxito: dorado (positivo)
         }
 
         document.add(statsTable);
@@ -1168,11 +1164,11 @@ public class ModalityHistoricalPdfGenerator {
 
         Paragraph content = new Paragraph();
         content.add(new Chunk(value + "\n",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, WHITE)));
         content.add(new Chunk(unit + "\n",
             FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(230, 230, 230))));
         content.add(new Chunk(label,
-            FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
         content.setAlignment(Element.ALIGN_CENTER);
 
         cell.addElement(content);
@@ -1201,7 +1197,7 @@ public class ModalityHistoricalPdfGenerator {
 
         Paragraph content = new Paragraph();
         content.add(new Chunk(value + "\n",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, WHITE)));
         content.add(new Chunk(label,
             FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(240, 240, 240))));
         content.setAlignment(Element.ALIGN_CENTER);
@@ -1222,7 +1218,7 @@ public class ModalityHistoricalPdfGenerator {
 
         PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
         valueCell.setPadding(8);
-        valueCell.setBackgroundColor(BaseColor.WHITE);
+        valueCell.setBackgroundColor(WHITE);
         valueCell.setBorder(Rectangle.NO_BORDER);
         table.addCell(valueCell);
     }
@@ -1348,7 +1344,7 @@ public class ModalityHistoricalPdfGenerator {
         cell.setBorder(Rectangle.NO_BORDER);
 
         Paragraph p = new Paragraph(text,
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, WHITE));
         p.setAlignment(Element.ALIGN_CENTER);
         cell.setPhrase(new Phrase(p));
 
@@ -1361,7 +1357,7 @@ public class ModalityHistoricalPdfGenerator {
     private void addCompDataCell(PdfPTable table, String text, boolean alternate) {
         PdfPCell cell = new PdfPCell(new Phrase(text, NORMAL_FONT));
         cell.setPadding(8);
-        cell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+        cell.setBackgroundColor(alternate ? LIGHT_GOLD : WHITE);
         cell.setBorder(Rectangle.NO_BORDER);
         table.addCell(cell);
     }
@@ -1371,7 +1367,7 @@ public class ModalityHistoricalPdfGenerator {
      */
     private void addTableHeaderCell(PdfPTable table, String text) {
         PdfPCell cell = new PdfPCell(new Phrase(text,
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, WHITE)));
         cell.setPadding(8);
         cell.setBackgroundColor(INSTITUTIONAL_GOLD);
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -1385,7 +1381,7 @@ public class ModalityHistoricalPdfGenerator {
     private void addTableDataCell(PdfPTable table, String text, boolean alternate) {
         PdfPCell cell = new PdfPCell(new Phrase(text, SMALL_FONT));
         cell.setPadding(6);
-        cell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+        cell.setBackgroundColor(alternate ? LIGHT_GOLD : WHITE);
         cell.setBorder(Rectangle.BOTTOM);
         cell.setBorderColor(LIGHT_GOLD);
         cell.setBorderWidth(0.5f);
@@ -1425,7 +1421,7 @@ public class ModalityHistoricalPdfGenerator {
         PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
         valueCell.setPadding(10);
         valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        valueCell.setBackgroundColor(BaseColor.WHITE);
+        valueCell.setBackgroundColor(WHITE);
         valueCell.setBorder(Rectangle.NO_BORDER);
         table.addCell(valueCell);
     }
@@ -1445,9 +1441,9 @@ public class ModalityHistoricalPdfGenerator {
     private BaseColor getPopularityColor(String popularity) {
         if (popularity == null) return LIGHT_GOLD;
         switch (popularity) {
-            case "HIGH": return SUCCESS_COLOR;
-            case "MEDIUM": return WARNING_COLOR;
-            case "LOW": return DANGER_COLOR;
+            case "HIGH": return INSTITUTIONAL_GOLD;      // Alta popularidad: dorado
+            case "MEDIUM": return INSTITUTIONAL_GOLD;    // Media popularidad: dorado
+            case "LOW": return INSTITUTIONAL_RED;        // Baja popularidad: rojo
             default: return LIGHT_GOLD;
         }
     }
@@ -1466,9 +1462,9 @@ public class ModalityHistoricalPdfGenerator {
     private BaseColor getTrendColor(String trend) {
         if (trend == null) return LIGHT_GOLD;
         switch (trend) {
-            case "GROWING": return SUCCESS_COLOR;
-            case "STABLE": return INFO_COLOR;
-            case "DECLINING": return DANGER_COLOR;
+            case "GROWING": return INSTITUTIONAL_GOLD;    // Crecimiento: dorado (positivo)
+            case "STABLE": return INSTITUTIONAL_GOLD;     // Estable: dorado (neutro positivo)
+            case "DECLINING": return INSTITUTIONAL_RED;   // Declive: rojo (alerta)
             default: return LIGHT_GOLD;
         }
     }
@@ -1484,12 +1480,12 @@ public class ModalityHistoricalPdfGenerator {
     }
 
     private BaseColor getVerdictColor(String verdict) {
-        if (verdict == null) return TEXT_DARK;
+        if (verdict == null) return TEXT_GRAY;
         switch (verdict) {
-            case "IMPROVED": return SUCCESS_COLOR;
-            case "DECLINED": return DANGER_COLOR;
-            case "STABLE": return INFO_COLOR;
-            default: return TEXT_DARK;
+            case "IMPROVED": return INSTITUTIONAL_GOLD;   // Mejorado: dorado (positivo)
+            case "DECLINED": return INSTITUTIONAL_RED;    // Disminuido: rojo (alerta)
+            case "STABLE": return INSTITUTIONAL_GOLD;     // Estable: dorado (neutro)
+            default: return TEXT_GRAY;
         }
     }
 
@@ -1507,10 +1503,10 @@ public class ModalityHistoricalPdfGenerator {
     private BaseColor getPerformanceColor(String verdict) {
         if (verdict == null) return LIGHT_GOLD;
         switch (verdict) {
-            case "EXCELLENT": return SUCCESS_COLOR;
-            case "GOOD": return INFO_COLOR;
-            case "REGULAR": return WARNING_COLOR;
-            case "NEEDS_IMPROVEMENT": return DANGER_COLOR;
+            case "EXCELLENT": return INSTITUTIONAL_GOLD;         // Excelente: dorado
+            case "GOOD": return INSTITUTIONAL_GOLD;              // Bueno: dorado
+            case "REGULAR": return INSTITUTIONAL_RED;            // Regular: rojo (atención)
+            case "NEEDS_IMPROVEMENT": return INSTITUTIONAL_RED;  // Necesita mejora: rojo (alerta)
             default: return LIGHT_GOLD;
         }
     }
@@ -1533,8 +1529,8 @@ public class ModalityHistoricalPdfGenerator {
     private static class HistoricalPageEventHelper extends PdfPageEventHelper {
 
         private final ModalityHistoricalReportDTO report;
-        private final Font headerFont = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
-        private final Font footerFont = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
+        private final Font headerFont = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
+        private final Font footerFont = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
 
         public HistoricalPageEventHelper(ModalityHistoricalReportDTO report) {
             this.report = report;

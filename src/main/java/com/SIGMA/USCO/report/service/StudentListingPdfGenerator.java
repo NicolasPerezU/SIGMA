@@ -20,29 +20,25 @@ import java.util.stream.Collectors;
 @Service
 public class StudentListingPdfGenerator {
 
-    // Colores institucionales
-    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
-    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
-    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+    // COLORES INSTITUCIONALES - USO EXCLUSIVO
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E - Color primario
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0 - Color secundario
+    private static final BaseColor WHITE = BaseColor.WHITE; // Color primario
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono muy claro de dorado para fondos sutiles
+    private static final BaseColor TEXT_BLACK = BaseColor.BLACK; // Texto principal
+    private static final BaseColor TEXT_GRAY = new BaseColor(80, 80, 80); // Texto secundario
 
     // Fuentes con colores institucionales
     private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, INSTITUTIONAL_RED);
     private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, INSTITUTIONAL_RED);
     private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
     private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED);
-    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
-    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY);
-    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
-    private static final Font TABLE_HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, BaseColor.WHITE);
-    private static final Font TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 7, BaseColor.BLACK);
-
-    // Colores auxiliares
-    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);
-    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);
-    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);
-    private static final BaseColor INFO_COLOR = new BaseColor(23, 162, 184);
-    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);
+    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_BLACK);
+    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_BLACK);
+    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_GRAY);
+    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
+    private static final Font TABLE_HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, WHITE);
+    private static final Font TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_BLACK);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -114,15 +110,15 @@ public class StudentListingPdfGenerator {
         bandContent.setAlignment(Element.ALIGN_CENTER);
 
         Chunk universityName = new Chunk("UNIVERSIDAD SURCOLOMBIANA\n",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.WHITE));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, WHITE));
         bandContent.add(universityName);
 
         Chunk programName = new Chunk(report.getAcademicProgramName() + "\n",
-            FontFactory.getFont(FontFactory.HELVETICA, 14, BaseColor.WHITE));
+            FontFactory.getFont(FontFactory.HELVETICA, 14, WHITE));
         bandContent.add(programName);
 
         Chunk programCode = new Chunk("Código: " + report.getAcademicProgramCode(),
-            FontFactory.getFont(FontFactory.HELVETICA, 12, new BaseColor(200, 200, 200)));
+            FontFactory.getFont(FontFactory.HELVETICA, 12, WHITE));
         bandContent.add(programCode);
 
         bandCell.addElement(bandContent);
@@ -231,9 +227,9 @@ public class StudentListingPdfGenerator {
             addMetricCard(metricsTable, "Total Estudiantes",
                 String.valueOf(summary.getTotalStudents()), INSTITUTIONAL_RED);
             addMetricCard(metricsTable, "Modalidades Activas",
-                String.valueOf(summary.getActiveModalities()), SUCCESS_COLOR);
+                String.valueOf(summary.getActiveModalities()), INSTITUTIONAL_GOLD);
             addMetricCard(metricsTable, "Completadas",
-                String.valueOf(summary.getCompletedModalities()), INFO_COLOR);
+                String.valueOf(summary.getCompletedModalities()), INSTITUTIONAL_GOLD);
             addMetricCard(metricsTable, "Progreso Promedio",
                 String.format("%.1f%%", summary.getAverageProgress()), INSTITUTIONAL_GOLD);
             addMetricCard(metricsTable, "Tipos de Modalidad",
@@ -281,13 +277,13 @@ public class StudentListingPdfGenerator {
         modalityTypeTable.setSpacingAfter(20);
 
         addStatsCard(modalityTypeTable, "Individuales",
-            String.valueOf(stats.getIndividualModalities()), INFO_COLOR);
+            String.valueOf(stats.getIndividualModalities()), INSTITUTIONAL_GOLD);
         addStatsCard(modalityTypeTable, "Grupales",
-            String.valueOf(stats.getGroupModalities()), SUCCESS_COLOR);
+            String.valueOf(stats.getGroupModalities()), INSTITUTIONAL_GOLD);
         addStatsCard(modalityTypeTable, "Con Director",
             String.valueOf(stats.getStudentsWithDirector()), INSTITUTIONAL_GOLD);
         addStatsCard(modalityTypeTable, "Sin Director",
-            String.valueOf(stats.getStudentsWithoutDirector()), WARNING_COLOR);
+            String.valueOf(stats.getStudentsWithoutDirector()), INSTITUTIONAL_RED);
 
         document.add(modalityTypeTable);
 
@@ -301,11 +297,11 @@ public class StudentListingPdfGenerator {
         timelineTable.setHorizontalAlignment(Element.ALIGN_CENTER);
 
         addStatsCard(timelineTable, "A Tiempo",
-            String.valueOf(stats.getStudentsOnTime()), SUCCESS_COLOR);
+            String.valueOf(stats.getStudentsOnTime()), INSTITUTIONAL_GOLD);
         addStatsCard(timelineTable, "En Riesgo",
-            String.valueOf(stats.getStudentsAtRisk()), WARNING_COLOR);
+            String.valueOf(stats.getStudentsAtRisk()), INSTITUTIONAL_RED);
         addStatsCard(timelineTable, "Retrasados",
-            String.valueOf(stats.getStudentsDelayed()), DANGER_COLOR);
+            String.valueOf(stats.getStudentsDelayed()), INSTITUTIONAL_RED);
 
         document.add(timelineTable);
 
@@ -349,7 +345,7 @@ public class StudentListingPdfGenerator {
             addSubsectionTitle(document, "Distribución por Tipo de Modalidad");
 
             addDistributionChart(document, distribution.getByModalityType(),
-                distribution.getByModalityTypePercentage(), INFO_COLOR);
+                distribution.getByModalityTypePercentage(), INSTITUTIONAL_RED);  // Rojo institucional
         }
 
         // Distribución por estado
@@ -358,7 +354,7 @@ public class StudentListingPdfGenerator {
             addSubsectionTitle(document, "Distribución por Estado");
 
             addDistributionChart(document, distribution.getByStatus(),
-                distribution.getByStatusPercentage(), INSTITUTIONAL_GOLD);
+                distribution.getByStatusPercentage(), INSTITUTIONAL_GOLD);  // Dorado institucional
         }
 
         // Distribución por estado temporal
@@ -367,7 +363,7 @@ public class StudentListingPdfGenerator {
             addSubsectionTitle(document, "Distribución por Estado Temporal");
 
             addDistributionChart(document, distribution.getByTimelineStatus(),
-                distribution.getByTimelineStatusPercentage(), WARNING_COLOR);
+                distribution.getByTimelineStatusPercentage(), INSTITUTIONAL_GOLD);  // Dorado institucional
         }
     }
 
@@ -659,7 +655,7 @@ public class StudentListingPdfGenerator {
 
         // Parte coloreada
         PdfPCell filledCell = new PdfPCell(new Phrase(label,
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7, BaseColor.WHITE)));
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7, WHITE)));
         filledCell.setBackgroundColor(color);
         filledCell.setBorder(Rectangle.NO_BORDER);
         filledCell.setPadding(3);
