@@ -19,7 +19,7 @@ import java.util.Map;
 @Service
 public class ModalityComparisonPdfGenerator {
 
-    // COLORES INSTITUCIONALES - USO EXCLUSIVO
+
     private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E - Color primario
     private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0 - Color secundario
     private static final BaseColor WHITE = BaseColor.WHITE; // Color primario
@@ -27,7 +27,7 @@ public class ModalityComparisonPdfGenerator {
     private static final BaseColor TEXT_BLACK = BaseColor.BLACK; // Texto principal
     private static final BaseColor TEXT_GRAY = new BaseColor(80, 80, 80); // Texto secundario
 
-    // Fuentes con colores institucionales
+
     private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED);
     private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, INSTITUTIONAL_RED);
     private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
@@ -38,49 +38,47 @@ public class ModalityComparisonPdfGenerator {
     private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
     private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, WHITE);
 
-    public ByteArrayOutputStream generatePDF(ModalityTypeComparisonReportDTO report)
-            throws DocumentException, IOException {
+    public ByteArrayOutputStream generatePDF(ModalityTypeComparisonReportDTO report) throws DocumentException, IOException {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4, 50, 50, 50, 50);
         PdfWriter writer = PdfWriter.getInstance(document, outputStream);
 
-        // Agregar eventos de página (encabezado y pie de página)
         PageEventHelper pageEvent = new PageEventHelper(report);
         writer.setPageEvent(pageEvent);
 
         document.open();
 
-        // 1. Portada
         addCoverPage(document, report);
 
-        // 2. Resumen Ejecutivo
         document.newPage();
         addExecutiveSummary(document, report);
 
-        // 3. Estadísticas Detalladas por Tipo
+        document.newPage();
+        addVisualComparison(document, report);
+
         document.newPage();
         addDetailedStatistics(document, report);
 
-        // 4. Distribución de Estudiantes
+
         if (report.getStudentDistributionByType() != null && !report.getStudentDistributionByType().isEmpty()) {
             document.newPage();
             addStudentDistribution(document, report);
         }
 
-        // 5. Comparación Histórica
+        document.newPage();
+        addEfficiencyAnalysis(document, report);
+
         if (report.getHistoricalComparison() != null && !report.getHistoricalComparison().isEmpty()) {
             document.newPage();
             addHistoricalComparison(document, report);
         }
 
-        // 6. Análisis de Tendencias
         if (report.getTrendsAnalysis() != null) {
             document.newPage();
             addTrendsAnalysis(document, report);
         }
 
-        // 7. Conclusiones
         document.newPage();
         addConclusions(document, report);
 
@@ -88,13 +86,10 @@ public class ModalityComparisonPdfGenerator {
         return outputStream;
     }
 
-    /**
-     * Portada del reporte con diseño profesional
-     */
-    private void addCoverPage(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
 
-        // Banda superior institucional
+    private void addCoverPage(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
+
+
         PdfPTable headerBand = new PdfPTable(1);
         headerBand.setWidthPercentage(100);
         headerBand.setSpacingAfter(30);
@@ -104,7 +99,7 @@ public class ModalityComparisonPdfGenerator {
         bandCell.setPadding(20);
         bandCell.setBorder(Rectangle.NO_BORDER);
 
-        // Nombre de la institución
+
         Paragraph institution = new Paragraph("UNIVERSIDAD SURCOLOMBIANA",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, BaseColor.WHITE));
         institution.setAlignment(Element.ALIGN_CENTER);
@@ -119,7 +114,7 @@ public class ModalityComparisonPdfGenerator {
         headerBand.addCell(bandCell);
         document.add(headerBand);
 
-        // Programa académico
+
         PdfPTable programBox = new PdfPTable(1);
         programBox.setWidthPercentage(85);
         programBox.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -140,14 +135,14 @@ public class ModalityComparisonPdfGenerator {
         programBox.addCell(programCell);
         document.add(programBox);
 
-        // Título del reporte
+
         Paragraph title = new Paragraph("REPORTE COMPARATIVO DE\nMODALIDADES POR TIPO DE GRADO",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED));
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(35);
         document.add(title);
 
-        // Información del periodo (si existe)
+
         if (report.getYear() != null) {
             PdfPTable periodBox = new PdfPTable(1);
             periodBox.setWidthPercentage(60);
@@ -174,7 +169,7 @@ public class ModalityComparisonPdfGenerator {
             document.add(periodBox);
         }
 
-        // Información del reporte en tabla profesional
+
         PdfPTable infoTable = new PdfPTable(2);
         infoTable.setWidthPercentage(75);
         infoTable.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -191,7 +186,7 @@ public class ModalityComparisonPdfGenerator {
 
         document.add(infoTable);
 
-        // Footer institucional de portada
+
         PdfPTable footerTable = new PdfPTable(1);
         footerTable.setWidthPercentage(100);
         footerTable.setSpacingBefore(70);
@@ -211,9 +206,7 @@ public class ModalityComparisonPdfGenerator {
         document.add(footerTable);
     }
 
-    /**
-     * Agregar fila de información en la portada con diseño mejorado
-     */
+
     private void addCoverInfoRow(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(52, 73, 94))));
@@ -233,37 +226,58 @@ public class ModalityComparisonPdfGenerator {
         table.addCell(valueCell);
     }
 
-    /**
-     * Resumen ejecutivo con diseño mejorado
-     */
-    private void addExecutiveSummary(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
+    private void addExecutiveSummary(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
 
         addSectionTitle(document, "1. RESUMEN EJECUTIVO");
 
         ModalityTypeComparisonReportDTO.ComparisonSummaryDTO summary = report.getSummary();
 
-        // Tabla de resumen principal con diseño mejorado
-        PdfPTable summaryTable = new PdfPTable(3);
+
+        PdfPTable summaryTable = new PdfPTable(4);
         summaryTable.setWidthPercentage(100);
-        summaryTable.setWidths(new int[]{34, 33, 33});
+        summaryTable.setWidths(new int[]{25, 25, 25, 25});
         summaryTable.setSpacingAfter(25);
 
-        // Tarjeta 1: Total de tipos
+
         addMetricCard(summaryTable, "Tipos de Modalidad",
                 String.valueOf(summary.getTotalModalityTypes()), INSTITUTIONAL_GOLD);
 
-        // Tarjeta 2: Total de modalidades
+
         addMetricCard(summaryTable, "Total Modalidades",
                 String.valueOf(summary.getTotalModalities()), INSTITUTIONAL_RED);
 
-        // Tarjeta 3: Total de estudiantes
+
         addMetricCard(summaryTable, "Total Estudiantes",
                 String.valueOf(summary.getTotalStudents()), INSTITUTIONAL_GOLD);
 
+
+        addMetricCard(summaryTable, "Promedio por Tipo de Modalidad",
+                String.format("%.1f", summary.getAverageModalitiesPerType()), INSTITUTIONAL_RED);
+
         document.add(summaryTable);
 
-        // Tipo más popular con diseño mejorado
+
+        PdfPTable secondRowMetrics = new PdfPTable(2);
+        secondRowMetrics.setWidthPercentage(100);
+        secondRowMetrics.setSpacingAfter(25);
+
+
+        addWideMetricCard(secondRowMetrics, "Promedio de Estudiantes por Tipo",
+                String.format("%.1f estudiantes", summary.getAverageStudentsPerType()),
+                LIGHT_GOLD, INSTITUTIONAL_RED);
+
+
+        if (summary.getMostPopularType() != null && summary.getTotalModalities() > 0) {
+            double concentration = (double) summary.getMostPopularTypeCount() /
+                                  summary.getTotalModalities() * 100;
+            addWideMetricCard(secondRowMetrics, "Concentración en Tipo Principal",
+                    String.format("%.1f%% en %s", concentration, summary.getMostPopularType()),
+                    LIGHT_GOLD, INSTITUTIONAL_GOLD);
+        }
+
+        document.add(secondRowMetrics);
+
+
         if (summary.getMostPopularType() != null) {
             PdfPTable popularTable = new PdfPTable(1);
             popularTable.setWidthPercentage(100);
@@ -277,7 +291,7 @@ public class ModalityComparisonPdfGenerator {
 
             Paragraph popularText = new Paragraph();
             popularText.add(new Chunk("⭐ TIPO MÁS POPULAR: ",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_GOLD)));
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(76, 175, 80))));
             popularText.add(new Chunk(summary.getMostPopularType() + " ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_BLACK)));
             popularText.add(new Chunk("(" + summary.getMostPopularTypeCount() + " modalidades)",
@@ -288,7 +302,6 @@ public class ModalityComparisonPdfGenerator {
             document.add(popularTable);
         }
 
-        // Tipo menos popular con diseño mejorado
         if (summary.getLeastPopularType() != null && summary.getLeastPopularTypeCount() > 0) {
             PdfPTable leastPopularTable = new PdfPTable(1);
             leastPopularTable.setWidthPercentage(100);
@@ -297,7 +310,7 @@ public class ModalityComparisonPdfGenerator {
             PdfPCell leastCell = new PdfPCell();
             leastCell.setBackgroundColor(new BaseColor(255, 243, 224)); // Naranja claro
             leastCell.setPadding(12);
-            leastCell.setBorderColor(INSTITUTIONAL_RED);
+            leastCell.setBorderColor(new BaseColor(255, 152, 0));
             leastCell.setBorderWidth(2f);
 
             Paragraph leastText = new Paragraph();
@@ -314,9 +327,7 @@ public class ModalityComparisonPdfGenerator {
         }
     }
 
-    /**
-     * Agregar tarjeta de métrica con diseño mejorado
-     */
+
     private void addMetricCard(PdfPTable table, String label, String value, BaseColor color) {
         PdfPCell card = new PdfPCell();
         card.setPadding(15);
@@ -340,111 +351,187 @@ public class ModalityComparisonPdfGenerator {
         table.addCell(card);
     }
 
-    /**
-     * Estadísticas detalladas por tipo
-     */
-    private void addDetailedStatistics(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
 
-        addSectionTitle(document, "2. ESTADÍSTICAS DETALLADAS POR TIPO DE MODALIDAD");
+    private void addDetailedStatistics(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
+
+        addSectionTitle(document, "3. ESTADÍSTICAS DETALLADAS POR TIPO DE MODALIDAD");
 
         List<ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO> statistics =
                 report.getModalityTypeStatistics();
 
+        int totalModalities = report.getSummary().getTotalModalities();
+
         for (int i = 0; i < statistics.size(); i++) {
             ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat = statistics.get(i);
 
-            // Título del tipo
-            Paragraph typeTitle = new Paragraph((i + 1) + ". " + stat.getModalityTypeName(), SUBHEADER_FONT);
-            typeTitle.setSpacingBefore(i > 0 ? 15 : 5);
-            typeTitle.setSpacingAfter(5);
-            document.add(typeTitle);
+
+            PdfPTable typeContainer = new PdfPTable(1);
+            typeContainer.setWidthPercentage(100);
+            typeContainer.setSpacingBefore(i > 0 ? 15 : 5);
+            typeContainer.setSpacingAfter(5);
+
+
+            PdfPCell headerCell = new PdfPCell();
+            headerCell.setBackgroundColor(INSTITUTIONAL_RED);
+            headerCell.setPadding(10);
+            headerCell.setBorder(Rectangle.NO_BORDER);
+
+            Paragraph typeTitle = new Paragraph((i + 1) + ". " + stat.getModalityTypeName(),
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.WHITE));
+            headerCell.addElement(typeTitle);
+            typeContainer.addCell(headerCell);
+            document.add(typeContainer);
+
 
             if (stat.getDescription() != null && !stat.getDescription().isEmpty()) {
                 Paragraph description = new Paragraph(stat.getDescription(), SMALL_FONT);
                 description.setSpacingAfter(10);
+                description.setIndentationLeft(10);
                 document.add(description);
             }
 
-            // Tabla de estadísticas con diseño mejorado
+
+            PdfPTable metricsTable = new PdfPTable(2);
+            metricsTable.setWidthPercentage(100);
+            metricsTable.setSpacingAfter(10);
+            metricsTable.setWidths(new int[]{60, 40});
+
+
+            addMetricRowWithBar(metricsTable, "Total Modalidades",
+                    stat.getTotalModalities(), totalModalities, "modalidades");
+
+
+            int totalStudents = report.getSummary().getTotalStudents();
+            addMetricRowWithBar(metricsTable, "Total Estudiantes",
+                    stat.getTotalStudents(), totalStudents, "estudiantes");
+
+            document.add(metricsTable);
+
+
             PdfPTable statsTable = new PdfPTable(4);
             statsTable.setWidthPercentage(100);
             statsTable.setWidths(new int[]{25, 25, 25, 25});
             statsTable.setSpacingAfter(10);
 
-            addStatCell(statsTable, "Total Modalidades:", String.valueOf(stat.getTotalModalities()));
-            addStatCell(statsTable, "Total Estudiantes:", String.valueOf(stat.getTotalStudents()));
-            addStatCell(statsTable, "Porcentaje del Total:", stat.getPercentageOfTotal() + "%");
-            addStatCell(statsTable, "Requiere Director:", stat.getRequiresDirector() ? "Sí" : "No");
+            addStatCellEnhanced(statsTable, "Porcentaje Total",
+                    String.format("%.1f%%", stat.getPercentageOfTotal()), INSTITUTIONAL_GOLD);
+            addStatCellEnhanced(statsTable, "Prom. Est./Mod.",
+                    String.format("%.2f", stat.getAverageStudentsPerModality()), LIGHT_GOLD);
+            addStatCellEnhanced(statsTable, "Tipo",
+                    (stat.getIndividualModalities() > stat.getGroupModalities() ?
+                    "Individual" : "Grupal"), INSTITUTIONAL_GOLD);
+            addStatCellEnhanced(statsTable, "Director",
+                    stat.getRequiresDirector() ? "Requerido" : "No requiere", LIGHT_GOLD);
 
             document.add(statsTable);
 
-            // Información de directores si aplica
+
             if (stat.getRequiresDirector()) {
                 PdfPTable directorTable = new PdfPTable(2);
-                directorTable.setWidthPercentage(80);
+                directorTable.setWidthPercentage(95);
                 directorTable.setSpacingBefore(5);
                 directorTable.setSpacingAfter(10);
 
-                PdfPCell withDirectorCell = new PdfPCell(new Phrase("Con Director Asignado: " +
-                        stat.getModalitiesWithDirector(), SMALL_FONT));
-                withDirectorCell.setBackgroundColor(new BaseColor(232, 245, 233));
-                withDirectorCell.setPadding(6);
-                withDirectorCell.setBorder(Rectangle.NO_BORDER);
-                directorTable.addCell(withDirectorCell);
+                int withDirector = stat.getModalitiesWithDirector();
+                int withoutDirector = stat.getModalitiesWithoutDirector();
+                int totalDir = withDirector + withoutDirector;
 
-                PdfPCell withoutDirectorCell = new PdfPCell(new Phrase("Sin Director: " +
-                        stat.getModalitiesWithoutDirector(), SMALL_FONT));
-                withoutDirectorCell.setBackgroundColor(stat.getModalitiesWithoutDirector() > 0 ?
-                        new BaseColor(255, 243, 224) : new BaseColor(248, 249, 250));
-                withoutDirectorCell.setPadding(6);
-                withoutDirectorCell.setBorder(Rectangle.NO_BORDER);
-                directorTable.addCell(withoutDirectorCell);
+
+                PdfPCell withDirCell = createDirectorCell(
+                        "✓ Con Director: " + withDirector,
+                        withDirector, totalDir,
+                        new BaseColor(232, 245, 233),
+                        new BaseColor(76, 175, 80)
+                );
+                directorTable.addCell(withDirCell);
+
+
+                PdfPCell withoutDirCell = createDirectorCell(
+                        (withoutDirector > 0 ? "⚠ " : "") + "Sin Director: " + withoutDirector,
+                        withoutDirector, totalDir,
+                        withoutDirector > 0 ? new BaseColor(255, 243, 224) : new BaseColor(248, 249, 250),
+                        withoutDirector > 0 ? new BaseColor(255, 152, 0) : TEXT_GRAY
+                );
+                directorTable.addCell(withoutDirCell);
 
                 document.add(directorTable);
             }
 
-            // Distribución por estado
+
             if (stat.getDistributionByStatus() != null && !stat.getDistributionByStatus().isEmpty()) {
-                Paragraph statusTitle = new Paragraph("Distribución por Estado:", SMALL_FONT);
-                statusTitle.setSpacingBefore(5);
-                statusTitle.setSpacingAfter(3);
+                Paragraph statusTitle = new Paragraph("Distribución por Estado:", BOLD_FONT);
+                statusTitle.setSpacingBefore(8);
+                statusTitle.setSpacingAfter(5);
                 document.add(statusTitle);
 
-                PdfPTable statusTable = new PdfPTable(2);
-                statusTable.setWidthPercentage(80);
-                statusTable.setSpacingAfter(5);
-
-                for (Map.Entry<String, Integer> entry : stat.getDistributionByStatus().entrySet()) {
-                    PdfPCell labelCell = new PdfPCell(new Phrase(entry.getKey(), SMALL_FONT));
-                    labelCell.setBorder(Rectangle.NO_BORDER);
-                    labelCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                    labelCell.setPaddingLeft(20);
-                    statusTable.addCell(labelCell);
-
-                    PdfPCell valueCell = new PdfPCell(new Phrase(entry.getValue() + " modalidades", SMALL_FONT));
-                    valueCell.setBorder(Rectangle.NO_BORDER);
-                    valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    statusTable.addCell(valueCell);
-                }
-
-                document.add(statusTable);
+                addStatusDistributionBars(document, stat.getDistributionByStatus(),
+                        stat.getTotalModalities());
             }
 
-            // Línea separadora
+
+            if (stat.getTrend() != null) {
+                PdfPTable trendTable = new PdfPTable(1);
+                trendTable.setWidthPercentage(95);
+                trendTable.setSpacingBefore(5);
+                trendTable.setSpacingAfter(10);
+
+                PdfPCell trendCell = new PdfPCell();
+                trendCell.setPadding(8);
+                trendCell.setBorder(Rectangle.BOX);
+                trendCell.setBorderWidth(1.5f);
+
+                BaseColor trendColor;
+                String trendIcon;
+                String trendText;
+
+                switch (stat.getTrend()) {
+                    case "INCREASING":
+                        trendColor = new BaseColor(76, 175, 80);
+                        trendIcon = "↗";
+                        trendText = "EN CRECIMIENTO";
+                        break;
+                    case "DECREASING":
+                        trendColor = new BaseColor(244, 67, 54);
+                        trendIcon = "↘";
+                        trendText = "EN DECLIVE";
+                        break;
+                    default:
+                        trendColor = INSTITUTIONAL_GOLD;
+                        trendIcon = "→";
+                        trendText = "ESTABLE";
+                }
+
+                trendCell.setBorderColor(trendColor);
+                trendCell.setBackgroundColor(new BaseColor(
+                        trendColor.getRed() + (255 - trendColor.getRed()) * 9 / 10,
+                        trendColor.getGreen() + (255 - trendColor.getGreen()) * 9 / 10,
+                        trendColor.getBlue() + (255 - trendColor.getBlue()) * 9 / 10
+                ));
+
+                Paragraph trendPara = new Paragraph();
+                trendPara.add(new Chunk(trendIcon + " Tendencia: ",
+                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, trendColor)));
+                trendPara.add(new Chunk(trendText,
+                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, trendColor)));
+                trendCell.addElement(trendPara);
+                trendTable.addCell(trendCell);
+
+                document.add(trendTable);
+            }
+
+
             if (i < statistics.size() - 1) {
                 LineSeparator separator = new LineSeparator();
                 separator.setLineColor(INSTITUTIONAL_GOLD);
+                separator.setLineWidth(1);
+                document.add(Chunk.NEWLINE);
                 document.add(new Chunk(separator));
             }
         }
     }
 
-    /**
-     * Distribución de estudiantes con diseño mejorado
-     */
-    private void addStudentDistribution(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
+
+    private void addStudentDistribution(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
 
         addSectionTitle(document, "3. DISTRIBUCIÓN DE ESTUDIANTES POR TIPO");
 
@@ -456,23 +543,23 @@ public class ModalityComparisonPdfGenerator {
 
         Map<String, Integer> distribution = report.getStudentDistributionByType();
 
-        // Encontrar el máximo para escalar las barras
+
         int maxStudents = distribution.values().stream().max(Integer::compare).orElse(1);
         int totalStudents = distribution.values().stream().mapToInt(Integer::intValue).sum();
 
-        // Ordenar por cantidad de estudiantes (descendente)
+
         List<Map.Entry<String, Integer>> sortedEntries = distribution.entrySet().stream()
                 .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                 .collect(java.util.stream.Collectors.toList());
 
-        // Crear gráfico de barras mejorado
+
         for (Map.Entry<String, Integer> entry : sortedEntries) {
-            // Contenedor de cada barra
+
             PdfPTable barContainer = new PdfPTable(1);
             barContainer.setWidthPercentage(100);
             barContainer.setSpacingAfter(12);
 
-            // Encabezado con el nombre del tipo
+
             PdfPCell headerCell = new PdfPCell();
             headerCell.setBackgroundColor(INSTITUTIONAL_RED);
             headerCell.setPadding(6);
@@ -483,29 +570,29 @@ public class ModalityComparisonPdfGenerator {
             headerCell.addElement(headerText);
             barContainer.addCell(headerCell);
 
-            // Contenedor de la barra y estadísticas
+
             PdfPCell barCell = new PdfPCell();
             barCell.setPadding(0);
             barCell.setBorder(Rectangle.BOX);
             barCell.setBorderColor(LIGHT_GOLD);
             barCell.setBorderWidth(0.5f);
 
-            // Tabla interna para la barra
+
             PdfPTable innerTable = new PdfPTable(2);
             innerTable.setWidthPercentage(100);
 
-            // Calcular el ancho de la barra (máximo 85%)
+
             float barWidth = (float) entry.getValue() / maxStudents * 85;
             float emptyWidth = 100 - barWidth;
 
             try {
                 innerTable.setWidths(new float[]{barWidth > 0 ? barWidth : 0.1f, emptyWidth > 0 ? emptyWidth : 0.1f});
             } catch (DocumentException e) {
-                // Si hay error, usar valores por defecto
+
                 innerTable.setWidths(new float[]{50, 50});
             }
 
-            // Celda con color de la barra
+
             PdfPCell filledCell = new PdfPCell();
             filledCell.setBackgroundColor(INSTITUTIONAL_GOLD);
             filledCell.setBorder(Rectangle.NO_BORDER);
@@ -517,7 +604,7 @@ public class ModalityComparisonPdfGenerator {
             filledCell.addElement(barText);
             innerTable.addCell(filledCell);
 
-            // Celda vacía con el porcentaje
+
             PdfPCell emptyCell = new PdfPCell();
             emptyCell.setBackgroundColor(LIGHT_GOLD);
             emptyCell.setBorder(Rectangle.NO_BORDER);
@@ -536,7 +623,7 @@ public class ModalityComparisonPdfGenerator {
             document.add(barContainer);
         }
 
-        // Agregar resumen total al final
+
         PdfPTable totalTable = new PdfPTable(1);
         totalTable.setWidthPercentage(100);
         totalTable.setSpacingBefore(15);
@@ -555,39 +642,34 @@ public class ModalityComparisonPdfGenerator {
         document.add(totalTable);
     }
 
-    /**
-     * Comparación histórica
-     */
-    private void addHistoricalComparison(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
+
+    private void addHistoricalComparison(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
 
         addSectionTitle(document, "4. COMPARACIÓN HISTÓRICA POR PERIODOS");
 
         List<ModalityTypeComparisonReportDTO.PeriodComparisonDTO> periods = report.getHistoricalComparison();
 
-        // Tabla de comparación
         int numPeriods = periods.size();
         PdfPTable comparisonTable = new PdfPTable(numPeriods + 1);
         comparisonTable.setWidthPercentage(100);
         comparisonTable.setSpacingAfter(20);
 
-        // Encabezados
+
         addTableHeader(comparisonTable, "Tipo de Modalidad");
         for (ModalityTypeComparisonReportDTO.PeriodComparisonDTO period : periods) {
             addTableHeader(comparisonTable, period.getPeriodLabel());
         }
 
-        // Obtener todos los tipos de modalidad
         Map<String, Integer> allTypes = report.getStudentDistributionByType();
 
         for (String typeName : allTypes.keySet()) {
-            // Nombre del tipo
+
             PdfPCell typeCell = new PdfPCell(new Phrase(typeName, SMALL_FONT));
             typeCell.setBackgroundColor(LIGHT_GOLD);
             typeCell.setPadding(5);
             comparisonTable.addCell(typeCell);
 
-            // Datos de cada periodo
+
             for (ModalityTypeComparisonReportDTO.PeriodComparisonDTO period : periods) {
                 Integer count = period.getModalitiesByType().getOrDefault(typeName, 0);
                 Integer students = period.getStudentsByType().getOrDefault(typeName, 0);
@@ -605,7 +687,7 @@ public class ModalityComparisonPdfGenerator {
             }
         }
 
-        // Totales
+
         PdfPCell totalLabelCell = new PdfPCell(new Phrase("TOTALES", BOLD_FONT));
         totalLabelCell.setBackgroundColor(INSTITUTIONAL_RED);
         totalLabelCell.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -629,17 +711,14 @@ public class ModalityComparisonPdfGenerator {
         document.add(comparisonTable);
     }
 
-    /**
-     * Análisis de tendencias
-     */
-    private void addTrendsAnalysis(Document document, ModalityTypeComparisonReportDTO report)
-            throws DocumentException {
+
+    private void addTrendsAnalysis(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
 
         addSectionTitle(document, "5. ANÁLISIS DE TENDENCIAS");
 
         ModalityTypeComparisonReportDTO.TrendsAnalysisDTO trends = report.getTrendsAnalysis();
 
-        // Tendencia general
+
         PdfPTable overallTable = new PdfPTable(1);
         overallTable.setWidthPercentage(100);
         overallTable.setSpacingAfter(15);
@@ -675,25 +754,25 @@ public class ModalityComparisonPdfGenerator {
 
         document.add(overallTable);
 
-        // Tipos en crecimiento
+
         if (trends.getGrowingTypes() != null && !trends.getGrowingTypes().isEmpty()) {
             addTrendSection(document, "✓ TIPOS EN CRECIMIENTO", trends.getGrowingTypes(),
                     trends.getGrowthRateByType(), INSTITUTIONAL_GOLD);
         }
 
-        // Tipos en declive
+
         if (trends.getDecliningTypes() != null && !trends.getDecliningTypes().isEmpty()) {
             addTrendSection(document, "✗ TIPOS EN DECLIVE", trends.getDecliningTypes(),
                     trends.getGrowthRateByType(), INSTITUTIONAL_RED);
         }
 
-        // Tipos estables
+
         if (trends.getStableTypes() != null && !trends.getStableTypes().isEmpty()) {
             addTrendSection(document, "= TIPOS ESTABLES", trends.getStableTypes(),
                     trends.getGrowthRateByType(), INSTITUTIONAL_RED);
         }
 
-        // Destacados
+
         if (trends.getMostImprovedType() != null) {
             PdfPTable improvedTable = new PdfPTable(1);
             improvedTable.setWidthPercentage(100);
@@ -735,9 +814,7 @@ public class ModalityComparisonPdfGenerator {
         }
     }
 
-    /**
-     * Conclusiones
-     */
+
     private void addConclusions(Document document, ModalityTypeComparisonReportDTO report)
             throws DocumentException {
 
@@ -752,7 +829,7 @@ public class ModalityComparisonPdfGenerator {
             document.add(conclusion);
         }
 
-        // Footer informativo
+
         PdfPTable footerTable = new PdfPTable(1);
         footerTable.setWidthPercentage(100);
         footerTable.setSpacingBefore(30);
@@ -777,7 +854,7 @@ public class ModalityComparisonPdfGenerator {
         document.add(footerTable);
     }
 
-    // ==================== MÉTODOS HELPER ====================
+
 
     private void addSectionTitle(Document document, String title) throws DocumentException {
         Paragraph titlePara = new Paragraph(title, HEADER_FONT);
@@ -792,20 +869,6 @@ public class ModalityComparisonPdfGenerator {
         document.add(Chunk.NEWLINE);
     }
 
-    private void addInfoRow(PdfPTable table, String label, String value) {
-        PdfPCell labelCell = new PdfPCell(new Phrase(label, BOLD_FONT));
-        labelCell.setBorder(Rectangle.NO_BORDER);
-        labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        labelCell.setPadding(5);
-        table.addCell(labelCell);
-
-        PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
-        valueCell.setBorder(Rectangle.NO_BORDER);
-        valueCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-        valueCell.setPadding(5);
-        table.addCell(valueCell);
-    }
-
     private void addSummaryRow(PdfPTable table, String label, String value, Font valueFont) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, NORMAL_FONT));
         labelCell.setBackgroundColor(LIGHT_GOLD);
@@ -815,18 +878,6 @@ public class ModalityComparisonPdfGenerator {
         PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
         valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
         valueCell.setPadding(8);
-        table.addCell(valueCell);
-    }
-
-    private void addStatCell(PdfPTable table, String label, String value) {
-        PdfPCell labelCell = new PdfPCell(new Phrase(label, SMALL_FONT));
-        labelCell.setBackgroundColor(LIGHT_GOLD);
-        labelCell.setPadding(5);
-        table.addCell(labelCell);
-
-        PdfPCell valueCell = new PdfPCell(new Phrase(value, BOLD_FONT));
-        valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        valueCell.setPadding(5);
         table.addCell(valueCell);
     }
 
@@ -928,9 +979,432 @@ public class ModalityComparisonPdfGenerator {
         return conclusions;
     }
 
-    /**
-     * Clase para manejar encabezados y pies de página
-     */
+
+    private void addVisualComparison(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
+
+        addSectionTitle(document, "2. ANÁLISIS VISUAL COMPARATIVO");
+
+        Paragraph intro = new Paragraph(
+                "Comparación visual de la distribución de modalidades y estudiantes por tipo:",
+                NORMAL_FONT);
+        intro.setSpacingAfter(20);
+        document.add(intro);
+
+        List<ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO> stats =
+                report.getModalityTypeStatistics();
+
+        // Encontrar el máximo para escalar
+        int maxModalities = stats.stream()
+                .mapToInt(ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO::getTotalModalities)
+                .max().orElse(1);
+        int maxStudents = stats.stream()
+                .mapToInt(ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO::getTotalStudents)
+                .max().orElse(1);
+
+        // Gráfico comparativo de modalidades
+        addSubsectionTitle(document, "2.1 Comparación de Modalidades por Tipo");
+
+        for (ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat : stats) {
+            addComparisonBar(document, stat.getModalityTypeName(),
+                    stat.getTotalModalities(), maxModalities,
+                    "modalidades", INSTITUTIONAL_RED);
+        }
+
+        document.add(Chunk.NEWLINE);
+
+        // Gráfico comparativo de estudiantes
+        addSubsectionTitle(document, "2.2 Comparación de Estudiantes por Tipo");
+
+        for (ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat : stats) {
+            addComparisonBar(document, stat.getModalityTypeName(),
+                    stat.getTotalStudents(), maxStudents,
+                    "estudiantes", INSTITUTIONAL_GOLD);
+        }
+    }
+
+
+    private void addEfficiencyAnalysis(Document document, ModalityTypeComparisonReportDTO report) throws DocumentException {
+
+        addSectionTitle(document, "5. ANÁLISIS DE EFICIENCIA");
+
+        List<ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO> stats =
+                report.getModalityTypeStatistics();
+
+        // Tabla de eficiencia por tipo
+        PdfPTable efficiencyTable = new PdfPTable(4);
+        efficiencyTable.setWidthPercentage(100);
+        efficiencyTable.setSpacingAfter(20);
+
+        try {
+            efficiencyTable.setWidths(new int[]{35, 20, 25, 20});
+        } catch (DocumentException e) {
+            // Usar anchos por defecto
+        }
+
+        // Encabezados
+        addTableHeader(efficiencyTable, "Tipo de Modalidad");
+        addTableHeader(efficiencyTable, "Modalidades");
+        addTableHeader(efficiencyTable, "Prom. Est./Mod.");
+        addTableHeader(efficiencyTable, "Eficiencia");
+
+        // Calcular promedio general
+        double avgEfficiency = stats.stream()
+                .mapToDouble(ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO::getAverageStudentsPerModality)
+                .average()
+                .orElse(0);
+
+        // Datos con colores según eficiencia
+        boolean alternate = false;
+        for (ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat : stats) {
+            // Nombre
+            PdfPCell nameCell = new PdfPCell(new Phrase(stat.getModalityTypeName(), NORMAL_FONT));
+            nameCell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            nameCell.setPadding(8);
+            efficiencyTable.addCell(nameCell);
+
+            // Modalidades
+            PdfPCell modalitiesCell = new PdfPCell(new Phrase(
+                    String.valueOf(stat.getTotalModalities()), BOLD_FONT));
+            modalitiesCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            modalitiesCell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            modalitiesCell.setPadding(8);
+            efficiencyTable.addCell(modalitiesCell);
+
+            // Promedio
+            PdfPCell avgCell = new PdfPCell(new Phrase(
+                    String.format("%.2f", stat.getAverageStudentsPerModality()), BOLD_FONT));
+            avgCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            avgCell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            avgCell.setPadding(8);
+            efficiencyTable.addCell(avgCell);
+
+            // Eficiencia (comparada con el promedio)
+            double efficiency = stat.getAverageStudentsPerModality();
+            String efficiencyText;
+            BaseColor efficiencyColor;
+
+            if (efficiency > avgEfficiency * 1.1) {
+                efficiencyText = "Alta";
+                efficiencyColor = new BaseColor(76, 175, 80);
+            } else if (efficiency < avgEfficiency * 0.9) {
+                efficiencyText = "Baja";
+                efficiencyColor = new BaseColor(255, 152, 0);
+            } else {
+                efficiencyText = "Normal";
+                efficiencyColor = INSTITUTIONAL_GOLD;
+            }
+
+            PdfPCell effCell = new PdfPCell(new Phrase(efficiencyText,
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, efficiencyColor)));
+            effCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            effCell.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            effCell.setPadding(8);
+            efficiencyTable.addCell(effCell);
+
+            alternate = !alternate;
+        }
+
+        document.add(efficiencyTable);
+
+        // Resumen de eficiencia
+        PdfPTable summaryEfficiency = new PdfPTable(2);
+        summaryEfficiency.setWidthPercentage(80);
+        summaryEfficiency.setSpacingBefore(10);
+
+        addSummaryRow(summaryEfficiency, "Promedio General de Estudiantes por Modalidad:",
+                String.format("%.2f", avgEfficiency), BOLD_FONT);
+
+        // Tipo más eficiente
+        ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO mostEfficient = stats.stream()
+                .max((s1, s2) -> Double.compare(s1.getAverageStudentsPerModality(),
+                        s2.getAverageStudentsPerModality()))
+                .orElse(null);
+
+        if (mostEfficient != null) {
+            addSummaryRow(summaryEfficiency, "Tipo Más Eficiente:",
+                    mostEfficient.getModalityTypeName() + " (" +
+                    String.format("%.2f", mostEfficient.getAverageStudentsPerModality()) + ")",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10,
+                            new BaseColor(76, 175, 80)));
+        }
+
+        document.add(summaryEfficiency);
+    }
+
+
+    private void addComparisonBar(Document document, String label, int value, int maxValue,
+            String unit, BaseColor color) throws DocumentException {
+
+        PdfPTable barContainer = new PdfPTable(1);
+        barContainer.setWidthPercentage(100);
+        barContainer.setSpacingAfter(8);
+
+        // Celda principal
+        PdfPCell mainCell = new PdfPCell();
+        mainCell.setPadding(0);
+        mainCell.setBorder(Rectangle.BOX);
+        mainCell.setBorderColor(INSTITUTIONAL_GOLD);
+        mainCell.setBorderWidth(0.5f);
+
+        // Tabla interna con etiqueta y barra
+        PdfPTable innerTable = new PdfPTable(2);
+        innerTable.setWidthPercentage(100);
+
+        try {
+            innerTable.setWidths(new float[]{30, 70});
+        } catch (DocumentException e) {
+            // Usar anchos por defecto
+        }
+
+        // Etiqueta
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, SMALL_FONT));
+        labelCell.setPadding(6);
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        innerTable.addCell(labelCell);
+
+        // Barra
+        PdfPCell barCell = new PdfPCell();
+        barCell.setPadding(0);
+        barCell.setBorder(Rectangle.NO_BORDER);
+
+        float percentage = maxValue > 0 ? (float) value / maxValue * 100 : 0;
+        PdfPTable barTable = createProgressBarTable(percentage, value + " " + unit, color);
+        barCell.addElement(barTable);
+        innerTable.addCell(barCell);
+
+        mainCell.addElement(innerTable);
+        barContainer.addCell(mainCell);
+
+        document.add(barContainer);
+    }
+
+
+    private PdfPTable createProgressBarTable(float percentage, String text, BaseColor color) {
+        PdfPTable barTable = new PdfPTable(2);
+        barTable.setWidthPercentage(100);
+
+        float barWidth = Math.max(percentage * 0.85f, 0.1f);
+        float emptyWidth = Math.max(100 - barWidth, 0.1f);
+
+        try {
+            barTable.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            // Usar anchos por defecto
+        }
+
+        // Parte llena
+        PdfPCell filledCell = new PdfPCell(new Phrase(text,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE)));
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(5);
+        filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        filledCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        barTable.addCell(filledCell);
+
+        // Parte vacía
+        PdfPCell emptyCell = new PdfPCell(new Phrase(String.format("%.0f%%", percentage),
+                FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY)));
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        emptyCell.setPadding(5);
+        emptyCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        emptyCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        barTable.addCell(emptyCell);
+
+        return barTable;
+    }
+
+
+    private void addMetricRowWithBar(PdfPTable table, String label, int value, int total, String unit) throws DocumentException {
+
+        // Celda de etiqueta
+        PdfPCell labelCell = new PdfPCell(new Phrase(label + ":", SMALL_FONT));
+        labelCell.setBackgroundColor(LIGHT_GOLD);
+        labelCell.setPadding(6);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        table.addCell(labelCell);
+
+        // Celda con barra
+        PdfPCell barCell = new PdfPCell();
+        barCell.setPadding(2);
+        barCell.setBorder(Rectangle.BOX);
+        barCell.setBorderColor(INSTITUTIONAL_GOLD);
+
+        float percentage = total > 0 ? (float) value / total * 100 : 0;
+        PdfPTable barTable = createProgressBarTable(percentage, value + " " + unit, INSTITUTIONAL_RED);
+        barCell.addElement(barTable);
+        table.addCell(barCell);
+    }
+
+
+    private void addStatusDistributionBars(Document document, Map<String, Integer> distribution, int total) throws DocumentException {
+
+
+        List<Map.Entry<String, Integer>> sortedEntries = distribution.entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .collect(java.util.stream.Collectors.toList());
+
+        PdfPTable statusTable = new PdfPTable(3);
+        statusTable.setWidthPercentage(95);
+        statusTable.setSpacingAfter(10);
+
+        try {
+            statusTable.setWidths(new int[]{40, 15, 45});
+        } catch (DocumentException e) {
+            // Usar anchos por defecto
+        }
+
+        for (Map.Entry<String, Integer> entry : sortedEntries) {
+            float percentage = total > 0 ? (float) entry.getValue() / total * 100 : 0;
+
+            // Estado
+            PdfPCell statusCell = new PdfPCell(new Phrase(entry.getKey(), SMALL_FONT));
+            statusCell.setPadding(5);
+            statusCell.setBorder(Rectangle.NO_BORDER);
+            statusTable.addCell(statusCell);
+
+            // Cantidad
+            PdfPCell countCell = new PdfPCell(new Phrase(
+                    String.valueOf(entry.getValue()), BOLD_FONT));
+            countCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            countCell.setPadding(5);
+            countCell.setBorder(Rectangle.NO_BORDER);
+            statusTable.addCell(countCell);
+
+            // Barra
+            PdfPCell barCell = new PdfPCell();
+            barCell.setPadding(2);
+            barCell.setBorder(Rectangle.NO_BORDER);
+
+            PdfPTable miniBar = createMiniProgressBar(percentage, INSTITUTIONAL_GOLD);
+            barCell.addElement(miniBar);
+            statusTable.addCell(barCell);
+        }
+
+        document.add(statusTable);
+    }
+
+
+    private PdfPTable createMiniProgressBar(float percentage, BaseColor color) {
+        PdfPTable barTable = new PdfPTable(2);
+        barTable.setWidthPercentage(100);
+
+        float barWidth = Math.max(percentage, 0.1f);
+        float emptyWidth = Math.max(100 - barWidth, 0.1f);
+
+        try {
+            barTable.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            // Usar anchos por defecto
+        }
+
+        // Parte llena
+        PdfPCell filledCell = new PdfPCell();
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setMinimumHeight(10);
+        barTable.addCell(filledCell);
+
+        // Parte vacía con porcentaje
+        PdfPCell emptyCell = new PdfPCell(new Phrase(" " + String.format("%.1f%%", percentage),
+                FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_GRAY)));
+        emptyCell.setBackgroundColor(new BaseColor(240, 240, 240));
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        emptyCell.setMinimumHeight(10);
+        emptyCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        barTable.addCell(emptyCell);
+
+        return barTable;
+    }
+
+
+    private PdfPCell createDirectorCell(String text, int value, int total,
+            BaseColor bgColor, BaseColor textColor) {
+
+        PdfPCell cell = new PdfPCell();
+        cell.setPadding(8);
+        cell.setBackgroundColor(bgColor);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(INSTITUTIONAL_GOLD);
+        cell.setBorderWidth(0.5f);
+
+        // Texto principal
+        Paragraph para = new Paragraph(text,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, textColor));
+        cell.addElement(para);
+
+        // Mini barra de progreso
+        if (total > 0) {
+            float percentage = (float) value / total * 100;
+            PdfPTable miniBar = createMiniProgressBar(percentage, textColor);
+            cell.addElement(miniBar);
+        }
+
+        return cell;
+    }
+
+
+    private void addStatCellEnhanced(PdfPTable table, String label, String value, BaseColor bgColor) {
+        PdfPCell cell = new PdfPCell();
+        cell.setPadding(8);
+        cell.setBackgroundColor(bgColor);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(INSTITUTIONAL_GOLD);
+        cell.setBorderWidth(0.5f);
+
+        // Etiqueta
+        Paragraph labelPara = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(labelPara);
+
+        // Valor
+        Paragraph valuePara = new Paragraph(value,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_RED));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        valuePara.setSpacingBefore(2);
+        cell.addElement(valuePara);
+
+        table.addCell(cell);
+    }
+
+
+    private void addWideMetricCard(PdfPTable table, String label, String value,
+            BaseColor bgColor, BaseColor valueColor) {
+
+        PdfPCell card = new PdfPCell();
+        card.setPadding(12);
+        card.setBorderColor(INSTITUTIONAL_GOLD);
+        card.setBorderWidth(1.5f);
+        card.setBackgroundColor(bgColor);
+
+        // Etiqueta
+        Paragraph labelPara = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_GRAY));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingAfter(5);
+        card.addElement(labelPara);
+
+        // Valor
+        Paragraph valuePara = new Paragraph(value,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, valueColor));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        card.addElement(valuePara);
+
+        table.addCell(card);
+    }
+
+
+    private void addSubsectionTitle(Document document, String title) throws DocumentException {
+        Paragraph subtitle = new Paragraph(title, SUBHEADER_FONT);
+        subtitle.setSpacingBefore(10);
+        subtitle.setSpacingAfter(10);
+        document.add(subtitle);
+    }
+
+
     private static class PageEventHelper extends PdfPageEventHelper {
         private final ModalityTypeComparisonReportDTO report;
 
