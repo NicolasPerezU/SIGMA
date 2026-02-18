@@ -1,0 +1,105 @@
+package com.SIGMA.USCO.report.service;
+
+import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Utilidades compartidas para los servicios de reportes
+ */
+public class ReportUtils {
+
+    private static final List<ModalityProcessStatus> ACTIVE_STATUSES = Arrays.asList(
+            ModalityProcessStatus.MODALITY_SELECTED,
+            ModalityProcessStatus.UNDER_REVIEW_PROGRAM_HEAD,
+            ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD,
+            ModalityProcessStatus.CORRECTIONS_SUBMITTED,
+            ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE,
+            ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE,
+            ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE,
+            ModalityProcessStatus.PROPOSAL_APPROVED,
+            ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR,
+            ModalityProcessStatus.DEFENSE_SCHEDULED,
+            ModalityProcessStatus.EXAMINERS_ASSIGNED,
+            ModalityProcessStatus.READY_FOR_DEFENSE,
+            ModalityProcessStatus.DEFENSE_COMPLETED,
+            ModalityProcessStatus.UNDER_EVALUATION_PRIMARY_EXAMINERS,
+            ModalityProcessStatus.DISAGREEMENT_REQUIRES_TIEBREAKER,
+            ModalityProcessStatus.UNDER_EVALUATION_TIEBREAKER,
+            ModalityProcessStatus.EVALUATION_COMPLETED
+    );
+
+    public static List<ModalityProcessStatus> getActiveStatuses() {
+        return ACTIVE_STATUSES;
+    }
+
+    public static String describeModalityStatus(ModalityProcessStatus status) {
+        return switch (status) {
+            // Estados de selección y revisión inicial
+            case MODALITY_SELECTED -> "Modalidad Seleccionada";
+            case UNDER_REVIEW_PROGRAM_HEAD -> "En Revisión - Jefe de Programa";
+            case CORRECTIONS_REQUESTED_PROGRAM_HEAD -> "Correcciones Solicitadas - Jefe";
+            case CORRECTIONS_SUBMITTED -> "Correcciones Entregadas";
+            case CORRECTIONS_APPROVED -> "Correcciones Aprobadas";
+            case CORRECTIONS_REJECTED_FINAL -> "Correcciones Rechazadas (Final)";
+
+            // Estados de revisión de comité
+            case READY_FOR_PROGRAM_CURRICULUM_COMMITTEE -> "Listo para Comité";
+            case UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE -> "En Revisión - Comité";
+            case CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE -> "Correcciones Solicitadas - Comité";
+            case PROPOSAL_APPROVED -> "Propuesta Aprobada";
+
+            // Estados de programación de sustentación
+            case DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR -> "Sustentación Solicitada";
+            case DEFENSE_SCHEDULED -> "Sustentación Programada";
+            case EXAMINERS_ASSIGNED -> "Jurados Asignados";
+            case CORRECTIONS_REQUESTED_EXAMINERS -> "Correcciones Solicitadas - Jurados";
+            case READY_FOR_DEFENSE -> "Listo para Sustentar";
+
+            // Estados de sustentación y evaluación
+            case DEFENSE_COMPLETED -> "Sustentación Completada";
+            case UNDER_EVALUATION_PRIMARY_EXAMINERS -> "En Evaluación - Jurados Principales";
+            case DISAGREEMENT_REQUIRES_TIEBREAKER -> "Requiere Jurado de Desempate";
+            case UNDER_EVALUATION_TIEBREAKER -> "En Evaluación - Desempate";
+            case EVALUATION_COMPLETED -> "Evaluación Completada";
+
+            // Estados finales de resultado
+            case GRADED_APPROVED -> "Aprobado";
+            case GRADED_FAILED -> "Reprobado";
+            case MODALITY_CLOSED -> "Modalidad Cerrada";
+
+            // Estados de cancelación
+            case MODALITY_CANCELLED -> "Cancelado";
+            case CANCELLATION_REQUESTED -> "Cancelación Solicitada";
+            case CANCELLATION_APPROVED_BY_PROJECT_DIRECTOR -> "Cancelación Aprobada por Director";
+            case CANCELLATION_REJECTED_BY_PROJECT_DIRECTOR -> "Cancelación Rechazada por Director";
+            case CANCELLED_WITHOUT_REPROVAL -> "Cancelado sin Reprobación";
+            case CANCELLATION_REJECTED -> "Cancelación Rechazada";
+            case CANCELLED_BY_CORRECTION_TIMEOUT -> "Cancelado por Tiempo Expirado";
+
+            default -> status.name();
+        };
+    }
+
+    public static boolean isPendingStatus(ModalityProcessStatus status) {
+        return status == ModalityProcessStatus.MODALITY_SELECTED ||
+               status == ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD ||
+               status == ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE ||
+               status == ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE ||
+               status == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_HEAD ||
+               status == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE ||
+               status == ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR;
+    }
+
+    public static boolean isAdvancedStatus(ModalityProcessStatus status) {
+        return status == ModalityProcessStatus.PROPOSAL_APPROVED ||
+               status == ModalityProcessStatus.DEFENSE_SCHEDULED ||
+               status == ModalityProcessStatus.EXAMINERS_ASSIGNED ||
+               status == ModalityProcessStatus.READY_FOR_DEFENSE ||
+               status == ModalityProcessStatus.DEFENSE_COMPLETED ||
+               status == ModalityProcessStatus.UNDER_EVALUATION_PRIMARY_EXAMINERS ||
+               status == ModalityProcessStatus.EVALUATION_COMPLETED;
+    }
+}
+

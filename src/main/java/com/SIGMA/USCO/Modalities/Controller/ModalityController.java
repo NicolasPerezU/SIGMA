@@ -169,6 +169,7 @@ public class ModalityController {
     public ResponseEntity<?> approveByCommittee(@PathVariable Long studentModalityId) {
         return modalityService.approveModalityByCommittee(studentModalityId);
     }
+
     @PostMapping("/documents/{studentDocumentId}/review-committee")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
     public ResponseEntity<?> reviewDocumentCommittee(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
@@ -478,13 +479,6 @@ public class ModalityController {
     @PreAuthorize("hasRole('ROLE_STUDENT')")
     public ResponseEntity<?> enrollInSeminar(@PathVariable Long seminarId) {
         return modalityService.enrollInSeminar(seminarId);
-    }
-
-
-    @GetMapping("/seminar/{seminarId}/detail")
-    @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
-    public ResponseEntity<?> getSeminarDetail(@PathVariable Long seminarId) {
-        return modalityService.getSeminarDetailForProgramHead(seminarId);
     }
 
 

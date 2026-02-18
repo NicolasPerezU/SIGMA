@@ -6331,7 +6331,7 @@ public class ModalityService {
             );
         }
 
-        // Validar que la modalidad esté en un estado válido para rechazo
+
         if (!(studentModality.getStatus() == ModalityProcessStatus.READY_FOR_PROGRAM_CURRICULUM_COMMITTEE ||
                 studentModality.getStatus() == ModalityProcessStatus.UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE ||
                 studentModality.getStatus() == ModalityProcessStatus.PROPOSAL_APPROVED)) {
@@ -6711,7 +6711,7 @@ public class ModalityService {
     }
 
 
-    public ResponseEntity<?> getSeminarDetailForProgramHead(Long seminarId) {
+    public ResponseEntity<?> FgetSeminarDetailForProgramHead(Long seminarId) {
         try {
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
