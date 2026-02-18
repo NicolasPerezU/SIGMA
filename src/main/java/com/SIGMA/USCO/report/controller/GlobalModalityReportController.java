@@ -1,8 +1,33 @@
 package com.SIGMA.USCO.report.controller;
 
-import com.SIGMA.USCO.report.dto.*;
+import com.SIGMA.USCO.report.dto.AvailableModalityTypesDTO;
+import com.SIGMA.USCO.report.dto.CompletedModalitiesFilterDTO;
+import com.SIGMA.USCO.report.dto.CompletedModalitiesReportDTO;
+import com.SIGMA.USCO.report.dto.DefenseCalendarReportDTO;
+import com.SIGMA.USCO.report.dto.DirectorAssignedModalitiesReportDTO;
+import com.SIGMA.USCO.report.dto.DirectorReportFilterDTO;
+import com.SIGMA.USCO.report.dto.DirectorsByModalityReportDTO;
+import com.SIGMA.USCO.report.dto.GlobalModalityReportDTO;
+import com.SIGMA.USCO.report.dto.ModalityComparisonFilterDTO;
+import com.SIGMA.USCO.report.dto.ModalityHistoricalReportDTO;
+import com.SIGMA.USCO.report.dto.ModalityReportFilterDTO;
+import com.SIGMA.USCO.report.dto.ModalityTypeComparisonReportDTO;
+import com.SIGMA.USCO.report.dto.StudentListingFilterDTO;
+import com.SIGMA.USCO.report.dto.StudentListingReportDTO;
+import com.SIGMA.USCO.report.dto.StudentsByModalityReportDTO;
+import com.SIGMA.USCO.report.dto.StudentsBySemesterReportDTO;
 import com.SIGMA.USCO.report.enums.ReportType;
-import com.SIGMA.USCO.report.service.*;
+import com.SIGMA.USCO.report.service.CompletedModalitiesPdfGenerator;
+import com.SIGMA.USCO.report.service.DefenseCalendarPdfGenerator;
+import com.SIGMA.USCO.report.service.DefenseCalendarReportService;
+import com.SIGMA.USCO.report.service.DirectorAssignedModalitiesPdfGenerator;
+import com.SIGMA.USCO.report.service.DirectorReportService;
+import com.SIGMA.USCO.report.service.ModalityComparisonPdfGenerator;
+import com.SIGMA.USCO.report.service.ModalityHistoricalPdfGenerator;
+import com.SIGMA.USCO.report.service.PdfReport;
+import com.SIGMA.USCO.report.service.ReportService;
+import com.SIGMA.USCO.report.service.StudentListingPdfGenerator;
+import com.SIGMA.USCO.report.service.StudentReportService;
 import com.itextpdf.text.DocumentException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
@@ -36,6 +61,8 @@ public class GlobalModalityReportController {
     private final ModalityHistoricalPdfGenerator modalityHistoricalPdfGenerator;
     private final StudentListingPdfGenerator studentListingPdfGenerator;
     private final CompletedModalitiesPdfGenerator completedModalitiesPdfGenerator;
+    private final DefenseCalendarReportService defenseCalendarReportService;
+    private final DefenseCalendarPdfGenerator defenseCalendarPdfGenerator;
 
 
     @GetMapping("/global/modalities")
@@ -84,13 +111,11 @@ public class GlobalModalityReportController {
         }
     }
 
-    // ==================== REPORTES DE ESTUDIANTES ====================
+
 
     @GetMapping("/students/by-modality")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<?> getStudentsByModalityReport(
-            @RequestParam String modalityType
-    ) {
+    public ResponseEntity<?> getStudentsByModalityReport(@RequestParam String modalityType) {
         try {
             StudentsByModalityReportDTO report = studentReportService
                     .generateStudentsByModalityReport(modalityType);
@@ -118,10 +143,7 @@ public class GlobalModalityReportController {
 
     @GetMapping("/students/by-semester")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<?> getStudentsBySemesterReport(
-            @RequestParam Integer year,
-            @RequestParam Integer semester
-    ) {
+    public ResponseEntity<?> getStudentsBySemesterReport(@RequestParam Integer year, @RequestParam Integer semester) {
         try {
             StudentsBySemesterReportDTO report = studentReportService
                     .generateStudentsBySemesterReport(year, semester);
@@ -466,9 +488,7 @@ public class GlobalModalityReportController {
      */
     @PostMapping("/modalities/filtered/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportFilteredModalityReportToPDF(
-            @RequestBody ModalityReportFilterDTO filters
-    ) {
+    public ResponseEntity<Resource> exportFilteredModalityReportToPDF(@RequestBody ModalityReportFilterDTO filters) {
         try {
             GlobalModalityReportDTO report = reportService.generateFilteredReport(filters);
             ByteArrayOutputStream pdfStream = pdfGeneratorService.generatePDF(report);
@@ -821,5 +841,104 @@ public class GlobalModalityReportController {
                                 LocalDateTime.now()
                         ).getBytes()
                 ));
+    }
+
+    // ==================== REPORTE DE CALENDARIO DE SUSTENTACIONES ====================
+
+    /**
+     * Endpoint para obtener el reporte de calendario de sustentaciones en JSON
+     * Incluye sustentaciones próximas, en progreso, completadas, estadísticas y alertas
+     */
+    @GetMapping("/defense-calendar")
+    @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
+    public ResponseEntity<?> getDefenseCalendarReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeCompleted
+    ) {
+        try {
+            LocalDateTime start = startDate != null
+                    ? LocalDateTime.parse(startDate)
+                    : null;
+            LocalDateTime end = endDate != null
+                    ? LocalDateTime.parse(endDate)
+                    : null;
+
+            DefenseCalendarReportDTO report = defenseCalendarReportService
+                    .generateDefenseCalendarReport(start, end, includeCompleted);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "success", true,
+                            "message", "Reporte de calendario de sustentaciones generado exitosamente",
+                            "reportType", "DEFENSE_CALENDAR",
+                            "data", report,
+                            "timestamp", LocalDateTime.now()
+                    ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "success", false,
+                            "error", "Parámetros inválidos: " + e.getMessage(),
+                            "timestamp", LocalDateTime.now()
+                    ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "error", "Error al generar el reporte: " + e.getMessage(),
+                            "timestamp", LocalDateTime.now()
+                    ));
+        }
+    }
+
+    /**
+     * Endpoint para exportar el reporte de calendario de sustentaciones a PDF
+     * Diseño profesional e institucional con análisis completo
+     */
+    @GetMapping("/defense-calendar/pdf")
+    @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
+    public ResponseEntity<Resource> exportDefenseCalendarToPdf(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeCompleted
+    ) {
+        try {
+            LocalDateTime start = startDate != null
+                    ? LocalDateTime.parse(startDate)
+                    : null;
+            LocalDateTime end = endDate != null
+                    ? LocalDateTime.parse(endDate)
+                    : null;
+
+            DefenseCalendarReportDTO report = defenseCalendarReportService
+                    .generateDefenseCalendarReport(start, end, includeCompleted);
+
+            byte[] pdfBytes = defenseCalendarPdfGenerator.generatePdf(report);
+            ByteArrayResource resource = new ByteArrayResource(pdfBytes);
+
+            String fileName = generateFileName("Calendario_Sustentaciones");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
+            headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE);
+            headers.add("X-Report-Generated-At", LocalDateTime.now().toString());
+            headers.add("X-Report-Type", "DEFENSE_CALENDAR");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(resource.contentLength())
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(resource);
+
+        } catch (IllegalArgumentException e) {
+            return buildErrorResponse("Parámetros inválidos: " + e.getMessage());
+        } catch (DocumentException | IOException e) {
+            return buildErrorResponse("Error al generar el PDF: " + e.getMessage());
+        } catch (Exception e) {
+            return buildErrorResponse("Error inesperado: " + e.getMessage());
+        }
     }
 }

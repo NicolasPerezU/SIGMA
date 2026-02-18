@@ -3,7 +3,6 @@ package com.SIGMA.USCO.report.service;
 import com.SIGMA.USCO.report.dto.ExecutiveSummaryDTO;
 import com.SIGMA.USCO.report.dto.GlobalModalityReportDTO;
 import com.SIGMA.USCO.report.dto.ModalityDetailReportDTO;
-import com.SIGMA.USCO.report.dto.ProgramStatisticsDTO;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
@@ -22,12 +21,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PdfReport {
 
-    private static final Font TITLE_FONT = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, BaseColor.DARK_GRAY);
-    private static final Font SUBTITLE_FONT = new Font(Font.FontFamily.HELVETICA, 16, Font.BOLD, BaseColor.DARK_GRAY);
-    private static final Font SECTION_FONT = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD, new BaseColor(0, 102, 204));
+    // Colores institucionales
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+
+    // Fuentes con colores institucionales
+    private static final Font TITLE_FONT = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, INSTITUTIONAL_RED);
+    private static final Font SUBTITLE_FONT = new Font(Font.FontFamily.HELVETICA, 16, Font.BOLD, INSTITUTIONAL_RED);
+    private static final Font SECTION_FONT = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD, INSTITUTIONAL_RED);
     private static final Font NORMAL_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, BaseColor.BLACK);
     private static final Font BOLD_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.BLACK);
     private static final Font SMALL_FONT = new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, BaseColor.DARK_GRAY);
+    private static final Font HEADER_TABLE_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -52,6 +58,13 @@ public class PdfReport {
 
 
     private void addHeader(Document document) throws DocumentException {
+        // Fondo dorado claro
+        PdfPTable headerTable = new PdfPTable(1);
+        headerTable.setWidthPercentage(100);
+        PdfPCell headerCell = new PdfPCell();
+        headerCell.setBorder(Rectangle.NO_BORDER);
+        headerCell.setBackgroundColor(LIGHT_GOLD);
+        headerCell.setPadding(20);
 
         Paragraph header = new Paragraph();
         header.setAlignment(Element.ALIGN_CENTER);
@@ -67,13 +80,15 @@ public class PdfReport {
         Chunk university = new Chunk("Universidad Surcolombiana", BOLD_FONT);
         header.add(university);
         header.add(Chunk.NEWLINE);
-        header.add(Chunk.NEWLINE);
 
-        document.add(header);
+        headerCell.addElement(header);
+        headerTable.addCell(headerCell);
+        document.add(headerTable);
 
-
+        // Línea separadora en color rojo institucional
         LineSeparator line = new LineSeparator();
-        line.setLineColor(new BaseColor(0, 102, 204));
+        line.setLineColor(INSTITUTIONAL_RED);
+        line.setLineWidth(2);
         document.add(new Chunk(line));
         document.add(Chunk.NEWLINE);
     }
@@ -116,33 +131,33 @@ public class PdfReport {
     private void addExecutiveSummary(Document document, ExecutiveSummaryDTO summary) throws DocumentException {
         addSectionTitle(document, "1. RESUMEN EJECUTIVO");
 
-
+        // Tabla de métricas con colores institucionales
         PdfPTable metricsTable = new PdfPTable(2);
         metricsTable.setWidthPercentage(100);
         metricsTable.setSpacingAfter(15);
 
-
+        // Todas las métricas con colores institucionales
         addMetricRow(metricsTable, "Total de Modalidades Activas",
-                summary.getTotalActiveModalities().toString(), new BaseColor(52, 152, 219));
+                summary.getTotalActiveModalities().toString(), INSTITUTIONAL_RED);
         addMetricRow(metricsTable, "Total de Estudiantes Activos",
-                summary.getTotalActiveStudents().toString(), new BaseColor(46, 204, 113));
+                summary.getTotalActiveStudents().toString(), INSTITUTIONAL_GOLD);
         addMetricRow(metricsTable, "Total de Directores Asignados",
-                summary.getTotalActiveDirectors().toString(), new BaseColor(155, 89, 182));
+                summary.getTotalActiveDirectors().toString(), INSTITUTIONAL_RED);
         addMetricRow(metricsTable, "Modalidades Individuales",
-                summary.getIndividualModalities().toString(), new BaseColor(241, 196, 15));
+                summary.getIndividualModalities().toString(), INSTITUTIONAL_GOLD);
         addMetricRow(metricsTable, "Modalidades Grupales",
-                summary.getGroupModalities().toString(), new BaseColor(230, 126, 34));
+                summary.getGroupModalities().toString(), INSTITUTIONAL_RED);
         addMetricRow(metricsTable, "En Proceso de Revisión",
-                summary.getModalitiesInReview().toString(), new BaseColor(243, 156, 18));
+                summary.getModalitiesInReview().toString(), INSTITUTIONAL_GOLD);
 
         document.add(metricsTable);
 
-
+        // Distribución por tipo
         addSubsectionTitle(document, "1.1 Distribución por Tipo de Modalidad");
         PdfPTable typeTable = createDistributionTable(summary.getModalitiesByType());
         document.add(typeTable);
 
-
+        // Distribución por estado
         addSubsectionTitle(document, "1.2 Distribución por Estado");
         PdfPTable statusTable = createDistributionTable(summary.getModalitiesByStatus());
         document.add(statusTable);
@@ -255,13 +270,17 @@ public class PdfReport {
     private void addMetricRow(PdfPTable table, String label, String value, BaseColor color) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, BOLD_FONT));
         labelCell.setPadding(8);
-        labelCell.setBackgroundColor(new BaseColor(245, 245, 245));
+        labelCell.setBackgroundColor(BaseColor.WHITE);
+        labelCell.setBorder(Rectangle.BOX);
+        labelCell.setBorderColor(INSTITUTIONAL_GOLD);
         table.addCell(labelCell);
 
-        PdfPCell valueCell = new PdfPCell(new Phrase(value, BOLD_FONT));
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, HEADER_TABLE_FONT));
         valueCell.setPadding(8);
         valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
         valueCell.setBackgroundColor(color);
+        valueCell.setBorder(Rectangle.BOX);
+        valueCell.setBorderColor(INSTITUTIONAL_GOLD);
         table.addCell(valueCell);
     }
 
@@ -270,40 +289,56 @@ public class PdfReport {
         table.setWidthPercentage(90);
         table.setSpacingAfter(15);
 
-        // Encabezados
-        PdfPCell headerCell1 = new PdfPCell(new Phrase("Categoría", BOLD_FONT));
+        // Encabezados con colores institucionales
+        PdfPCell headerCell1 = new PdfPCell(new Phrase("Categoría", HEADER_TABLE_FONT));
         headerCell1.setHorizontalAlignment(Element.ALIGN_CENTER);
-        headerCell1.setBackgroundColor(new BaseColor(52, 73, 94));
+        headerCell1.setBackgroundColor(INSTITUTIONAL_RED);
         headerCell1.setPadding(8);
+        headerCell1.setBorder(Rectangle.BOX);
+        headerCell1.setBorderColor(INSTITUTIONAL_GOLD);
         table.addCell(headerCell1);
 
-        PdfPCell headerCell2 = new PdfPCell(new Phrase("Cantidad", BOLD_FONT));
+        PdfPCell headerCell2 = new PdfPCell(new Phrase("Cantidad", HEADER_TABLE_FONT));
         headerCell2.setHorizontalAlignment(Element.ALIGN_CENTER);
-        headerCell2.setBackgroundColor(new BaseColor(52, 73, 94));
+        headerCell2.setBackgroundColor(INSTITUTIONAL_RED);
         headerCell2.setPadding(8);
+        headerCell2.setBorder(Rectangle.BOX);
+        headerCell2.setBorderColor(INSTITUTIONAL_GOLD);
         table.addCell(headerCell2);
 
-        // Datos
-        distribution.entrySet().stream()
+        // Datos con colores alternos
+        boolean alternate = false;
+        for (Map.Entry<String, Long> entry : distribution.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .forEach(entry -> {
-                    PdfPCell cell1 = new PdfPCell(new Phrase(entry.getKey(), NORMAL_FONT));
-                    cell1.setPadding(6);
-                    table.addCell(cell1);
+                .toList()) {
 
-                    PdfPCell cell2 = new PdfPCell(new Phrase(entry.getValue().toString(), NORMAL_FONT));
-                    cell2.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    cell2.setPadding(6);
-                    table.addCell(cell2);
-                });
+            PdfPCell cell1 = new PdfPCell(new Phrase(entry.getKey(), NORMAL_FONT));
+            cell1.setPadding(6);
+            cell1.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            cell1.setBorder(Rectangle.BOX);
+            cell1.setBorderColor(INSTITUTIONAL_GOLD);
+            table.addCell(cell1);
+
+            PdfPCell cell2 = new PdfPCell(new Phrase(entry.getValue().toString(), NORMAL_FONT));
+            cell2.setHorizontalAlignment(Element.ALIGN_CENTER);
+            cell2.setPadding(6);
+            cell2.setBackgroundColor(alternate ? LIGHT_GOLD : BaseColor.WHITE);
+            cell2.setBorder(Rectangle.BOX);
+            cell2.setBorderColor(INSTITUTIONAL_GOLD);
+            table.addCell(cell2);
+
+            alternate = !alternate;
+        }
 
         return table;
     }
 
     private void addTableHeader(PdfPTable table, String header) {
-        PdfPCell cell = new PdfPCell(new Phrase(header, BOLD_FONT));
+        PdfPCell cell = new PdfPCell(new Phrase(header, HEADER_TABLE_FONT));
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        cell.setBackgroundColor(new BaseColor(0, 102, 204));
+        cell.setBackgroundColor(INSTITUTIONAL_RED);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(INSTITUTIONAL_GOLD);
         cell.setPadding(8);
         table.addCell(cell);
     }
@@ -365,6 +400,9 @@ public class PdfReport {
         PdfPCell cell = new PdfPCell(new Phrase(text, SMALL_FONT));
         cell.setHorizontalAlignment(alignment);
         cell.setPadding(5);
+        cell.setBackgroundColor(BaseColor.WHITE);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(INSTITUTIONAL_GOLD);
         return cell;
     }
 }

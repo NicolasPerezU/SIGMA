@@ -19,27 +19,27 @@ import java.util.Map;
 @Service
 public class ModalityComparisonPdfGenerator {
 
-    // Fuentes profesionales
-    private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BaseColor.BLACK);
-    private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, BaseColor.DARK_GRAY);
-    private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, new BaseColor(44, 62, 80));
-    private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new BaseColor(52, 73, 94));
+    // Colores institucionales
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+
+    // Fuentes con colores institucionales
+    private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED);
+    private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, INSTITUTIONAL_RED);
+    private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
+    private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED);
     private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
     private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(52, 73, 94));
+    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY);
     private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
+    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
 
-    // Colores institucionales profesionales
-    private static final BaseColor PRIMARY_COLOR = new BaseColor(0, 51, 102);      // Azul oscuro institucional
-    private static final BaseColor SECONDARY_COLOR = new BaseColor(0, 102, 153);   // Azul medio
-    private static final BaseColor ACCENT_COLOR = new BaseColor(204, 153, 0);      // Dorado/amarillo institucional
-    private static final BaseColor LIGHT_BLUE = new BaseColor(230, 240, 250);      // Azul muy claro
-    private static final BaseColor LIGHT_GRAY = new BaseColor(248, 249, 250);      // Gris muy claro
-    private static final BaseColor MEDIUM_GRAY = new BaseColor(233, 236, 239);     // Gris medio
-    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);     // Verde profesional
-    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);     // Amarillo profesional
-    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);      // Rojo profesional
-    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);          // Texto oscuro
+    // Colores auxiliares
+    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);
+    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);
+    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);
+    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);
 
     public ByteArrayOutputStream generatePDF(ModalityTypeComparisonReportDTO report)
             throws DocumentException, IOException {
@@ -103,7 +103,7 @@ public class ModalityComparisonPdfGenerator {
         headerBand.setSpacingAfter(30);
 
         PdfPCell bandCell = new PdfPCell();
-        bandCell.setBackgroundColor(PRIMARY_COLOR);
+        bandCell.setBackgroundColor(INSTITUTIONAL_RED);
         bandCell.setPadding(20);
         bandCell.setBorder(Rectangle.NO_BORDER);
 
@@ -129,14 +129,14 @@ public class ModalityComparisonPdfGenerator {
         programBox.setSpacingAfter(30);
 
         PdfPCell programCell = new PdfPCell();
-        programCell.setBackgroundColor(LIGHT_BLUE);
+        programCell.setBackgroundColor(LIGHT_GOLD);
         programCell.setPadding(12);
         programCell.setBorder(Rectangle.BOX);
-        programCell.setBorderColor(SECONDARY_COLOR);
+        programCell.setBorderColor(INSTITUTIONAL_GOLD);
         programCell.setBorderWidth(1.5f);
 
         Paragraph program = new Paragraph(report.getAcademicProgramName().toUpperCase(),
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, PRIMARY_COLOR));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, INSTITUTIONAL_RED));
         program.setAlignment(Element.ALIGN_CENTER);
         programCell.addElement(program);
 
@@ -145,7 +145,7 @@ public class ModalityComparisonPdfGenerator {
 
         // Título del reporte
         Paragraph title = new Paragraph("REPORTE COMPARATIVO DE\nMODALIDADES POR TIPO DE GRADO",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, PRIMARY_COLOR));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED));
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(35);
         document.add(title);
@@ -158,9 +158,10 @@ public class ModalityComparisonPdfGenerator {
             periodBox.setSpacingAfter(35);
 
             PdfPCell periodCell = new PdfPCell();
-            periodCell.setBackgroundColor(ACCENT_COLOR);
+            periodCell.setBackgroundColor(INSTITUTIONAL_GOLD);
             periodCell.setPadding(10);
-            periodCell.setBorder(Rectangle.NO_BORDER);
+            periodCell.setBorder(Rectangle.BOX);
+            periodCell.setBorderColor(INSTITUTIONAL_RED);
 
             String periodo = "Periodo: " + report.getYear();
             if (report.getSemester() != null) {
@@ -168,7 +169,7 @@ public class ModalityComparisonPdfGenerator {
             }
 
             Paragraph periodoPara = new Paragraph(periodo,
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, BaseColor.WHITE));
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, INSTITUTIONAL_RED));
             periodoPara.setAlignment(Element.ALIGN_CENTER);
             periodCell.addElement(periodoPara);
 
@@ -199,13 +200,13 @@ public class ModalityComparisonPdfGenerator {
         footerTable.setSpacingBefore(70);
 
         PdfPCell footerCell = new PdfPCell();
-        footerCell.setBackgroundColor(MEDIUM_GRAY);
+        footerCell.setBackgroundColor(LIGHT_GOLD);
         footerCell.setPadding(12);
         footerCell.setBorder(Rectangle.TOP);
-        footerCell.setBorderColor(PRIMARY_COLOR);
+        footerCell.setBorderColor(INSTITUTIONAL_RED);
 
         Paragraph footer = new Paragraph("Sistema SIGMA - Sistema Integral de Gestión de Modalidades de Grado",
-                FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(52, 73, 94)));
+                FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY));
         footer.setAlignment(Element.ALIGN_CENTER);
         footerCell.addElement(footer);
 
@@ -219,7 +220,7 @@ public class ModalityComparisonPdfGenerator {
     private void addCoverInfoRow(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(52, 73, 94))));
-        labelCell.setBackgroundColor(MEDIUM_GRAY);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         labelCell.setPadding(8);
         labelCell.setBorder(Rectangle.NO_BORDER);
@@ -230,7 +231,7 @@ public class ModalityComparisonPdfGenerator {
         valueCell.setHorizontalAlignment(Element.ALIGN_LEFT);
         valueCell.setPadding(8);
         valueCell.setBorder(Rectangle.BOTTOM);
-        valueCell.setBorderColor(MEDIUM_GRAY);
+        valueCell.setBorderColor(LIGHT_GOLD);
         valueCell.setBorderWidth(0.5f);
         table.addCell(valueCell);
     }
@@ -253,11 +254,11 @@ public class ModalityComparisonPdfGenerator {
 
         // Tarjeta 1: Total de tipos
         addMetricCard(summaryTable, "Tipos de Modalidad",
-                String.valueOf(summary.getTotalModalityTypes()), SECONDARY_COLOR);
+                String.valueOf(summary.getTotalModalityTypes()), INSTITUTIONAL_GOLD);
 
         // Tarjeta 2: Total de modalidades
         addMetricCard(summaryTable, "Total Modalidades",
-                String.valueOf(summary.getTotalModalities()), PRIMARY_COLOR);
+                String.valueOf(summary.getTotalModalities()), INSTITUTIONAL_RED);
 
         // Tarjeta 3: Total de estudiantes
         addMetricCard(summaryTable, "Total Estudiantes",
@@ -436,7 +437,7 @@ public class ModalityComparisonPdfGenerator {
             // Línea separadora
             if (i < statistics.size() - 1) {
                 LineSeparator separator = new LineSeparator();
-                separator.setLineColor(BaseColor.LIGHT_GRAY);
+                separator.setLineColor(INSTITUTIONAL_GOLD);
                 document.add(new Chunk(separator));
             }
         }
@@ -476,7 +477,7 @@ public class ModalityComparisonPdfGenerator {
 
             // Encabezado con el nombre del tipo
             PdfPCell headerCell = new PdfPCell();
-            headerCell.setBackgroundColor(PRIMARY_COLOR);
+            headerCell.setBackgroundColor(INSTITUTIONAL_RED);
             headerCell.setPadding(6);
             headerCell.setBorder(Rectangle.NO_BORDER);
 
@@ -489,7 +490,7 @@ public class ModalityComparisonPdfGenerator {
             PdfPCell barCell = new PdfPCell();
             barCell.setPadding(0);
             barCell.setBorder(Rectangle.BOX);
-            barCell.setBorderColor(MEDIUM_GRAY);
+            barCell.setBorderColor(LIGHT_GOLD);
             barCell.setBorderWidth(0.5f);
 
             // Tabla interna para la barra
@@ -509,7 +510,7 @@ public class ModalityComparisonPdfGenerator {
 
             // Celda con color de la barra
             PdfPCell filledCell = new PdfPCell();
-            filledCell.setBackgroundColor(SECONDARY_COLOR);
+            filledCell.setBackgroundColor(INSTITUTIONAL_GOLD);
             filledCell.setBorder(Rectangle.NO_BORDER);
             filledCell.setPadding(8);
 
@@ -521,13 +522,13 @@ public class ModalityComparisonPdfGenerator {
 
             // Celda vacía con el porcentaje
             PdfPCell emptyCell = new PdfPCell();
-            emptyCell.setBackgroundColor(LIGHT_BLUE);
+            emptyCell.setBackgroundColor(LIGHT_GOLD);
             emptyCell.setBorder(Rectangle.NO_BORDER);
             emptyCell.setPadding(8);
 
             double percentage = (double) entry.getValue() / totalStudents * 100;
             Paragraph percentText = new Paragraph(String.format("%.1f%% del total", percentage),
-                    FontFactory.getFont(FontFactory.HELVETICA, 9, PRIMARY_COLOR));
+                    FontFactory.getFont(FontFactory.HELVETICA, 9, INSTITUTIONAL_RED));
             percentText.setAlignment(Element.ALIGN_LEFT);
             emptyCell.addElement(percentText);
             innerTable.addCell(emptyCell);
@@ -544,7 +545,7 @@ public class ModalityComparisonPdfGenerator {
         totalTable.setSpacingBefore(15);
 
         PdfPCell totalCell = new PdfPCell();
-        totalCell.setBackgroundColor(ACCENT_COLOR);
+        totalCell.setBackgroundColor(INSTITUTIONAL_GOLD);
         totalCell.setPadding(10);
         totalCell.setBorder(Rectangle.NO_BORDER);
 
@@ -585,7 +586,7 @@ public class ModalityComparisonPdfGenerator {
         for (String typeName : allTypes.keySet()) {
             // Nombre del tipo
             PdfPCell typeCell = new PdfPCell(new Phrase(typeName, SMALL_FONT));
-            typeCell.setBackgroundColor(LIGHT_GRAY);
+            typeCell.setBackgroundColor(LIGHT_GOLD);
             typeCell.setPadding(5);
             comparisonTable.addCell(typeCell);
 
@@ -609,7 +610,7 @@ public class ModalityComparisonPdfGenerator {
 
         // Totales
         PdfPCell totalLabelCell = new PdfPCell(new Phrase("TOTALES", BOLD_FONT));
-        totalLabelCell.setBackgroundColor(PRIMARY_COLOR);
+        totalLabelCell.setBackgroundColor(INSTITUTIONAL_RED);
         totalLabelCell.setHorizontalAlignment(Element.ALIGN_CENTER);
         totalLabelCell.setPadding(5);
         comparisonTable.addCell(totalLabelCell);
@@ -622,7 +623,7 @@ public class ModalityComparisonPdfGenerator {
                     FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.WHITE)));
 
             PdfPCell totalCell = new PdfPCell(totalPhrase);
-            totalCell.setBackgroundColor(PRIMARY_COLOR);
+            totalCell.setBackgroundColor(INSTITUTIONAL_RED);
             totalCell.setHorizontalAlignment(Element.ALIGN_CENTER);
             totalCell.setPadding(5);
             comparisonTable.addCell(totalCell);
@@ -702,7 +703,7 @@ public class ModalityComparisonPdfGenerator {
             improvedTable.setSpacingBefore(15);
 
             PdfPCell improvedCell = new PdfPCell();
-            improvedCell.setBackgroundColor(LIGHT_BLUE);
+            improvedCell.setBackgroundColor(LIGHT_GOLD);
             improvedCell.setPadding(8);
 
             Double rate = trends.getGrowthRateByType().get(trends.getMostImprovedType());
@@ -760,7 +761,7 @@ public class ModalityComparisonPdfGenerator {
         footerTable.setSpacingBefore(30);
 
         PdfPCell footerCell = new PdfPCell();
-        footerCell.setBackgroundColor(LIGHT_GRAY);
+        footerCell.setBackgroundColor(LIGHT_GOLD);
         footerCell.setPadding(10);
         footerCell.setBorder(Rectangle.BOX);
 
@@ -788,7 +789,7 @@ public class ModalityComparisonPdfGenerator {
         document.add(titlePara);
 
         LineSeparator line = new LineSeparator();
-        line.setLineColor(PRIMARY_COLOR);
+        line.setLineColor(INSTITUTIONAL_RED);
         line.setLineWidth(2);
         document.add(new Chunk(line));
         document.add(Chunk.NEWLINE);
@@ -810,7 +811,7 @@ public class ModalityComparisonPdfGenerator {
 
     private void addSummaryRow(PdfPTable table, String label, String value, Font valueFont) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, NORMAL_FONT));
-        labelCell.setBackgroundColor(LIGHT_GRAY);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setPadding(8);
         table.addCell(labelCell);
 
@@ -822,7 +823,7 @@ public class ModalityComparisonPdfGenerator {
 
     private void addStatCell(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, SMALL_FONT));
-        labelCell.setBackgroundColor(LIGHT_GRAY);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setPadding(5);
         table.addCell(labelCell);
 
@@ -835,7 +836,7 @@ public class ModalityComparisonPdfGenerator {
     private void addTableHeader(PdfPTable table, String text) {
         PdfPCell header = new PdfPCell(new Phrase(text,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE)));
-        header.setBackgroundColor(PRIMARY_COLOR);
+        header.setBackgroundColor(INSTITUTIONAL_RED);
         header.setHorizontalAlignment(Element.ALIGN_CENTER);
         header.setPadding(8);
         table.addCell(header);

@@ -20,28 +20,28 @@ import java.util.Map;
 @Service
 public class DirectorAssignedModalitiesPdfGenerator {
 
-    // Fuentes profesionales
-    private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BaseColor.BLACK);
-    private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, BaseColor.DARK_GRAY);
-    private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, new BaseColor(44, 62, 80));
-    private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new BaseColor(52, 73, 94));
+    // Colores institucionales
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+
+    // Fuentes con colores institucionales
+    private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED);
+    private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, INSTITUTIONAL_RED);
+    private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
+    private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED);
     private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
     private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(52, 73, 94));
+    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY);
     private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
+    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
 
-    // Colores institucionales profesionales
-    private static final BaseColor PRIMARY_COLOR = new BaseColor(0, 51, 102);      // Azul oscuro institucional
-    private static final BaseColor SECONDARY_COLOR = new BaseColor(0, 102, 153);   // Azul medio
-    private static final BaseColor ACCENT_COLOR = new BaseColor(204, 153, 0);      // Dorado/amarillo institucional
-    private static final BaseColor LIGHT_BLUE = new BaseColor(230, 240, 250);      // Azul muy claro
-    private static final BaseColor LIGHT_GRAY = new BaseColor(248, 249, 250);      // Gris muy claro
-    private static final BaseColor MEDIUM_GRAY = new BaseColor(233, 236, 239);     // Gris medio
-    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);     // Verde profesional
-    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);     // Amarillo profesional
-    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);      // Rojo profesional
-    private static final BaseColor INFO_COLOR = new BaseColor(23, 162, 184);       // Cian/Info
-    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);          // Texto oscuro
+    // Colores auxiliares
+    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);
+    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);
+    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);
+    private static final BaseColor INFO_COLOR = new BaseColor(23, 162, 184);
+    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);
 
     public ByteArrayOutputStream generatePDF(DirectorAssignedModalitiesReportDTO report)
             throws DocumentException, IOException {
@@ -97,7 +97,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         headerBand.setSpacingAfter(30);
 
         PdfPCell bandCell = new PdfPCell();
-        bandCell.setBackgroundColor(PRIMARY_COLOR);
+        bandCell.setBackgroundColor(INSTITUTIONAL_RED);
         bandCell.setPadding(20);
         bandCell.setBorder(Rectangle.NO_BORDER);
 
@@ -123,14 +123,14 @@ public class DirectorAssignedModalitiesPdfGenerator {
         programBox.setSpacingAfter(30);
 
         PdfPCell programCell = new PdfPCell();
-        programCell.setBackgroundColor(LIGHT_BLUE);
+        programCell.setBackgroundColor(LIGHT_GOLD);
         programCell.setPadding(12);
         programCell.setBorder(Rectangle.BOX);
-        programCell.setBorderColor(SECONDARY_COLOR);
+        programCell.setBorderColor(INSTITUTIONAL_GOLD);
         programCell.setBorderWidth(1.5f);
 
         Paragraph program = new Paragraph(report.getAcademicProgramName().toUpperCase(),
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, PRIMARY_COLOR));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, INSTITUTIONAL_RED));
         program.setAlignment(Element.ALIGN_CENTER);
         programCell.addElement(program);
 
@@ -139,7 +139,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         // Título del reporte
         Paragraph title = new Paragraph("REPORTE DE MODALIDADES\nPOR DIRECTOR ASIGNADO",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, PRIMARY_COLOR));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED));
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(35);
         document.add(title);
@@ -152,7 +152,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
             directorBox.setSpacingAfter(35);
 
             PdfPCell directorCell = new PdfPCell();
-            directorCell.setBackgroundColor(ACCENT_COLOR);
+            directorCell.setBackgroundColor(INSTITUTIONAL_GOLD);
             directorCell.setPadding(10);
             directorCell.setBorder(Rectangle.NO_BORDER);
 
@@ -188,10 +188,10 @@ public class DirectorAssignedModalitiesPdfGenerator {
         footerTable.setSpacingBefore(70);
 
         PdfPCell footerCell = new PdfPCell();
-        footerCell.setBackgroundColor(MEDIUM_GRAY);
+        footerCell.setBackgroundColor(LIGHT_GOLD);
         footerCell.setPadding(12);
         footerCell.setBorder(Rectangle.TOP);
-        footerCell.setBorderColor(PRIMARY_COLOR);
+        footerCell.setBorderColor(INSTITUTIONAL_RED);
 
         Paragraph footer = new Paragraph("Sistema SIGMA - Sistema Integral de Gestión de Modalidades de Grado",
                 FontFactory.getFont(FontFactory.HELVETICA, 9, new BaseColor(52, 73, 94)));
@@ -208,7 +208,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
     private void addCoverInfoRow(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(52, 73, 94))));
-        labelCell.setBackgroundColor(MEDIUM_GRAY);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         labelCell.setPadding(8);
         labelCell.setBorder(Rectangle.NO_BORDER);
@@ -219,7 +219,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         valueCell.setHorizontalAlignment(Element.ALIGN_LEFT);
         valueCell.setPadding(8);
         valueCell.setBorder(Rectangle.BOTTOM);
-        valueCell.setBorderColor(MEDIUM_GRAY);
+        valueCell.setBorderColor(LIGHT_GOLD);
         valueCell.setBorderWidth(0.5f);
         table.addCell(valueCell);
     }
@@ -242,11 +242,11 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         // Tarjeta 1: Total de directores
         addMetricCard(summaryTable, "Directores",
-                String.valueOf(summary.getTotalDirectors()), SECONDARY_COLOR);
+                String.valueOf(summary.getTotalDirectors()), INSTITUTIONAL_GOLD);
 
         // Tarjeta 2: Total de modalidades
         addMetricCard(summaryTable, "Modalidades Asignadas",
-                String.valueOf(summary.getTotalModalitiesAssigned()), PRIMARY_COLOR);
+                String.valueOf(summary.getTotalModalitiesAssigned()), INSTITUTIONAL_RED);
 
         // Tarjeta 3: Modalidades activas
         addMetricCard(summaryTable, "Modalidades Activas",
@@ -289,16 +289,16 @@ public class DirectorAssignedModalitiesPdfGenerator {
         avgTable.setSpacingAfter(20);
 
         PdfPCell avgCell = new PdfPCell();
-        avgCell.setBackgroundColor(LIGHT_BLUE);
+        avgCell.setBackgroundColor(LIGHT_GOLD);
         avgCell.setPadding(12);
-        avgCell.setBorderColor(SECONDARY_COLOR);
+        avgCell.setBorderColor(INSTITUTIONAL_GOLD);
         avgCell.setBorderWidth(1.5f);
 
         Paragraph avgText = new Paragraph();
         avgText.add(new Chunk("📈 PROMEDIO DE MODALIDADES POR DIRECTOR: ",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, PRIMARY_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_RED)));
         avgText.add(new Chunk(String.valueOf(summary.getAverageModalitiesPerDirector()),
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, PRIMARY_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, INSTITUTIONAL_RED)));
         avgCell.addElement(avgText);
         avgTable.addCell(avgCell);
 
@@ -473,12 +473,12 @@ public class DirectorAssignedModalitiesPdfGenerator {
      */
     private void addWorkloadInfoRow(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, BOLD_FONT));
-        labelCell.setBackgroundColor(LIGHT_GRAY);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setPadding(8);
         table.addCell(labelCell);
 
         PdfPCell valueCell = new PdfPCell(new Phrase(value,
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, PRIMARY_COLOR)));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_RED)));
         valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
         valueCell.setPadding(8);
         table.addCell(valueCell);
@@ -521,7 +521,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         innerTable.addCell(filledCell);
 
         PdfPCell emptyCell = new PdfPCell();
-        emptyCell.setBackgroundColor(LIGHT_GRAY);
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
         emptyCell.setBorder(Rectangle.NO_BORDER);
         emptyCell.setPadding(4);
         innerTable.addCell(emptyCell);
@@ -638,7 +638,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
             case "OVERLOADED":
                 return DANGER_COLOR;
             default:
-                return SECONDARY_COLOR;
+                return INSTITUTIONAL_GOLD;
         }
     }
 
@@ -676,10 +676,10 @@ public class DirectorAssignedModalitiesPdfGenerator {
         modalityTable.setSpacingAfter(10);
 
         PdfPCell modalityCell = new PdfPCell();
-        modalityCell.setBackgroundColor(LIGHT_GRAY);
+        modalityCell.setBackgroundColor(LIGHT_GOLD);
         modalityCell.setPadding(10);
         modalityCell.setBorder(Rectangle.BOX);
-        modalityCell.setBorderColor(MEDIUM_GRAY);
+        modalityCell.setBorderColor(LIGHT_GOLD);
 
         // Título
         Paragraph title = new Paragraph(number + ". " + modality.getModalityTypeName(),
@@ -700,7 +700,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         // Estado
         Paragraph status = new Paragraph("Estado: " + modality.getStatusDescription(),
-                FontFactory.getFont(FontFactory.HELVETICA, 9, SECONDARY_COLOR));
+                FontFactory.getFont(FontFactory.HELVETICA, 9, INSTITUTIONAL_GOLD));
         status.setSpacingBefore(3);
         modalityCell.addElement(status);
 
@@ -737,7 +737,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .forEach(entry -> {
                     try {
-                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByStatus, SECONDARY_COLOR);
+                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByStatus, INSTITUTIONAL_GOLD);
                     } catch (DocumentException e) {
                         // Ignorar
                     }
@@ -758,7 +758,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .forEach(entry -> {
                     try {
-                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByType, PRIMARY_COLOR);
+                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByType, INSTITUTIONAL_RED);
                     } catch (DocumentException e) {
                         // Ignorar
                     }
@@ -812,7 +812,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         innerTable.addCell(filledCell);
 
         PdfPCell emptyCell = new PdfPCell();
-        emptyCell.setBackgroundColor(LIGHT_GRAY);
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
         emptyCell.setBorder(Rectangle.NO_BORDER);
         innerTable.addCell(emptyCell);
 
@@ -853,10 +853,10 @@ public class DirectorAssignedModalitiesPdfGenerator {
         footerTable.setSpacingBefore(30);
 
         PdfPCell footerCell = new PdfPCell();
-        footerCell.setBackgroundColor(LIGHT_GRAY);
+        footerCell.setBackgroundColor(LIGHT_GOLD);
         footerCell.setPadding(10);
         footerCell.setBorder(Rectangle.BOX);
-        footerCell.setBorderColor(PRIMARY_COLOR);
+        footerCell.setBorderColor(INSTITUTIONAL_RED);
 
         Paragraph footerText = new Paragraph();
         footerText.add(new Chunk("ℹ NOTA: ",
@@ -935,7 +935,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         document.add(titlePara);
 
         LineSeparator line = new LineSeparator();
-        line.setLineColor(PRIMARY_COLOR);
+        line.setLineColor(INSTITUTIONAL_RED);
         line.setLineWidth(2);
         document.add(new Chunk(line));
         document.add(Chunk.NEWLINE);
