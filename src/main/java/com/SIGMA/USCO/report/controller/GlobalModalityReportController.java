@@ -749,9 +749,7 @@ public class GlobalModalityReportController {
      */
     @PostMapping("/modalities/completed/pdf")
     @PreAuthorize("hasAuthority('PERM_VIEW_REPORT')")
-    public ResponseEntity<Resource> exportCompletedModalitiesReportToPDF(
-            @RequestBody(required = false) CompletedModalitiesFilterDTO filters
-    ) {
+    public ResponseEntity<Resource> exportCompletedModalitiesReportToPDF(@RequestBody(required = false) CompletedModalitiesFilterDTO filters) {
         try {
             CompletedModalitiesReportDTO report = reportService.generateCompletedModalitiesReport(filters);
             ByteArrayOutputStream pdfStream = completedModalitiesPdfGenerator.generatePDF(report);

@@ -19,27 +19,24 @@ import java.util.Map;
 @Service
 public class ModalityComparisonPdfGenerator {
 
-    // Colores institucionales
-    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
-    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
-    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+    // COLORES INSTITUCIONALES - USO EXCLUSIVO
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E - Color primario
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0 - Color secundario
+    private static final BaseColor WHITE = BaseColor.WHITE; // Color primario
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono muy claro de dorado para fondos sutiles
+    private static final BaseColor TEXT_BLACK = BaseColor.BLACK; // Texto principal
+    private static final BaseColor TEXT_GRAY = new BaseColor(80, 80, 80); // Texto secundario
 
     // Fuentes con colores institucionales
     private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, INSTITUTIONAL_RED);
     private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 16, INSTITUTIONAL_RED);
     private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INSTITUTIONAL_RED);
     private static final Font SUBHEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED);
-    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
-    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, BaseColor.DARK_GRAY);
-    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
-    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
-
-    // Colores auxiliares
-    private static final BaseColor SUCCESS_COLOR = new BaseColor(40, 167, 69);
-    private static final BaseColor WARNING_COLOR = new BaseColor(255, 193, 7);
-    private static final BaseColor DANGER_COLOR = new BaseColor(220, 53, 69);
-    private static final BaseColor TEXT_DARK = new BaseColor(33, 37, 41);
+    private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_BLACK);
+    private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_BLACK);
+    private static final Font SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_GRAY);
+    private static final Font TINY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY);
+    private static final Font HEADER_TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, WHITE);
 
     public ByteArrayOutputStream generatePDF(ModalityTypeComparisonReportDTO report)
             throws DocumentException, IOException {
@@ -262,7 +259,7 @@ public class ModalityComparisonPdfGenerator {
 
         // Tarjeta 3: Total de estudiantes
         addMetricCard(summaryTable, "Total Estudiantes",
-                String.valueOf(summary.getTotalStudents()), SUCCESS_COLOR);
+                String.valueOf(summary.getTotalStudents()), INSTITUTIONAL_GOLD);
 
         document.add(summaryTable);
 
@@ -275,14 +272,14 @@ public class ModalityComparisonPdfGenerator {
             PdfPCell popularCell = new PdfPCell();
             popularCell.setBackgroundColor(new BaseColor(232, 245, 233)); // Verde claro
             popularCell.setPadding(12);
-            popularCell.setBorderColor(SUCCESS_COLOR);
+            popularCell.setBorderColor(INSTITUTIONAL_GOLD);
             popularCell.setBorderWidth(2f);
 
             Paragraph popularText = new Paragraph();
             popularText.add(new Chunk("⭐ TIPO MÁS POPULAR: ",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, SUCCESS_COLOR)));
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_GOLD)));
             popularText.add(new Chunk(summary.getMostPopularType() + " ",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_DARK)));
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_BLACK)));
             popularText.add(new Chunk("(" + summary.getMostPopularTypeCount() + " modalidades)",
                     FontFactory.getFont(FontFactory.HELVETICA, 10, new BaseColor(76, 175, 80))));
             popularCell.addElement(popularText);
@@ -300,14 +297,14 @@ public class ModalityComparisonPdfGenerator {
             PdfPCell leastCell = new PdfPCell();
             leastCell.setBackgroundColor(new BaseColor(255, 243, 224)); // Naranja claro
             leastCell.setPadding(12);
-            leastCell.setBorderColor(WARNING_COLOR);
+            leastCell.setBorderColor(INSTITUTIONAL_RED);
             leastCell.setBorderWidth(2f);
 
             Paragraph leastText = new Paragraph();
             leastText.add(new Chunk("📊 TIPO MENOS POPULAR: ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(255, 152, 0))));
             leastText.add(new Chunk(summary.getLeastPopularType() + " ",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_DARK)));
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_BLACK)));
             leastText.add(new Chunk("(" + summary.getLeastPopularTypeCount() + " modalidades)",
                     FontFactory.getFont(FontFactory.HELVETICA, 10, new BaseColor(255, 152, 0))));
             leastCell.addElement(leastText);
@@ -651,15 +648,15 @@ public class ModalityComparisonPdfGenerator {
         String trendIcon;
         switch (trends.getOverallTrend()) {
             case "GROWING":
-                trendColor = SUCCESS_COLOR;
+                trendColor = INSTITUTIONAL_GOLD;
                 trendIcon = "↗";
                 break;
             case "DECLINING":
-                trendColor = DANGER_COLOR;
+                trendColor = INSTITUTIONAL_RED;
                 trendIcon = "↘";
                 break;
             default:
-                trendColor = WARNING_COLOR;
+                trendColor = INSTITUTIONAL_RED;
                 trendIcon = "→";
         }
 
@@ -681,19 +678,19 @@ public class ModalityComparisonPdfGenerator {
         // Tipos en crecimiento
         if (trends.getGrowingTypes() != null && !trends.getGrowingTypes().isEmpty()) {
             addTrendSection(document, "✓ TIPOS EN CRECIMIENTO", trends.getGrowingTypes(),
-                    trends.getGrowthRateByType(), SUCCESS_COLOR);
+                    trends.getGrowthRateByType(), INSTITUTIONAL_GOLD);
         }
 
         // Tipos en declive
         if (trends.getDecliningTypes() != null && !trends.getDecliningTypes().isEmpty()) {
             addTrendSection(document, "✗ TIPOS EN DECLIVE", trends.getDecliningTypes(),
-                    trends.getGrowthRateByType(), DANGER_COLOR);
+                    trends.getGrowthRateByType(), INSTITUTIONAL_RED);
         }
 
         // Tipos estables
         if (trends.getStableTypes() != null && !trends.getStableTypes().isEmpty()) {
             addTrendSection(document, "= TIPOS ESTABLES", trends.getStableTypes(),
-                    trends.getGrowthRateByType(), WARNING_COLOR);
+                    trends.getGrowthRateByType(), INSTITUTIONAL_RED);
         }
 
         // Destacados

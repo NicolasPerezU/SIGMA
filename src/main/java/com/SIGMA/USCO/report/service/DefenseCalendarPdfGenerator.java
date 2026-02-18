@@ -23,27 +23,24 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DefenseCalendarPdfGenerator {
 
-    // Colores institucionales
-    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E
-    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0
-    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono claro de dorado para fondos
+    // COLORES INSTITUCIONALES - USO EXCLUSIVO
+    private static final BaseColor INSTITUTIONAL_RED = new BaseColor(143, 30, 30); // #8F1E1E - Color primario
+    private static final BaseColor INSTITUTIONAL_GOLD = new BaseColor(213, 203, 160); // #D5CBA0 - Color secundario
+    private static final BaseColor WHITE = BaseColor.WHITE; // Color primario
+    private static final BaseColor LIGHT_GOLD = new BaseColor(245, 242, 235); // Tono muy claro de dorado para fondos sutiles
+    private static final BaseColor TEXT_BLACK = BaseColor.BLACK; // Texto principal
+    private static final BaseColor TEXT_GRAY = new BaseColor(80, 80, 80); // Texto secundario
+    private static final BaseColor COLOR_BORDER = INSTITUTIONAL_GOLD; // Bordes institucionales
 
     // Fuentes con colores institucionales
     private static final Font TITLE_FONT = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, INSTITUTIONAL_RED);
     private static final Font SUBTITLE_FONT = new Font(Font.FontFamily.HELVETICA, 16, Font.BOLD, INSTITUTIONAL_RED);
     private static final Font SECTION_FONT = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD, INSTITUTIONAL_RED);
     private static final Font SUBSECTION_FONT = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, INSTITUTIONAL_RED);
-    private static final Font NORMAL_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, BaseColor.BLACK);
-    private static final Font BOLD_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.BLACK);
-    private static final Font SMALL_FONT = new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, BaseColor.DARK_GRAY);
-    private static final Font HEADER_TABLE_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
-
-    // Colores auxiliares
-    private static final BaseColor COLOR_SUCCESS = new BaseColor(40, 167, 69);
-    private static final BaseColor COLOR_WARNING = new BaseColor(255, 193, 7);
-    private static final BaseColor COLOR_DANGER = new BaseColor(220, 53, 69);
-    private static final BaseColor COLOR_LIGHT = LIGHT_GOLD;
-    private static final BaseColor COLOR_BORDER = INSTITUTIONAL_GOLD;
+    private static final Font NORMAL_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, TEXT_BLACK);
+    private static final Font BOLD_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, TEXT_BLACK);
+    private static final Font SMALL_FONT = new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, TEXT_GRAY);
+    private static final Font HEADER_TABLE_FONT = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, WHITE);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter DATE_ONLY_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -168,13 +165,13 @@ public class DefenseCalendarPdfGenerator {
 
         // Fila 1
         addSummaryCard(summaryGrid, "TOTAL PROGRAMADAS", String.valueOf(summary.getTotalScheduled()), INSTITUTIONAL_RED);
-        addSummaryCard(summaryGrid, "ESTA SEMANA", String.valueOf(summary.getUpcomingThisWeek()), COLOR_WARNING);
-        addSummaryCard(summaryGrid, "HOY", String.valueOf(summary.getDefensesToday()), COLOR_DANGER);
+        addSummaryCard(summaryGrid, "ESTA SEMANA", String.valueOf(summary.getUpcomingThisWeek()), INSTITUTIONAL_RED);
+        addSummaryCard(summaryGrid, "HOY", String.valueOf(summary.getDefensesToday()), INSTITUTIONAL_RED);
 
         // Fila 2
-        addSummaryCard(summaryGrid, "ESTE MES", String.valueOf(summary.getUpcomingThisMonth()), new BaseColor(23, 162, 184));
-        addSummaryCard(summaryGrid, "EN PROGRESO", String.valueOf(summary.getPendingScheduling()), new BaseColor(220, 53, 69));
-        addSummaryCard(summaryGrid, "COMPLETADAS (MES)", String.valueOf(summary.getCompletedThisMonth()), COLOR_SUCCESS);
+        addSummaryCard(summaryGrid, "ESTE MES", String.valueOf(summary.getUpcomingThisMonth()), INSTITUTIONAL_GOLD);
+        addSummaryCard(summaryGrid, "EN PROGRESO", String.valueOf(summary.getPendingScheduling()), INSTITUTIONAL_RED);
+        addSummaryCard(summaryGrid, "COMPLETADAS (MES)", String.valueOf(summary.getCompletedThisMonth()), INSTITUTIONAL_GOLD);
 
         document.add(summaryGrid);
 
@@ -203,8 +200,8 @@ public class DefenseCalendarPdfGenerator {
             card.setSpacingAfter(15);
 
             // Header con urgencia
-            BaseColor urgencyColor = defense.getUrgency().equals("URGENT") ? COLOR_DANGER
-                    : defense.getUrgency().equals("SOON") ? COLOR_WARNING : COLOR_SUCCESS;
+            BaseColor urgencyColor = defense.getUrgency().equals("URGENT") ? INSTITUTIONAL_RED
+                    : defense.getUrgency().equals("SOON") ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD;
 
             PdfPCell headerCell = new PdfPCell();
             headerCell.setBackgroundColor(urgencyColor);
@@ -262,14 +259,14 @@ public class DefenseCalendarPdfGenerator {
                     info.add(Chunk.NEWLINE);
                 }
             } else {
-                info.add(new Chunk("⚠ Sin jurados asignados", new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC, COLOR_DANGER)));
+                info.add(new Chunk("⚠ Sin jurados asignados", new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC, INSTITUTIONAL_RED)));
                 info.add(Chunk.NEWLINE);
             }
 
             // Tareas pendientes
             if (!defense.getPendingTasks().isEmpty()) {
                 info.add(Chunk.NEWLINE);
-                info.add(new Chunk("Tareas Pendientes:", new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, COLOR_WARNING)));
+                info.add(new Chunk("Tareas Pendientes:", new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, INSTITUTIONAL_RED)));
                 info.add(Chunk.NEWLINE);
                 for (String task : defense.getPendingTasks()) {
                     info.add(new Chunk("  • " + task, SMALL_FONT));
@@ -329,8 +326,8 @@ public class DefenseCalendarPdfGenerator {
             addTableCell(table, defense.getDefenseDate().format(DATE_ONLY_FORMATTER));
             addTableCell(table, defense.getFinalGrade() != null ? String.format("%.2f", defense.getFinalGrade()) : "N/A");
 
-            BaseColor resultColor = defense.getResult().equals("APROBADO") ? COLOR_SUCCESS
-                    : defense.getResult().equals("REPROBADO") ? COLOR_DANGER : COLOR_WARNING;
+            BaseColor resultColor = defense.getResult().equals("APROBADO") ? INSTITUTIONAL_GOLD
+                    : defense.getResult().equals("REPROBADO") ? INSTITUTIONAL_RED : INSTITUTIONAL_RED;
             PdfPCell resultCell = new PdfPCell(new Phrase(defense.getResult(), SMALL_FONT));
             resultCell.setBackgroundColor(resultColor);
             resultCell.setPadding(5);
@@ -353,9 +350,9 @@ public class DefenseCalendarPdfGenerator {
         statsTable.setSpacingAfter(20);
 
         addStatCard(statsTable, "Total Programadas", String.valueOf(statistics.getTotalScheduled()), INSTITUTIONAL_RED);
-        addStatCard(statsTable, "Completadas", String.valueOf(statistics.getTotalCompleted()), COLOR_SUCCESS);
-        addStatCard(statsTable, "Pendientes", String.valueOf(statistics.getTotalPending()), COLOR_WARNING);
-        addStatCard(statsTable, "Aprobadas", String.valueOf(statistics.getApproved()), COLOR_SUCCESS);
+        addStatCard(statsTable, "Completadas", String.valueOf(statistics.getTotalCompleted()), INSTITUTIONAL_GOLD);
+        addStatCard(statsTable, "Pendientes", String.valueOf(statistics.getTotalPending()), INSTITUTIONAL_RED);
+        addStatCard(statsTable, "Aprobadas", String.valueOf(statistics.getApproved()), INSTITUTIONAL_GOLD);
 
         document.add(statsTable);
 
@@ -401,8 +398,8 @@ public class DefenseCalendarPdfGenerator {
         addSectionTitle(document, "7. ALERTAS Y RECOMENDACIONES");
 
         for (DefenseAlertDTO alert : alerts) {
-            BaseColor alertColor = alert.getAlertType().equals("URGENT") ? COLOR_DANGER
-                    : alert.getAlertType().equals("WARNING") ? COLOR_WARNING : new BaseColor(23, 162, 184);
+            BaseColor alertColor = alert.getAlertType().equals("URGENT") ? INSTITUTIONAL_RED
+                    : alert.getAlertType().equals("WARNING") ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD;
 
             PdfPTable alertBox = new PdfPTable(1);
             alertBox.setWidthPercentage(100);
@@ -431,7 +428,7 @@ public class DefenseCalendarPdfGenerator {
 
             if (alert.getActionRequired() != null) {
                 alertContent.add(Chunk.NEWLINE);
-                alertContent.add(new Chunk("Acción Requerida: " + alert.getActionRequired(), new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, COLOR_DANGER)));
+                alertContent.add(new Chunk("Acción Requerida: " + alert.getActionRequired(), new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, INSTITUTIONAL_RED)));
             }
 
             alertCell.addElement(alertContent);
@@ -494,7 +491,7 @@ public class DefenseCalendarPdfGenerator {
 
     private void addDetailRow(PdfPTable table, String label, String value) {
         PdfPCell labelCell = new PdfPCell(new Phrase(label, BOLD_FONT));
-        labelCell.setBackgroundColor(COLOR_LIGHT);
+        labelCell.setBackgroundColor(LIGHT_GOLD);
         labelCell.setPadding(8);
         table.addCell(labelCell);
 
@@ -517,7 +514,7 @@ public class DefenseCalendarPdfGenerator {
         Chunk valueChunk = new Chunk(value, new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, color));
         content.add(valueChunk);
         content.add(Chunk.NEWLINE);
-        content.add(new Chunk(label, new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.DARK_GRAY)));
+        content.add(new Chunk(label, new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, TEXT_GRAY)));
 
         cell.addElement(content);
         table.addCell(cell);
