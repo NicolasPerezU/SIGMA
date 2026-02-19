@@ -40,6 +40,8 @@ public class Notification {
     @JoinColumn(name = "student_modality_id")
     private StudentModality studentModality;
 
+    @Column(name = "invitation_id")
+    private Long invitationId;
 
     private String subject;
 

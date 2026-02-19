@@ -158,6 +158,9 @@ public class DefenseCalendarPdfGenerator {
 
         ExecutiveSummaryDTO summary = report.getExecutiveSummary();
 
+        // NUEVO: Tarjetas de resumen con iconos grandes
+        addExecutiveSummaryCards(document, summary);
+
         // Crear tabla de resumen con 3 columnas
         PdfPTable summaryGrid = new PdfPTable(3);
         summaryGrid.setWidthPercentage(100);
@@ -174,6 +177,9 @@ public class DefenseCalendarPdfGenerator {
         addSummaryCard(summaryGrid, "COMPLETADAS (MES)", String.valueOf(summary.getCompletedThisMonth()), INSTITUTIONAL_GOLD);
 
         document.add(summaryGrid);
+
+        // NUEVO: Indicador visual de tasa de éxito
+        addSuccessRateIndicator(document, summary.getAverageSuccessRate());
 
         // Información adicional
         addSubsectionTitle(document, "Información Clave");
@@ -343,6 +349,9 @@ public class DefenseCalendarPdfGenerator {
     private void addStatistics(Document document, DefenseStatisticsDTO statistics) throws DocumentException {
         addSectionTitle(document, "5. ESTADÍSTICAS GENERALES");
 
+        // NUEVO: Tarjetas principales con iconos
+        addStatisticsSummaryCards(document, statistics);
+
         addSubsectionTitle(document, "5.1 Resumen de Sustentaciones");
 
         PdfPTable statsTable = new PdfPTable(4);
@@ -355,6 +364,9 @@ public class DefenseCalendarPdfGenerator {
         addStatCard(statsTable, "Aprobadas", String.valueOf(statistics.getApproved()), INSTITUTIONAL_GOLD);
 
         document.add(statsTable);
+
+        // NUEVO: Gráfico de distribución de estados
+        addDefenseDistributionChart(document, statistics);
 
         // Tasas y promedios
         addSubsectionTitle(document, "5.2 Tasas de Éxito y Calificaciones");
@@ -370,10 +382,22 @@ public class DefenseCalendarPdfGenerator {
         addDetailRow(ratesTable, "Calificación Más Baja:", String.format("%.2f", statistics.getLowestGrade()));
 
         document.add(ratesTable);
+
+        // NUEVO: Gráfico de distribución de calificaciones
+        addGradeDistributionChart(document, statistics);
     }
 
     private void addMonthlyAnalysis(Document document, List<MonthlyDefenseAnalysisDTO> monthlyData) throws DocumentException {
         addSectionTitle(document, "6. ANÁLISIS MENSUAL");
+
+        // NUEVO: Tarjetas de resumen de tendencia
+        addMonthlyTrendCards(document, monthlyData);
+
+        // NUEVO: Gráfico de evolución mensual
+        addMonthlyEvolutionChart(document, monthlyData);
+
+        // Tabla detallada
+        addSubsectionTitle(document, "📊 Detalle por Mes");
 
         PdfPTable table = new PdfPTable(new float[]{2, 1, 1, 1, 1, 1, 1});
         table.setWidthPercentage(100);
@@ -455,6 +479,552 @@ public class DefenseCalendarPdfGenerator {
 
         document.add(metaTable);
     }
+
+    // ==================== NUEVOS MÉTODOS PARA VISUALIZACIONES MEJORADAS ====================
+
+    /**
+     * Agregar tarjetas de resumen ejecutivo con iconos grandes
+     */
+    private void addExecutiveSummaryCards(Document document, ExecutiveSummaryDTO summary) throws DocumentException {
+        PdfPTable cardsTable = new PdfPTable(4);
+        cardsTable.setWidthPercentage(100);
+        cardsTable.setSpacingBefore(10);
+        cardsTable.setSpacingAfter(20);
+
+        // Tarjetas principales
+        addSummaryCardWithIcon(cardsTable, "Total Programadas",
+                String.valueOf(summary.getTotalScheduled()), "📅", INSTITUTIONAL_GOLD);
+
+        addSummaryCardWithIcon(cardsTable, "Hoy",
+                String.valueOf(summary.getDefensesToday()), "⏰", INSTITUTIONAL_RED);
+
+        addSummaryCardWithIcon(cardsTable, "Esta Semana",
+                String.valueOf(summary.getUpcomingThisWeek()), "📆", INSTITUTIONAL_RED);
+
+        addSummaryCardWithIcon(cardsTable, "Completadas (Mes)",
+                String.valueOf(summary.getCompletedThisMonth()), "✅", INSTITUTIONAL_GOLD);
+
+        document.add(cardsTable);
+    }
+
+    /**
+     * Agregar tarjeta individual con icono
+     */
+    private void addSummaryCardWithIcon(PdfPTable table, String label, String value,
+                                        String icon, BaseColor color) {
+        PdfPCell card = new PdfPCell();
+        card.setPadding(12);
+        card.setBorderColor(color);
+        card.setBorderWidth(2f);
+        card.setBackgroundColor(WHITE);
+        card.setFixedHeight(70);
+
+        // Icono
+        Paragraph iconPara = new Paragraph(icon,
+                new Font(Font.FontFamily.HELVETICA, 18, Font.NORMAL, color));
+        iconPara.setAlignment(Element.ALIGN_CENTER);
+        card.addElement(iconPara);
+
+        // Valor grande
+        Paragraph valuePara = new Paragraph(value,
+                new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, color));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        valuePara.setSpacingBefore(3);
+        card.addElement(valuePara);
+
+        // Etiqueta
+        Paragraph labelPara = new Paragraph(label,
+                new Font(Font.FontFamily.HELVETICA, 7, Font.NORMAL, TEXT_GRAY));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingBefore(3);
+        card.addElement(labelPara);
+
+        table.addCell(card);
+    }
+
+    /**
+     * Indicador visual de tasa de éxito
+     */
+    private void addSuccessRateIndicator(Document document, Double successRate) throws DocumentException {
+        addSubsectionTitle(document, "🎯 Indicador de Tasa de Éxito");
+
+        PdfPTable indicatorTable = new PdfPTable(1);
+        indicatorTable.setWidthPercentage(90);
+        indicatorTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+        indicatorTable.setSpacingBefore(10);
+        indicatorTable.setSpacingAfter(20);
+
+        PdfPCell indicatorCell = new PdfPCell();
+        indicatorCell.setPadding(0);
+        indicatorCell.setBorder(Rectangle.NO_BORDER);
+
+        // Tabla interna para la barra
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{1.5f, 5f, 1f});
+        } catch (DocumentException e) {
+            // Ignorar
+        }
+
+        // Etiqueta
+        PdfPCell labelCell = new PdfPCell(new Phrase("Tasa de Éxito:", BOLD_FONT));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        innerTable.addCell(labelCell);
+
+        // Barra de progreso
+        float percentage = successRate.floatValue() / 100f;
+        BaseColor barColor = percentage >= 0.7 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+        PdfPCell barCell = createSuccessRateBar(successRate, percentage, barColor);
+        innerTable.addCell(barCell);
+
+        // Valor
+        PdfPCell valueCell = new PdfPCell(new Phrase(String.format("%.2f%%", successRate),
+                new Font(Font.FontFamily.HELVETICA, 11, Font.BOLD, barColor)));
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        valueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        innerTable.addCell(valueCell);
+
+        indicatorCell.addElement(innerTable);
+        indicatorTable.addCell(indicatorCell);
+
+        document.add(indicatorTable);
+    }
+
+    /**
+     * Crear barra de tasa de éxito
+     */
+    private PdfPCell createSuccessRateBar(Double value, float percentage, BaseColor color) {
+        PdfPTable barContainer = new PdfPTable(2);
+        float barWidth = Math.max(percentage * 100, 3);
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            barContainer.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            try {
+                barContainer.setWidths(new float[]{50, 50});
+            } catch (DocumentException ex) {
+                // Ignorar
+            }
+        }
+        barContainer.setWidthPercentage(100);
+
+        // Parte coloreada
+        PdfPCell filledCell = new PdfPCell(new Phrase(String.format("%.1f%%", value),
+                new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, WHITE)));
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(6);
+        filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        barContainer.addCell(filledCell);
+
+        // Parte vacía
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        barContainer.addCell(emptyCell);
+
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.addElement(barContainer);
+        containerCell.setBorder(Rectangle.BOX);
+        containerCell.setBorderColor(color);
+        containerCell.setBorderWidth(1f);
+        containerCell.setPadding(0);
+
+        return containerCell;
+    }
+
+    /**
+     * Tarjetas de resumen de estadísticas
+     */
+    private void addStatisticsSummaryCards(Document document, DefenseStatisticsDTO statistics)
+            throws DocumentException {
+
+        PdfPTable cardsTable = new PdfPTable(4);
+        cardsTable.setWidthPercentage(100);
+        cardsTable.setSpacingBefore(10);
+        cardsTable.setSpacingAfter(20);
+
+        // Tasa de aprobación
+        addSummaryCardWithIcon(cardsTable, "Tasa Aprobación",
+                String.format("%.1f%%", statistics.getApprovalRate()), "✅", INSTITUTIONAL_GOLD);
+
+        // Tasa de distinción
+        addSummaryCardWithIcon(cardsTable, "Tasa Distinción",
+                String.format("%.1f%%", statistics.getDistinctionRate()), "🏆", INSTITUTIONAL_GOLD);
+
+        // Calificación promedio
+        addSummaryCardWithIcon(cardsTable, "Nota Promedio",
+                String.format("%.2f", statistics.getAverageGrade()), "📚", INSTITUTIONAL_RED);
+
+        // Total completadas
+        addSummaryCardWithIcon(cardsTable, "Total Completadas",
+                String.valueOf(statistics.getTotalCompleted()), "📊", INSTITUTIONAL_RED);
+
+        document.add(cardsTable);
+    }
+
+    /**
+     * Gráfico de distribución de estados de defensa
+     */
+    private void addDefenseDistributionChart(Document document, DefenseStatisticsDTO statistics)
+            throws DocumentException {
+
+        addSubsectionTitle(document, "📊 Distribución de Estados");
+
+        int scheduled = statistics.getTotalScheduled();
+        int completed = statistics.getTotalCompleted();
+        int pending = statistics.getTotalPending();
+        int total = scheduled;
+
+        if (total == 0) return;
+
+        PdfPTable chartTable = new PdfPTable(1);
+        chartTable.setWidthPercentage(100);
+        chartTable.setSpacingBefore(10);
+        chartTable.setSpacingAfter(20);
+
+        // Programadas
+        addDistributionBar(chartTable, "Programadas", scheduled, total, INSTITUTIONAL_GOLD);
+
+        // Completadas
+        addDistributionBar(chartTable, "Completadas", completed, total, INSTITUTIONAL_GOLD);
+
+        // Pendientes
+        addDistributionBar(chartTable, "Pendientes", pending, total, INSTITUTIONAL_RED);
+
+        document.add(chartTable);
+    }
+
+    /**
+     * Agregar barra de distribución
+     */
+    private void addDistributionBar(PdfPTable table, String label, int count, int total, BaseColor color) {
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.setPadding(3);
+        containerCell.setBorder(Rectangle.NO_BORDER);
+
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{1.5f, 4.5f, 1.5f});
+        } catch (DocumentException e) {
+            // Ignorar
+        }
+
+        // Etiqueta
+        PdfPCell labelCell = new PdfPCell(new Phrase(label,
+                new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, TEXT_BLACK)));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        labelCell.setPadding(3);
+        innerTable.addCell(labelCell);
+
+        // Barra
+        float percentage = total > 0 ? (float) count / total : 0;
+        PdfPCell barCell = createDistributionBarCell(count, percentage, color);
+        innerTable.addCell(barCell);
+
+        // Valor y porcentaje
+        PdfPCell valueCell = new PdfPCell();
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        valueCell.setPadding(3);
+
+        Paragraph valueContent = new Paragraph();
+        valueContent.add(new Chunk(count + " ",
+                new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, color)));
+        valueContent.add(new Chunk("(" + String.format("%.1f%%", percentage * 100) + ")",
+                new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, TEXT_GRAY)));
+        valueContent.setAlignment(Element.ALIGN_CENTER);
+        valueCell.addElement(valueContent);
+        innerTable.addCell(valueCell);
+
+        containerCell.addElement(innerTable);
+        table.addCell(containerCell);
+    }
+
+    /**
+     * Crear celda de barra de distribución
+     */
+    private PdfPCell createDistributionBarCell(int value, float percentage, BaseColor color) {
+        PdfPTable barContainer = new PdfPTable(2);
+        float barWidth = Math.max(percentage * 100, 3);
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            barContainer.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            try {
+                barContainer.setWidths(new float[]{50, 50});
+            } catch (DocumentException ex) {
+                // Ignorar
+            }
+        }
+        barContainer.setWidthPercentage(100);
+
+        // Parte coloreada
+        PdfPCell filledCell = new PdfPCell(new Phrase(String.valueOf(value),
+                new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, WHITE)));
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(5);
+        filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        barContainer.addCell(filledCell);
+
+        // Parte vacía
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        barContainer.addCell(emptyCell);
+
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.addElement(barContainer);
+        containerCell.setBorder(Rectangle.BOX);
+        containerCell.setBorderColor(color);
+        containerCell.setBorderWidth(0.5f);
+        containerCell.setPadding(0);
+
+        return containerCell;
+    }
+
+    /**
+     * Gráfico de distribución de calificaciones
+     */
+    private void addGradeDistributionChart(Document document, DefenseStatisticsDTO statistics)
+            throws DocumentException {
+
+        addSubsectionTitle(document, "📊 Distribución de Calificaciones");
+
+        Double lowest = statistics.getLowestGrade();
+        Double average = statistics.getAverageGrade();
+        Double highest = statistics.getHighestGrade();
+
+        if (lowest == null || highest == null) return;
+
+        double maxValue = 5.0;
+
+        PdfPTable chartTable = new PdfPTable(1);
+        chartTable.setWidthPercentage(100);
+        chartTable.setSpacingBefore(10);
+        chartTable.setSpacingAfter(15);
+
+        // Más baja
+        addGradeBar(chartTable, "Más Baja", lowest, maxValue, INSTITUTIONAL_RED);
+
+        // Promedio
+        addGradeBar(chartTable, "Promedio", average, maxValue, INSTITUTIONAL_GOLD);
+
+        // Más alta
+        addGradeBar(chartTable, "Más Alta", highest, maxValue, INSTITUTIONAL_GOLD);
+
+        document.add(chartTable);
+    }
+
+    /**
+     * Agregar barra de calificación
+     */
+    private void addGradeBar(PdfPTable table, String label, double grade, double maxGrade, BaseColor color) {
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.setPadding(3);
+        containerCell.setBorder(Rectangle.NO_BORDER);
+
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{1.5f, 4.5f, 1f});
+        } catch (DocumentException e) {
+            // Ignorar
+        }
+
+        // Etiqueta
+        PdfPCell labelCell = new PdfPCell(new Phrase(label,
+                new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, TEXT_BLACK)));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        labelCell.setPadding(3);
+        innerTable.addCell(labelCell);
+
+        // Barra
+        float percentage = (float) (grade / maxGrade);
+        PdfPCell barCell = createGradeBarCell(grade, percentage, color);
+        innerTable.addCell(barCell);
+
+        // Valor
+        PdfPCell valueCell = new PdfPCell(new Phrase(String.format("%.2f", grade),
+                new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, color)));
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        valueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        valueCell.setPadding(3);
+        innerTable.addCell(valueCell);
+
+        containerCell.addElement(innerTable);
+        table.addCell(containerCell);
+    }
+
+    /**
+     * Crear celda de barra de calificación
+     */
+    private PdfPCell createGradeBarCell(double grade, float percentage, BaseColor color) {
+        PdfPTable barContainer = new PdfPTable(2);
+        float barWidth = Math.max(percentage * 100, 3);
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            barContainer.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            try {
+                barContainer.setWidths(new float[]{50, 50});
+            } catch (DocumentException ex) {
+                // Ignorar
+            }
+        }
+        barContainer.setWidthPercentage(100);
+
+        // Parte coloreada
+        PdfPCell filledCell = new PdfPCell(new Phrase(String.format("%.2f", grade),
+                new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, WHITE)));
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(5);
+        filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        barContainer.addCell(filledCell);
+
+        // Parte vacía
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        barContainer.addCell(emptyCell);
+
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.addElement(barContainer);
+        containerCell.setBorder(Rectangle.BOX);
+        containerCell.setBorderColor(color);
+        containerCell.setBorderWidth(0.5f);
+        containerCell.setPadding(0);
+
+        return containerCell;
+    }
+
+    /**
+     * Tarjetas de resumen de tendencia mensual
+     */
+    private void addMonthlyTrendCards(Document document, List<MonthlyDefenseAnalysisDTO> monthlyData)
+            throws DocumentException {
+
+        if (monthlyData.isEmpty()) return;
+
+        PdfPTable cardsTable = new PdfPTable(4);
+        cardsTable.setWidthPercentage(100);
+        cardsTable.setSpacingBefore(10);
+        cardsTable.setSpacingAfter(20);
+
+        // Total periodos
+        addSummaryCardWithIcon(cardsTable, "Periodos",
+                String.valueOf(monthlyData.size()), "📅", INSTITUTIONAL_GOLD);
+
+        // Total completadas en periodo
+        int totalCompleted = monthlyData.stream()
+                .mapToInt(MonthlyDefenseAnalysisDTO::getCompleted)
+                .sum();
+        addSummaryCardWithIcon(cardsTable, "Total Completadas",
+                String.valueOf(totalCompleted), "✅", INSTITUTIONAL_GOLD);
+
+        // Promedio tasa de éxito
+        double avgSuccess = monthlyData.stream()
+                .mapToDouble(MonthlyDefenseAnalysisDTO::getSuccessRate)
+                .average()
+                .orElse(0);
+        addSummaryCardWithIcon(cardsTable, "Tasa Éxito Prom.",
+                String.format("%.1f%%", avgSuccess), "🎯", INSTITUTIONAL_RED);
+
+        // Promedio calificación
+        double avgGrade = monthlyData.stream()
+                .mapToDouble(MonthlyDefenseAnalysisDTO::getAverageGrade)
+                .average()
+                .orElse(0);
+        addSummaryCardWithIcon(cardsTable, "Nota Promedio",
+                String.format("%.2f", avgGrade), "📚", INSTITUTIONAL_RED);
+
+        document.add(cardsTable);
+    }
+
+    /**
+     * Gráfico de evolución mensual
+     */
+    private void addMonthlyEvolutionChart(Document document, List<MonthlyDefenseAnalysisDTO> monthlyData)
+            throws DocumentException {
+
+        if (monthlyData.isEmpty()) return;
+
+        addSubsectionTitle(document, "📈 Evolución de Sustentaciones por Mes");
+
+        int maxCompleted = monthlyData.stream()
+                .mapToInt(MonthlyDefenseAnalysisDTO::getCompleted)
+                .max()
+                .orElse(1);
+
+        PdfPTable chartTable = new PdfPTable(1);
+        chartTable.setWidthPercentage(100);
+        chartTable.setSpacingBefore(10);
+        chartTable.setSpacingAfter(20);
+
+        for (MonthlyDefenseAnalysisDTO month : monthlyData) {
+            addMonthEvolutionBar(chartTable, month, maxCompleted);
+        }
+
+        document.add(chartTable);
+    }
+
+    /**
+     * Agregar barra de evolución mensual
+     */
+    private void addMonthEvolutionBar(PdfPTable table, MonthlyDefenseAnalysisDTO month, int maxValue) {
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.setPadding(3);
+        containerCell.setBorder(Rectangle.NO_BORDER);
+
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{1.2f, 4.5f, 1.8f});
+        } catch (DocumentException e) {
+            // Ignorar
+        }
+
+        // Periodo
+        PdfPCell periodCell = new PdfPCell(new Phrase(month.getPeriodLabel(),
+                new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, TEXT_BLACK)));
+        periodCell.setBorder(Rectangle.NO_BORDER);
+        periodCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        periodCell.setPadding(3);
+        innerTable.addCell(periodCell);
+
+        // Barra
+        float percentage = maxValue > 0 ? (float) month.getCompleted() / maxValue : 0;
+        BaseColor barColor = month.getSuccessRate() >= 70 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+        PdfPCell barCell = createDistributionBarCell(month.getCompleted(), percentage, barColor);
+        innerTable.addCell(barCell);
+
+        // Info
+        PdfPCell infoCell = new PdfPCell();
+        infoCell.setBorder(Rectangle.NO_BORDER);
+        infoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        infoCell.setPadding(3);
+
+        Paragraph infoContent = new Paragraph();
+        infoContent.add(new Chunk(month.getCompleted() + " completadas",
+                new Font(Font.FontFamily.HELVETICA, 7, Font.BOLD, barColor)));
+        infoContent.add(new Chunk(" | " + String.format("%.1f%%", month.getSuccessRate()),
+                new Font(Font.FontFamily.HELVETICA, 7, Font.NORMAL, TEXT_GRAY)));
+        infoCell.addElement(infoContent);
+        innerTable.addCell(infoCell);
+
+        containerCell.addElement(innerTable);
+        table.addCell(containerCell);
+    }
+
+    // ==================== FIN DE NUEVOS MÉTODOS ====================
 
     // Métodos auxiliares
 

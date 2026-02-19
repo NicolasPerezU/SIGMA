@@ -1048,6 +1048,7 @@ public class StudentNotificationListener {
                 .recipient(invitee)
                 .triggeredBy(inviter)
                 .studentModality(modality)
+                .invitationId(event.getInvitationId())
                 .subject(subject)
                 .message(message)
                 .createdAt(LocalDateTime.now())

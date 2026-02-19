@@ -53,6 +53,7 @@ public class NotificationService {
                                     ? n.getStudentModality().getId()
                                     : null
                     );
+                    map.put("invitationId", n.getInvitationId());
                     return map;
                 })
                 .toList();
@@ -74,21 +75,26 @@ public class NotificationService {
     public ResponseEntity<?> getNotificationDetail(Long notificationId) {
 
         User user = getCurrentUser();
-        Notification notification = (Notification) notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
+        Notification notification = notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
                         .orElseThrow(() ->
                                 new RuntimeException("Notificación no encontrada")
                         );
 
-        Map<String, Object> response = Map.of(
-                "id", notification.getId(),
-                "type", notification.getType(),
-                "subject", notification.getSubject(),
-                "message", notification.getMessage(),
-                "createdAt", notification.getCreatedAt(),
-                "read", notification.isRead(),
-                "studentModalityId",
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", notification.getId());
+        response.put("type", notification.getType());
+        response.put("subject", notification.getSubject());
+        response.put("message", notification.getMessage());
+        response.put("createdAt", notification.getCreatedAt());
+        response.put("read", notification.isRead());
+        response.put("studentModalityId",
                 notification.getStudentModality() != null
                         ? notification.getStudentModality().getId()
+                        : null
+        );
+        response.put("invitationId",
+                notification.getInvitationId() != null
+                        ? notification.getInvitationId()
                         : null
         );
 
@@ -99,7 +105,7 @@ public class NotificationService {
 
         User user = getCurrentUser();
 
-        Notification notification = (Notification) notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
+        Notification notification = notificationRepository.findByIdAndRecipient_Id(notificationId, user.getId())
                         .orElseThrow(() ->
                                 new RuntimeException("Notificación no encontrada")
                         );

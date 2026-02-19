@@ -254,6 +254,9 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         document.add(summaryTable);
 
+        // NUEVO: Gráfico visual de distribución de directores - Top 5
+        addTop5DirectorsChart(document, report);
+
         // Director con más modalidades
         if (summary.getDirectorWithMostModalities() != null) {
             PdfPTable mostTable = new PdfPTable(1);
@@ -267,7 +270,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
             mostCell.setBorderWidth(2f);
 
             Paragraph mostText = new Paragraph();
-            mostText.add(new Chunk("📊 DIRECTOR CON MÁS MODALIDADES: ",
+            mostText.add(new Chunk("🏆 DIRECTOR CON MÁS MODALIDADES: ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_RED)));
             mostText.add(new Chunk(summary.getDirectorWithMostModalities() + " ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, TEXT_BLACK)));
@@ -279,7 +282,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
             document.add(mostTable);
         }
 
-        // Promedio de modalidades por director
+        // Promedio de modalidades por director con indicador visual
         PdfPTable avgTable = new PdfPTable(1);
         avgTable.setWidthPercentage(100);
         avgTable.setSpacingAfter(20);
@@ -291,7 +294,7 @@ public class DirectorAssignedModalitiesPdfGenerator {
         avgCell.setBorderWidth(1.5f);
 
         Paragraph avgText = new Paragraph();
-        avgText.add(new Chunk("📈 PROMEDIO DE MODALIDADES POR DIRECTOR: ",
+        avgText.add(new Chunk("📊 PROMEDIO DE MODALIDADES POR DIRECTOR: ",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INSTITUTIONAL_RED)));
         avgText.add(new Chunk(String.valueOf(summary.getAverageModalitiesPerDirector()),
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, INSTITUTIONAL_RED)));
@@ -299,6 +302,9 @@ public class DirectorAssignedModalitiesPdfGenerator {
         avgTable.addCell(avgCell);
 
         document.add(avgTable);
+
+        // NUEVO: Ratio de eficiencia (estudiantes por director)
+        addEfficiencyRatio(document, summary);
 
         // Directores sobrecargados y disponibles
         PdfPTable statusTable = new PdfPTable(2);
@@ -413,30 +419,17 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         document.add(infoTable);
 
-        // Distribución de carga
-        Paragraph distTitle = new Paragraph("Distribución de Carga de Trabajo:", SUBHEADER_FONT);
-        distTitle.setSpacingBefore(10);
+        // Distribución de carga - Título
+        Paragraph distTitle = new Paragraph("📊 Distribución de Carga de Trabajo:", SUBHEADER_FONT);
+        distTitle.setSpacingBefore(15);
         distTitle.setSpacingAfter(10);
         document.add(distTitle);
 
         Map<String, Integer> distribution = workload.getWorkloadDistribution();
         int total = distribution.values().stream().mapToInt(Integer::intValue).sum();
 
-        PdfPTable distTable = new PdfPTable(3);
-        distTable.setWidthPercentage(100);
-        distTable.setWidths(new int[]{40, 40, 20});
-        distTable.setSpacingAfter(20);
-
-        addWorkloadDistributionRow(distTable, "Baja (< 2 modalidades)",
-                distribution.getOrDefault("LOW", 0), total, INSTITUTIONAL_GOLD);
-        addWorkloadDistributionRow(distTable, "Normal (2-4 modalidades)",
-                distribution.getOrDefault("NORMAL", 0), total, INSTITUTIONAL_GOLD);
-        addWorkloadDistributionRow(distTable, "Alta (5-7 modalidades)",
-                distribution.getOrDefault("HIGH", 0), total, INSTITUTIONAL_RED);
-        addWorkloadDistributionRow(distTable, "Sobrecarga (≥ 8 modalidades)",
-                distribution.getOrDefault("OVERLOADED", 0), total, INSTITUTIONAL_RED);
-
-        document.add(distTable);
+        // NUEVO: Gráfico visual mejorado de distribución
+        addWorkloadDistributionChart(document, distribution, total);
 
         // Directores sobrecargados
         if (workload.getDirectorsOverloaded() != null && !workload.getDirectorsOverloaded().isEmpty()) {
@@ -730,45 +723,149 @@ public class DirectorAssignedModalitiesPdfGenerator {
 
         addSectionTitle(document, "4. ESTADÍSTICAS POR ESTADO Y TIPO");
 
-        // Por estado
-        Paragraph statusTitle = new Paragraph("Distribución por Estado:", SUBHEADER_FONT);
+        // NUEVO: Resumen visual con tarjetas
+        PdfPTable summaryCards = new PdfPTable(3);
+        summaryCards.setWidthPercentage(100);
+        summaryCards.setSpacingAfter(20);
+
+        Map<String, Integer> byStatus = report.getModalitiesByStatus();
+        Map<String, Integer> byType = report.getModalitiesByType();
+
+        int totalStatus = byStatus.values().stream().mapToInt(Integer::intValue).sum();
+        int totalTypes = byType.values().stream().mapToInt(Integer::intValue).sum();
+        int uniqueStatuses = byStatus.size();
+        int uniqueTypes = byType.size();
+
+        addStatsCard(summaryCards, "Total Estados", String.valueOf(uniqueStatuses), INSTITUTIONAL_GOLD);
+        addStatsCard(summaryCards, "Total Tipos", String.valueOf(uniqueTypes), INSTITUTIONAL_RED);
+        addStatsCard(summaryCards, "Modalidades Totales", String.valueOf(totalStatus), INSTITUTIONAL_GOLD);
+
+        document.add(summaryCards);
+
+        // Por estado con gráfico mejorado
+        Paragraph statusTitle = new Paragraph("📌 Distribución por Estado:", SUBHEADER_FONT);
         statusTitle.setSpacingAfter(10);
         document.add(statusTitle);
 
-        Map<String, Integer> byStatus = report.getModalitiesByStatus();
-        int totalByStatus = byStatus.values().stream().mapToInt(Integer::intValue).sum();
-
         // Ordenar por cantidad
-        byStatus.entrySet().stream()
+        List<Map.Entry<String, Integer>> sortedByStatus = byStatus.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .forEach(entry -> {
-                    try {
-                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByStatus, INSTITUTIONAL_GOLD);
-                    } catch (DocumentException e) {
-                        // Ignorar
-                    }
-                });
+                .collect(java.util.stream.Collectors.toList());
+
+        for (Map.Entry<String, Integer> entry : sortedByStatus) {
+            addEnhancedStatisticBar(document, entry.getKey(), entry.getValue(), totalStatus, INSTITUTIONAL_GOLD);
+        }
 
         document.add(Chunk.NEWLINE);
         document.add(Chunk.NEWLINE);
 
-        // Por tipo
-        Paragraph typeTitle = new Paragraph("Distribución por Tipo de Modalidad:", SUBHEADER_FONT);
+        // Por tipo con gráfico mejorado
+        Paragraph typeTitle = new Paragraph("📂 Distribución por Tipo de Modalidad:", SUBHEADER_FONT);
         typeTitle.setSpacingAfter(10);
         document.add(typeTitle);
 
-        Map<String, Integer> byType = report.getModalitiesByType();
-        int totalByType = byType.values().stream().mapToInt(Integer::intValue).sum();
-
-        byType.entrySet().stream()
+        List<Map.Entry<String, Integer>> sortedByType = byType.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .forEach(entry -> {
-                    try {
-                        addStatisticBar(document, entry.getKey(), entry.getValue(), totalByType, INSTITUTIONAL_RED);
-                    } catch (DocumentException e) {
-                        // Ignorar
-                    }
-                });
+                .collect(java.util.stream.Collectors.toList());
+
+        for (Map.Entry<String, Integer> entry : sortedByType) {
+            addEnhancedStatisticBar(document, entry.getKey(), entry.getValue(), totalTypes, INSTITUTIONAL_RED);
+        }
+    }
+
+    /**
+     * Agregar tarjeta de estadística mejorada
+     */
+    private void addStatsCard(PdfPTable table, String label, String value, BaseColor color) {
+        PdfPCell card = new PdfPCell();
+        card.setPadding(15);
+        card.setBorderColor(color);
+        card.setBorderWidth(2f);
+        card.setBackgroundColor(WHITE);
+
+        Paragraph valuePara = new Paragraph(value,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 26, color));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        card.addElement(valuePara);
+
+        Paragraph labelPara = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_GRAY));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingBefore(5);
+        card.addElement(labelPara);
+
+        table.addCell(card);
+    }
+
+    /**
+     * Agregar barra de estadística mejorada con diseño profesional
+     */
+    private void addEnhancedStatisticBar(Document document, String label, int count, int total, BaseColor color)
+            throws DocumentException {
+
+        PdfPTable barTable = new PdfPTable(1);
+        barTable.setWidthPercentage(100);
+        barTable.setSpacingAfter(8);
+
+        // Encabezado con el label
+        PdfPCell headerCell = new PdfPCell();
+        headerCell.setBackgroundColor(color);
+        headerCell.setPadding(6);
+        headerCell.setBorder(Rectangle.NO_BORDER);
+
+        Paragraph headerText = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE));
+        headerCell.addElement(headerText);
+        barTable.addCell(headerCell);
+
+        // Barra de progreso con información
+        PdfPCell barCell = new PdfPCell();
+        barCell.setPadding(0);
+        barCell.setBorder(Rectangle.BOX);
+        barCell.setBorderColor(color);
+        barCell.setBorderWidth(0.5f);
+
+        PdfPTable innerTable = new PdfPTable(2);
+        float percentage = total > 0 ? ((float) count / total * 100) : 0;
+        float barWidth = Math.max(percentage, 5); // Mínimo 5% para visibilidad
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            innerTable.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (Exception e) {
+            try {
+                innerTable.setWidths(new float[]{50, 50});
+            } catch (Exception ex) {
+                // Ignorar
+            }
+        }
+
+        // Parte llena
+        PdfPCell filledCell = new PdfPCell();
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(5);
+
+        Paragraph filledText = new Paragraph(count + " modalidades",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE));
+        filledCell.addElement(filledText);
+        innerTable.addCell(filledCell);
+
+        // Parte vacía con porcentaje
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        emptyCell.setPadding(5);
+
+        Paragraph percentText = new Paragraph(String.format("%.1f%% del total", percentage),
+                FontFactory.getFont(FontFactory.HELVETICA, 8, color));
+        emptyCell.addElement(percentText);
+        innerTable.addCell(emptyCell);
+
+        barCell.addElement(innerTable);
+        barTable.addCell(barCell);
+
+        document.add(barTable);
     }
 
     /**
@@ -933,6 +1030,325 @@ public class DirectorAssignedModalitiesPdfGenerator {
     }
 
     // ==================== MÉTODOS HELPER ====================
+
+    /**
+     * Agregar gráfico de Top 5 directores con más modalidades
+     */
+    private void addTop5DirectorsChart(Document document, DirectorAssignedModalitiesReportDTO report)
+            throws DocumentException {
+
+        if (report.getDirectors() == null || report.getDirectors().isEmpty()) {
+            return;
+        }
+
+        Paragraph chartTitle = new Paragraph("🏆 Top 5 Directores con Más Modalidades", SUBHEADER_FONT);
+        chartTitle.setSpacingBefore(15);
+        chartTitle.setSpacingAfter(10);
+        document.add(chartTitle);
+
+        // Ordenar directores por total de modalidades asignadas
+        List<DirectorAssignedModalitiesReportDTO.DirectorWithModalitiesDTO> topDirectors = report.getDirectors()
+                .stream()
+                .sorted(Comparator.comparingInt(DirectorAssignedModalitiesReportDTO.DirectorWithModalitiesDTO::getTotalAssignedModalities).reversed())
+                .limit(5)
+                .collect(java.util.stream.Collectors.toList());
+
+        // Encontrar el máximo para escalar las barras
+        int maxModalities = topDirectors.stream()
+                .mapToInt(DirectorAssignedModalitiesReportDTO.DirectorWithModalitiesDTO::getTotalAssignedModalities)
+                .max()
+                .orElse(1);
+
+        for (int i = 0; i < topDirectors.size(); i++) {
+            DirectorAssignedModalitiesReportDTO.DirectorWithModalitiesDTO director = topDirectors.get(i);
+
+            PdfPTable directorBar = new PdfPTable(1);
+            directorBar.setWidthPercentage(100);
+            directorBar.setSpacingAfter(8);
+
+            // Encabezado con posición y nombre
+            PdfPCell headerCell = new PdfPCell();
+            headerCell.setBackgroundColor(i == 0 ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD);
+            headerCell.setPadding(6);
+            headerCell.setBorder(Rectangle.NO_BORDER);
+
+            String position = (i + 1) + "º";
+            Paragraph headerText = new Paragraph(position + " - " + director.getFullName(),
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE));
+            headerCell.addElement(headerText);
+            directorBar.addCell(headerCell);
+
+            // Barra de progreso
+            PdfPCell barCell = new PdfPCell();
+            barCell.setPadding(0);
+            barCell.setBorder(Rectangle.BOX);
+            barCell.setBorderColor(INSTITUTIONAL_GOLD);
+            barCell.setBorderWidth(0.5f);
+
+            PdfPTable innerBar = new PdfPTable(2);
+            float percentage = (float) director.getTotalAssignedModalities() / maxModalities * 100;
+            float barWidth = Math.max(percentage, 5); // Mínimo 5% para visibilidad
+            float emptyWidth = 100 - barWidth;
+
+            try {
+                innerBar.setWidths(new float[]{barWidth, emptyWidth});
+            } catch (Exception e) {
+                try {
+                    innerBar.setWidths(new float[]{50, 50});
+                } catch (Exception ex) {
+                    // Ignorar
+                }
+            }
+
+            // Parte llena de la barra
+            PdfPCell filledCell = new PdfPCell();
+            filledCell.setBackgroundColor(i == 0 ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD);
+            filledCell.setBorder(Rectangle.NO_BORDER);
+            filledCell.setPadding(5);
+
+            Paragraph barText = new Paragraph(director.getTotalAssignedModalities() + " modalidades (" +
+                    director.getActiveModalities() + " activas)",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE));
+            filledCell.addElement(barText);
+            innerBar.addCell(filledCell);
+
+            // Parte vacía
+            PdfPCell emptyCell = new PdfPCell();
+            emptyCell.setBackgroundColor(LIGHT_GOLD);
+            emptyCell.setBorder(Rectangle.NO_BORDER);
+            innerBar.addCell(emptyCell);
+
+            barCell.addElement(innerBar);
+            directorBar.addCell(barCell);
+
+            document.add(directorBar);
+        }
+
+        document.add(Chunk.NEWLINE);
+    }
+
+    /**
+     * Agregar indicador de ratio de eficiencia
+     */
+    private void addEfficiencyRatio(Document document, DirectorAssignedModalitiesReportDTO.DirectorSummaryDTO summary)
+            throws DocumentException {
+
+        PdfPTable ratioTable = new PdfPTable(2);
+        ratioTable.setWidthPercentage(100);
+        ratioTable.setSpacingBefore(10);
+        ratioTable.setSpacingAfter(20);
+
+        // Ratio estudiantes por director
+        double studentsPerDirector = summary.getTotalDirectors() > 0 ?
+                (double) summary.getTotalStudentsSupervised() / summary.getTotalDirectors() : 0;
+
+        PdfPCell ratioCell1 = new PdfPCell();
+        ratioCell1.setPadding(15);
+        ratioCell1.setBorderColor(INSTITUTIONAL_GOLD);
+        ratioCell1.setBorderWidth(2f);
+        ratioCell1.setBackgroundColor(WHITE);
+
+        Paragraph ratioLabel1 = new Paragraph("👥 Estudiantes por Director",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_GRAY));
+        ratioLabel1.setAlignment(Element.ALIGN_CENTER);
+        ratioCell1.addElement(ratioLabel1);
+
+        Paragraph ratioValue1 = new Paragraph(String.format("%.1f", studentsPerDirector),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24, INSTITUTIONAL_GOLD));
+        ratioValue1.setAlignment(Element.ALIGN_CENTER);
+        ratioValue1.setSpacingBefore(5);
+        ratioCell1.addElement(ratioValue1);
+
+        ratioTable.addCell(ratioCell1);
+
+        // Ratio modalidades por estudiante
+        double modalitiesPerStudent = summary.getTotalStudentsSupervised() > 0 ?
+                (double) summary.getTotalModalitiesAssigned() / summary.getTotalStudentsSupervised() : 0;
+
+        PdfPCell ratioCell2 = new PdfPCell();
+        ratioCell2.setPadding(15);
+        ratioCell2.setBorderColor(INSTITUTIONAL_RED);
+        ratioCell2.setBorderWidth(2f);
+        ratioCell2.setBackgroundColor(WHITE);
+
+        Paragraph ratioLabel2 = new Paragraph("📑 Modalidades por Estudiante",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_GRAY));
+        ratioLabel2.setAlignment(Element.ALIGN_CENTER);
+        ratioCell2.addElement(ratioLabel2);
+
+        Paragraph ratioValue2 = new Paragraph(String.format("%.2f", modalitiesPerStudent),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24, INSTITUTIONAL_RED));
+        ratioValue2.setAlignment(Element.ALIGN_CENTER);
+        ratioValue2.setSpacingBefore(5);
+        ratioCell2.addElement(ratioValue2);
+
+        ratioTable.addCell(ratioCell2);
+
+        document.add(ratioTable);
+    }
+
+    /**
+     * Agregar gráfico visual de distribución de carga de trabajo
+     */
+    private void addWorkloadDistributionChart(Document document, Map<String, Integer> distribution, int total)
+            throws DocumentException {
+
+        // Datos de carga
+        int lowCount = distribution.getOrDefault("LOW", 0);
+        int normalCount = distribution.getOrDefault("NORMAL", 0);
+        int highCount = distribution.getOrDefault("HIGH", 0);
+        int overloadedCount = distribution.getOrDefault("OVERLOADED", 0);
+
+        // Tabla de 4 columnas para mostrar cada categoría
+        PdfPTable chartTable = new PdfPTable(4);
+        chartTable.setWidthPercentage(100);
+        chartTable.setSpacingAfter(20);
+
+        // Baja
+        addWorkloadCategoryBox(chartTable, "BAJA", lowCount, total,
+                "< 2 modalidades", INSTITUTIONAL_GOLD);
+
+        // Normal
+        addWorkloadCategoryBox(chartTable, "NORMAL", normalCount, total,
+                "2-4 modalidades", INSTITUTIONAL_GOLD);
+
+        // Alta
+        addWorkloadCategoryBox(chartTable, "ALTA", highCount, total,
+                "5-7 modalidades", INSTITUTIONAL_RED);
+
+        // Sobrecarga
+        addWorkloadCategoryBox(chartTable, "SOBRECARGA", overloadedCount, total,
+                "≥ 8 modalidades", INSTITUTIONAL_RED);
+
+        document.add(chartTable);
+
+        // Gráfico de barras horizontales detallado
+        PdfPTable barsTable = new PdfPTable(1);
+        barsTable.setWidthPercentage(100);
+        barsTable.setSpacingAfter(15);
+
+        addWorkloadBarRow(barsTable, "Carga Baja", lowCount, total, INSTITUTIONAL_GOLD);
+        addWorkloadBarRow(barsTable, "Carga Normal", normalCount, total, INSTITUTIONAL_GOLD);
+        addWorkloadBarRow(barsTable, "Carga Alta", highCount, total, INSTITUTIONAL_RED);
+        addWorkloadBarRow(barsTable, "Sobrecarga", overloadedCount, total, INSTITUTIONAL_RED);
+
+        document.add(barsTable);
+    }
+
+    /**
+     * Agregar caja de categoría de carga de trabajo
+     */
+    private void addWorkloadCategoryBox(PdfPTable table, String label, int count, int total,
+                                        String description, BaseColor color) {
+        PdfPCell box = new PdfPCell();
+        box.setPadding(12);
+        box.setBorderColor(color);
+        box.setBorderWidth(2f);
+        box.setBackgroundColor(WHITE);
+
+        // Etiqueta
+        Paragraph labelPara = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, color));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        box.addElement(labelPara);
+
+        // Cantidad grande
+        Paragraph countPara = new Paragraph(String.valueOf(count),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 32, color));
+        countPara.setAlignment(Element.ALIGN_CENTER);
+        countPara.setSpacingBefore(5);
+        countPara.setSpacingAfter(5);
+        box.addElement(countPara);
+
+        // Porcentaje
+        double percentage = total > 0 ? ((double) count / total * 100) : 0;
+        Paragraph percentPara = new Paragraph(String.format("%.1f%%", percentage),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, color));
+        percentPara.setAlignment(Element.ALIGN_CENTER);
+        box.addElement(percentPara);
+
+        // Descripción
+        Paragraph descPara = new Paragraph(description,
+                FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_GRAY));
+        descPara.setAlignment(Element.ALIGN_CENTER);
+        descPara.setSpacingBefore(3);
+        box.addElement(descPara);
+
+        table.addCell(box);
+    }
+
+    /**
+     * Agregar fila de barra horizontal de carga
+     */
+    private void addWorkloadBarRow(PdfPTable table, String label, int count, int total, BaseColor color) {
+        PdfPCell barContainer = new PdfPCell();
+        barContainer.setPadding(8);
+        barContainer.setBorder(Rectangle.BOX);
+        barContainer.setBorderColor(INSTITUTIONAL_GOLD);
+        barContainer.setBorderWidth(0.5f);
+
+        // Tabla interna: label + barra + valor
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{25, 60, 15});
+        } catch (Exception e) {
+            // Ignorar
+        }
+
+        // Label
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, SMALL_FONT));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        labelCell.setPadding(3);
+        innerTable.addCell(labelCell);
+
+        // Barra de progreso
+        PdfPCell barCell = new PdfPCell();
+        barCell.setBorder(Rectangle.NO_BORDER);
+        barCell.setPadding(3);
+
+        PdfPTable barTable = new PdfPTable(2);
+        float percentage = total > 0 ? ((float) count / total * 100) : 0;
+        float barWidth = Math.max(percentage, 1);
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            barTable.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (Exception e) {
+            try {
+                barTable.setWidths(new float[]{50, 50});
+            } catch (Exception ex) {
+                // Ignorar
+            }
+        }
+
+        PdfPCell filledCell = new PdfPCell();
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(4);
+        barTable.addCell(filledCell);
+
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        emptyCell.setPadding(4);
+        barTable.addCell(emptyCell);
+
+        barCell.addElement(barTable);
+        innerTable.addCell(barCell);
+
+        // Valor
+        PdfPCell valueCell = new PdfPCell(new Phrase(count + " (" + String.format("%.0f", percentage) + "%)",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, color)));
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        valueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        valueCell.setPadding(3);
+        innerTable.addCell(valueCell);
+
+        barContainer.addElement(innerTable);
+        table.addCell(barContainer);
+    }
 
     private void addSectionTitle(Document document, String title) throws DocumentException {
         Paragraph titlePara = new Paragraph(title, HEADER_FONT);

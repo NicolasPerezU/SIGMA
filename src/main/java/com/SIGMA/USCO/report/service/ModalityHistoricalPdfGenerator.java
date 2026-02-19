@@ -332,8 +332,11 @@ public class ModalityHistoricalPdfGenerator {
         List<ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO> periods =
             report.getHistoricalAnalysis();
 
-        // Gráfico visual de evolución
-        addEvolutionChart(document, periods);
+        // NUEVO: Resumen estadístico visual antes del gráfico
+        addHistoricalSummaryCards(document, periods);
+
+        // NUEVO: Gráfico visual de evolución mejorado
+        addEnhancedEvolutionChart(document, periods);
 
         // Tabla detallada por periodo
         document.add(new Paragraph("\n"));
@@ -516,19 +519,24 @@ public class ModalityHistoricalPdfGenerator {
 
         ModalityHistoricalReportDTO.TrendsEvolutionDTO trends = report.getTrendsEvolution();
 
-        // Tendencia general
+        // NUEVO: Tarjetas de resumen de tendencias
+        addTrendsSummaryCards(document, trends);
+
+        // Tendencia general mejorada
         PdfPTable trendTable = new PdfPTable(1);
         trendTable.setWidthPercentage(100);
         trendTable.setSpacingBefore(10);
         trendTable.setSpacingAfter(20);
 
         PdfPCell trendCell = new PdfPCell();
-        trendCell.setBackgroundColor(getTrendColor(trends.getOverallTrend()));
+        BaseColor trendBgColor = getTrendColor(trends.getOverallTrend());
+        trendCell.setBackgroundColor(trendBgColor);
         trendCell.setPadding(15);
         trendCell.setBorder(Rectangle.NO_BORDER);
 
+        String trendIcon = getTrendIcon(trends.getOverallTrend());
         Paragraph trendText = new Paragraph();
-        trendText.add(new Chunk("TENDENCIA GENERAL: ",
+        trendText.add(new Chunk(trendIcon + " TENDENCIA GENERAL: ",
             FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, WHITE)));
         trendText.add(new Chunk(translateTrend(trends.getOverallTrend()),
             FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, WHITE)));
@@ -538,82 +546,11 @@ public class ModalityHistoricalPdfGenerator {
         trendTable.addCell(trendCell);
         document.add(trendTable);
 
-        // Estadísticas de tendencia
-        if (trends.getGrowthRate() != null) {
-            addHighlightBox(document,
-                "Tasa de Crecimiento",
-                String.format("%.1f%%", trends.getGrowthRate()),
-                trends.getGrowthRate() >= 0 ? LIGHT_GOLD : new BaseColor(255, 230, 230));
-        }
-
-        // Picos y valles
+        // Picos y valles mejorados
         document.add(new Paragraph("\n"));
-        addSubsectionTitle(document, "Picos y Valles Históricos");
+        addSubsectionTitle(document, "📊 Picos y Valles Históricos");
 
-        PdfPTable peaksTable = new PdfPTable(2);
-        peaksTable.setWidthPercentage(90);
-        peaksTable.setWidths(new float[]{1f, 1f});
-        peaksTable.setSpacingBefore(10);
-        peaksTable.setSpacingAfter(15);
-        peaksTable.setHorizontalAlignment(Element.ALIGN_CENTER);
-
-        // Pico
-        if (trends.getPeakYear() != null && trends.getPeakSemester() != null) {
-            PdfPCell peakCell = new PdfPCell();
-            peakCell.setBackgroundColor(INSTITUTIONAL_GOLD);  // Pico: dorado (positivo)
-            peakCell.setPadding(10);
-            peakCell.setBorder(Rectangle.NO_BORDER);
-
-            Paragraph peakContent = new Paragraph();
-            peakContent.add(new Chunk("PICO MÁXIMO\n",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
-            peakContent.add(new Chunk(trends.getPeakYear() + "-" + trends.getPeakSemester() + "\n",
-                FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
-            peakContent.add(new Chunk(trends.getPeakInstances() + " instancias",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
-            peakContent.setAlignment(Element.ALIGN_CENTER);
-
-            peakCell.addElement(peakContent);
-            peaksTable.addCell(peakCell);
-        }
-
-        // Valle
-        if (trends.getLowestYear() != null && trends.getLowestSemester() != null) {
-            PdfPCell valleyCell = new PdfPCell();
-            valleyCell.setBackgroundColor(INSTITUTIONAL_RED);  // Valle: rojo (alerta)
-            valleyCell.setPadding(10);
-            valleyCell.setBorder(Rectangle.NO_BORDER);
-
-            Paragraph valleyContent = new Paragraph();
-            valleyContent.add(new Chunk("VALLE MÍNIMO\n",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
-            valleyContent.add(new Chunk(trends.getLowestYear() + "-" + trends.getLowestSemester() + "\n",
-                FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
-            valleyContent.add(new Chunk(trends.getLowestInstances() + " instancias",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
-            valleyContent.setAlignment(Element.ALIGN_CENTER);
-
-            valleyCell.addElement(valleyContent);
-            peaksTable.addCell(valleyCell);
-        }
-
-        document.add(peaksTable);
-
-        // Patrones identificados
-        if (trends.getIdentifiedPatterns() != null && !trends.getIdentifiedPatterns().isEmpty()) {
-            document.add(new Paragraph("\n"));
-            addSubsectionTitle(document, "Patrones Identificados");
-
-            com.itextpdf.text.List patternList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
-            patternList.setIndentationLeft(20);
-
-            for (String pattern : trends.getIdentifiedPatterns()) {
-                ListItem item = new ListItem(pattern, NORMAL_FONT);
-                patternList.add(item);
-            }
-
-            document.add(patternList);
-        }
+        addEnhancedPeaksAndValleys(document, trends);
     }
 
     /**
@@ -1425,6 +1362,451 @@ public class ModalityHistoricalPdfGenerator {
         valueCell.setBorder(Rectangle.NO_BORDER);
         table.addCell(valueCell);
     }
+
+    // ==================== NUEVOS MÉTODOS PARA VISUALIZACIONES MEJORADAS ====================
+
+    /**
+     * Agregar tarjetas de resumen estadístico histórico
+     */
+    private void addHistoricalSummaryCards(Document document,
+                                           List<ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO> periods)
+            throws DocumentException {
+
+        // Calcular estadísticas agregadas
+        int totalPeriods = periods.size();
+        int totalInstances = periods.stream().mapToInt(ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO::getTotalInstances).sum();
+        int totalStudents = periods.stream().mapToInt(ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO::getStudentsEnrolled).sum();
+        double avgInstancesPerPeriod = totalPeriods > 0 ? (double) totalInstances / totalPeriods : 0;
+
+        // Tabla de 4 tarjetas
+        PdfPTable cardsTable = new PdfPTable(4);
+        cardsTable.setWidthPercentage(100);
+        cardsTable.setSpacingBefore(10);
+        cardsTable.setSpacingAfter(20);
+
+        addSummaryCard(cardsTable, "Periodos Analizados", String.valueOf(totalPeriods), "📅", INSTITUTIONAL_GOLD);
+        addSummaryCard(cardsTable, "Total Instancias", String.valueOf(totalInstances), "📊", INSTITUTIONAL_RED);
+        addSummaryCard(cardsTable, "Total Estudiantes", String.valueOf(totalStudents), "👥", INSTITUTIONAL_GOLD);
+        addSummaryCard(cardsTable, "Promedio/Periodo", String.format("%.1f", avgInstancesPerPeriod), "📈", INSTITUTIONAL_RED);
+
+        document.add(cardsTable);
+    }
+
+    /**
+     * Agregar tarjeta individual de resumen
+     */
+    private void addSummaryCard(PdfPTable table, String label, String value, String icon, BaseColor color) {
+        PdfPCell card = new PdfPCell();
+        card.setPadding(12);
+        card.setBorderColor(color);
+        card.setBorderWidth(2f);
+        card.setBackgroundColor(WHITE);
+
+        // Icono
+        Paragraph iconPara = new Paragraph(icon,
+                FontFactory.getFont(FontFactory.HELVETICA, 20, color));
+        iconPara.setAlignment(Element.ALIGN_CENTER);
+        card.addElement(iconPara);
+
+        // Valor grande
+        Paragraph valuePara = new Paragraph(value,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, color));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        valuePara.setSpacingBefore(3);
+        card.addElement(valuePara);
+
+        // Etiqueta
+        Paragraph labelPara = new Paragraph(label,
+                FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_GRAY));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingBefore(3);
+        card.addElement(labelPara);
+
+        table.addCell(card);
+    }
+
+    /**
+     * Gráfico de evolución mejorado con línea de tendencia visual
+     */
+    private void addEnhancedEvolutionChart(Document document,
+                                           List<ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO> periods)
+            throws DocumentException {
+
+        addSubsectionTitle(document, "📈 Evolución Temporal de Instancias");
+
+        // Encontrar valores máximo y mínimo para escalar
+        int maxValue = periods.stream()
+                .mapToInt(ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO::getTotalInstances)
+                .max()
+                .orElse(1);
+
+        int minValue = periods.stream()
+                .mapToInt(ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO::getTotalInstances)
+                .min()
+                .orElse(0);
+
+        // Calcular promedio para línea de referencia
+        double avgValue = periods.stream()
+                .mapToInt(ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO::getTotalInstances)
+                .average()
+                .orElse(0);
+
+        // Información de referencia
+        PdfPTable legendTable = new PdfPTable(3);
+        legendTable.setWidthPercentage(90);
+        legendTable.setSpacingBefore(10);
+        legendTable.setSpacingAfter(5);
+        legendTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+        addLegendItem(legendTable, "📊 Máximo:", String.valueOf(maxValue), INSTITUTIONAL_GOLD);
+        addLegendItem(legendTable, "📉 Mínimo:", String.valueOf(minValue), INSTITUTIONAL_RED);
+        addLegendItem(legendTable, "📈 Promedio:", String.format("%.1f", avgValue), INSTITUTIONAL_GOLD);
+
+        document.add(legendTable);
+
+        // Crear gráfico mejorado con barras y etiquetas
+        PdfPTable chartTable = new PdfPTable(1);
+        chartTable.setWidthPercentage(100);
+        chartTable.setSpacingBefore(10);
+        chartTable.setSpacingAfter(15);
+
+        for (ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO period : periods) {
+            addEnhancedPeriodBar(chartTable, period, maxValue, avgValue);
+        }
+
+        document.add(chartTable);
+
+        // Agregar línea de tendencia textual
+        addTrendIndicator(document, periods);
+    }
+
+    /**
+     * Agregar ítem de leyenda
+     */
+    private void addLegendItem(PdfPTable table, String label, String value, BaseColor color) {
+        PdfPCell cell = new PdfPCell();
+        cell.setPadding(5);
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setBackgroundColor(LIGHT_GOLD);
+
+        Paragraph content = new Paragraph();
+        content.add(new Chunk(label + " ",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, TEXT_BLACK)));
+        content.add(new Chunk(value,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, color)));
+        content.setAlignment(Element.ALIGN_CENTER);
+
+        cell.addElement(content);
+        table.addCell(cell);
+    }
+
+    /**
+     * Agregar barra de periodo mejorada con comparación al promedio
+     */
+    private void addEnhancedPeriodBar(PdfPTable table,
+                                     ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO period,
+                                     int maxValue,
+                                     double avgValue) {
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.setPadding(4);
+        containerCell.setBorder(Rectangle.NO_BORDER);
+
+        // Tabla interna: label + barra + valor
+        PdfPTable innerTable = new PdfPTable(3);
+        try {
+            innerTable.setWidths(new float[]{1.2f, 4f, 1f});
+        } catch (DocumentException e) {
+            // Ignorar
+        }
+
+        // Etiqueta del periodo
+        PdfPCell labelCell = new PdfPCell(new Phrase(period.getPeriodLabel(),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, TEXT_BLACK)));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        labelCell.setPadding(3);
+        innerTable.addCell(labelCell);
+
+        // Barra de progreso con color según relación con promedio
+        float percentage = maxValue > 0 ? (float) period.getTotalInstances() / maxValue : 0;
+        BaseColor barColor = period.getTotalInstances() >= avgValue ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+
+        PdfPCell barCell = createEnhancedBarCell(period.getTotalInstances(), percentage, barColor);
+        innerTable.addCell(barCell);
+
+        // Valor y comparación con promedio
+        PdfPCell valueCell = new PdfPCell();
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        valueCell.setPadding(3);
+
+        Paragraph valueContent = new Paragraph();
+        valueContent.add(new Chunk(String.valueOf(period.getTotalInstances()),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, barColor)));
+
+        // Indicador visual de comparación con promedio
+        String indicator = period.getTotalInstances() > avgValue ? " ▲" :
+                          period.getTotalInstances() < avgValue ? " ▼" : " ●";
+        valueContent.add(new Chunk(indicator,
+                FontFactory.getFont(FontFactory.HELVETICA, 8, barColor)));
+
+        valueCell.addElement(valueContent);
+        innerTable.addCell(valueCell);
+
+        containerCell.addElement(innerTable);
+        table.addCell(containerCell);
+    }
+
+    /**
+     * Crear celda de barra mejorada con gradiente visual
+     */
+    private PdfPCell createEnhancedBarCell(int value, float percentage, BaseColor color) {
+        PdfPTable barContainer = new PdfPTable(2);
+        float barWidth = Math.max(percentage * 100, 5); // Mínimo 5% para visibilidad
+        float emptyWidth = 100 - barWidth;
+
+        try {
+            barContainer.setWidths(new float[]{barWidth, emptyWidth});
+        } catch (DocumentException e) {
+            try {
+                barContainer.setWidths(new float[]{50, 50});
+            } catch (DocumentException ex) {
+                // Ignorar
+            }
+        }
+        barContainer.setWidthPercentage(100);
+
+        // Parte coloreada con valor
+        PdfPCell filledCell = new PdfPCell(new Phrase(String.valueOf(value),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, WHITE)));
+        filledCell.setBackgroundColor(color);
+        filledCell.setBorder(Rectangle.NO_BORDER);
+        filledCell.setPadding(4);
+        filledCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        filledCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        barContainer.addCell(filledCell);
+
+        // Parte vacía
+        PdfPCell emptyCell = new PdfPCell();
+        emptyCell.setBackgroundColor(LIGHT_GOLD);
+        emptyCell.setBorder(Rectangle.NO_BORDER);
+        barContainer.addCell(emptyCell);
+
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.addElement(barContainer);
+        containerCell.setBorder(Rectangle.BOX);
+        containerCell.setBorderColor(color);
+        containerCell.setBorderWidth(0.5f);
+        containerCell.setPadding(0);
+
+        return containerCell;
+    }
+
+    /**
+     * Agregar indicador de tendencia general
+     */
+    private void addTrendIndicator(Document document,
+                                   List<ModalityHistoricalReportDTO.AcademicPeriodAnalysisDTO> periods)
+            throws DocumentException {
+
+        if (periods.size() < 2) return;
+
+        // Comparar primer y último periodo
+        int firstValue = periods.get(0).getTotalInstances();
+        int lastValue = periods.get(periods.size() - 1).getTotalInstances();
+        double change = firstValue > 0 ? ((double)(lastValue - firstValue) / firstValue * 100) : 0;
+
+        PdfPTable trendTable = new PdfPTable(1);
+        trendTable.setWidthPercentage(90);
+        trendTable.setSpacingBefore(10);
+        trendTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+        PdfPCell trendCell = new PdfPCell();
+        BaseColor trendColor = change > 0 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+        trendCell.setBackgroundColor(trendColor);
+        trendCell.setPadding(8);
+        trendCell.setBorder(Rectangle.NO_BORDER);
+
+        String trendIcon = change > 5 ? "📈" : change < -5 ? "📉" : "➡";
+        String trendText = change > 0 ? "TENDENCIA CRECIENTE" : change < 0 ? "TENDENCIA DECRECIENTE" : "TENDENCIA ESTABLE";
+
+        Paragraph trendPara = new Paragraph();
+        trendPara.add(new Chunk(trendIcon + " " + trendText + ": ",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
+        trendPara.add(new Chunk(String.format("%+.1f%%", change),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, WHITE)));
+        trendPara.add(new Chunk(" (de " + firstValue + " a " + lastValue + " instancias)",
+                FontFactory.getFont(FontFactory.HELVETICA, 9, WHITE)));
+        trendPara.setAlignment(Element.ALIGN_CENTER);
+
+        trendCell.addElement(trendPara);
+        trendTable.addCell(trendCell);
+
+        document.add(trendTable);
+    }
+
+    /**
+     * Agregar tarjetas de resumen de tendencias
+     */
+    private void addTrendsSummaryCards(Document document, ModalityHistoricalReportDTO.TrendsEvolutionDTO trends)
+            throws DocumentException {
+
+        PdfPTable cardsTable = new PdfPTable(3);
+        cardsTable.setWidthPercentage(100);
+        cardsTable.setSpacingBefore(10);
+        cardsTable.setSpacingAfter(15);
+
+        // Tasa de crecimiento
+        if (trends.getGrowthRate() != null) {
+            BaseColor growthColor = trends.getGrowthRate() >= 0 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+            addSummaryCard(cardsTable, "Tasa de Crecimiento",
+                    String.format("%+.1f%%", trends.getGrowthRate()), "📈", growthColor);
+        } else {
+            addSummaryCard(cardsTable, "Tasa de Crecimiento", "N/D", "📈", INSTITUTIONAL_GOLD);
+        }
+
+        // Pico máximo
+        if (trends.getPeakInstances() != null) {
+            addSummaryCard(cardsTable, "Pico Máximo",
+                    String.valueOf(trends.getPeakInstances()), "🔝", INSTITUTIONAL_GOLD);
+        } else {
+            addSummaryCard(cardsTable, "Pico Máximo", "N/D", "🔝", INSTITUTIONAL_GOLD);
+        }
+
+        // Valle mínimo
+        if (trends.getLowestInstances() != null) {
+            addSummaryCard(cardsTable, "Valle Mínimo",
+                    String.valueOf(trends.getLowestInstances()), "📉", INSTITUTIONAL_RED);
+        } else {
+            addSummaryCard(cardsTable, "Valle Mínimo", "N/D", "📉", INSTITUTIONAL_RED);
+        }
+
+        document.add(cardsTable);
+    }
+
+    /**
+     * Agregar visualización mejorada de picos y valles
+     */
+    private void addEnhancedPeaksAndValleys(Document document, ModalityHistoricalReportDTO.TrendsEvolutionDTO trends)
+            throws DocumentException {
+
+        PdfPTable peaksTable = new PdfPTable(2);
+        peaksTable.setWidthPercentage(100);
+        peaksTable.setWidths(new float[]{1f, 1f});
+        peaksTable.setSpacingBefore(10);
+        peaksTable.setSpacingAfter(15);
+
+        // Pico mejorado
+        if (trends.getPeakYear() != null && trends.getPeakSemester() != null) {
+            PdfPCell peakCell = new PdfPCell();
+            peakCell.setBackgroundColor(INSTITUTIONAL_GOLD);
+            peakCell.setPadding(15);
+            peakCell.setBorder(Rectangle.NO_BORDER);
+
+            Paragraph peakContent = new Paragraph();
+            peakContent.add(new Chunk("🏆 PICO MÁXIMO\n",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
+            peakContent.add(new Chunk("\n", FontFactory.getFont(FontFactory.HELVETICA, 8, WHITE)));
+            peakContent.add(new Chunk(trends.getPeakYear() + "-" + trends.getPeakSemester() + "\n",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, WHITE)));
+            peakContent.add(new Chunk(trends.getPeakInstances() + " instancias",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, WHITE)));
+            peakContent.setAlignment(Element.ALIGN_CENTER);
+
+            peakCell.addElement(peakContent);
+            peaksTable.addCell(peakCell);
+        }
+
+        // Valle mejorado
+        if (trends.getLowestYear() != null && trends.getLowestSemester() != null) {
+            PdfPCell valleyCell = new PdfPCell();
+            valleyCell.setBackgroundColor(INSTITUTIONAL_RED);
+            valleyCell.setPadding(15);
+            valleyCell.setBorder(Rectangle.NO_BORDER);
+
+            Paragraph valleyContent = new Paragraph();
+            valleyContent.add(new Chunk("⚠ VALLE MÍNIMO\n",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
+            valleyContent.add(new Chunk("\n", FontFactory.getFont(FontFactory.HELVETICA, 8, WHITE)));
+            valleyContent.add(new Chunk(trends.getLowestYear() + "-" + trends.getLowestSemester() + "\n",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, WHITE)));
+            valleyContent.add(new Chunk(trends.getLowestInstances() + " instancias",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, WHITE)));
+            valleyContent.setAlignment(Element.ALIGN_CENTER);
+
+            valleyCell.addElement(valleyContent);
+            peaksTable.addCell(valleyCell);
+        }
+
+        document.add(peaksTable);
+
+        // Diferencia entre pico y valle
+        if (trends.getPeakInstances() != null && trends.getLowestInstances() != null) {
+            int difference = trends.getPeakInstances() - trends.getLowestInstances();
+            double percentageDiff = trends.getLowestInstances() > 0 ?
+                    ((double) difference / trends.getLowestInstances() * 100) : 0;
+
+            PdfPTable diffTable = new PdfPTable(1);
+            diffTable.setWidthPercentage(90);
+            diffTable.setSpacingBefore(10);
+            diffTable.setSpacingAfter(15);
+            diffTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+            PdfPCell diffCell = new PdfPCell();
+            diffCell.setBackgroundColor(LIGHT_GOLD);
+            diffCell.setPadding(10);
+            diffCell.setBorder(Rectangle.BOX);
+            diffCell.setBorderColor(INSTITUTIONAL_GOLD);
+            diffCell.setBorderWidth(2f);
+
+            Paragraph diffText = new Paragraph();
+            diffText.add(new Chunk("📊 Variabilidad Histórica: ",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_BLACK)));
+            diffText.add(new Chunk(difference + " instancias ",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED)));
+            diffText.add(new Chunk("(" + String.format("%.1f%%", percentageDiff) + " de diferencia)",
+                    FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_GRAY)));
+            diffText.setAlignment(Element.ALIGN_CENTER);
+
+            diffCell.addElement(diffText);
+            diffTable.addCell(diffCell);
+
+            document.add(diffTable);
+        }
+
+        // Patrones identificados
+        if (trends.getIdentifiedPatterns() != null && !trends.getIdentifiedPatterns().isEmpty()) {
+            document.add(new Paragraph("\n"));
+            addSubsectionTitle(document, "🔍 Patrones Identificados");
+
+            com.itextpdf.text.List patternList = new com.itextpdf.text.List(com.itextpdf.text.List.UNORDERED);
+            patternList.setIndentationLeft(20);
+
+            for (String pattern : trends.getIdentifiedPatterns()) {
+                ListItem item = new ListItem(pattern,
+                        FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_BLACK));
+                item.setSpacingAfter(5);
+                patternList.add(item);
+            }
+
+            document.add(patternList);
+        }
+    }
+
+    /**
+     * Obtener icono según la tendencia
+     */
+    private String getTrendIcon(String trend) {
+        if (trend == null) return "📊";
+        switch (trend) {
+            case "GROWING": return "📈";
+            case "STABLE": return "➡";
+            case "DECLINING": return "📉";
+            default: return "📊";
+        }
+    }
+
+    // ==================== FIN DE NUEVOS MÉTODOS ====================
 
     // ==================== MÉTODOS DE TRADUCCIÓN ====================
 
