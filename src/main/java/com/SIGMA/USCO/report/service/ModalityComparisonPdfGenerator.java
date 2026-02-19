@@ -993,20 +993,20 @@ public class ModalityComparisonPdfGenerator {
         List<ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO> stats =
                 report.getModalityTypeStatistics();
 
-        // Encontrar el máximo para escalar
-        int maxModalities = stats.stream()
+        // Calcular totales generales para porcentajes correctos
+        int totalModalities = stats.stream()
                 .mapToInt(ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO::getTotalModalities)
-                .max().orElse(1);
-        int maxStudents = stats.stream()
+                .sum();
+        int totalStudents = stats.stream()
                 .mapToInt(ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO::getTotalStudents)
-                .max().orElse(1);
+                .sum();
 
         // Gráfico comparativo de modalidades
         addSubsectionTitle(document, "2.1 Comparación de Modalidades por Tipo");
 
         for (ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat : stats) {
             addComparisonBar(document, stat.getModalityTypeName(),
-                    stat.getTotalModalities(), maxModalities,
+                    stat.getTotalModalities(), totalModalities,
                     "modalidades", INSTITUTIONAL_RED);
         }
 
@@ -1017,7 +1017,7 @@ public class ModalityComparisonPdfGenerator {
 
         for (ModalityTypeComparisonReportDTO.ModalityTypeStatisticsDTO stat : stats) {
             addComparisonBar(document, stat.getModalityTypeName(),
-                    stat.getTotalStudents(), maxStudents,
+                    stat.getTotalStudents(), totalStudents,
                     "estudiantes", INSTITUTIONAL_GOLD);
         }
     }
@@ -1132,7 +1132,16 @@ public class ModalityComparisonPdfGenerator {
     }
 
 
-    private void addComparisonBar(Document document, String label, int value, int maxValue,
+    /**
+     * Agrega una barra de comparación visual con el porcentaje correcto basado en el total general
+     * @param document Documento PDF
+     * @param label Etiqueta de la barra
+     * @param value Valor actual
+     * @param totalValue Total general (no el máximo)
+     * @param unit Unidad de medida
+     * @param color Color de la barra
+     */
+    private void addComparisonBar(Document document, String label, int value, int totalValue,
             String unit, BaseColor color) throws DocumentException {
 
         PdfPTable barContainer = new PdfPTable(1);
@@ -1163,12 +1172,12 @@ public class ModalityComparisonPdfGenerator {
         labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         innerTable.addCell(labelCell);
 
-        // Barra
+        // Barra - calcular porcentaje real sobre el total
         PdfPCell barCell = new PdfPCell();
         barCell.setPadding(0);
         barCell.setBorder(Rectangle.NO_BORDER);
 
-        float percentage = maxValue > 0 ? (float) value / maxValue * 100 : 0;
+        float percentage = totalValue > 0 ? (float) value / totalValue * 100 : 0;
         PdfPTable barTable = createProgressBarTable(percentage, value + " " + unit, color);
         barCell.addElement(barTable);
         innerTable.addCell(barCell);

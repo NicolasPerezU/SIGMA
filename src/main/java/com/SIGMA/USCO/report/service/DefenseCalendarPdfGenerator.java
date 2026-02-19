@@ -332,8 +332,17 @@ public class DefenseCalendarPdfGenerator {
             addTableCell(table, defense.getDefenseDate().format(DATE_ONLY_FORMATTER));
             addTableCell(table, defense.getFinalGrade() != null ? String.format("%.2f", defense.getFinalGrade()) : "N/A");
 
-            BaseColor resultColor = defense.getResult().equals("APROBADO") ? INSTITUTIONAL_GOLD
-                    : defense.getResult().equals("REPROBADO") ? INSTITUTIONAL_RED : INSTITUTIONAL_RED;
+            // Color según resultado: APROBADO = dorado, REPROBADO = rojo, otros = naranja
+            BaseColor resultColor;
+            if ("APROBADO".equals(defense.getResult())) {
+                resultColor = INSTITUTIONAL_GOLD;
+            } else if ("REPROBADO".equals(defense.getResult())) {
+                resultColor = INSTITUTIONAL_RED;
+            } else {
+                // Casos como "EN ESPERA", "PENDIENTE", etc.
+                resultColor = new BaseColor(255, 193, 7); // Naranja/Amarillo
+            }
+
             PdfPCell resultCell = new PdfPCell(new Phrase(defense.getResult(), SMALL_FONT));
             resultCell.setBackgroundColor(resultColor);
             resultCell.setPadding(5);
@@ -422,8 +431,16 @@ public class DefenseCalendarPdfGenerator {
         addSectionTitle(document, "7. ALERTAS Y RECOMENDACIONES");
 
         for (DefenseAlertDTO alert : alerts) {
-            BaseColor alertColor = alert.getAlertType().equals("URGENT") ? INSTITUTIONAL_RED
-                    : alert.getAlertType().equals("WARNING") ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD;
+            // Color según tipo: URGENT = rojo, WARNING = naranja, INFO = dorado
+            BaseColor alertColor;
+            if ("URGENT".equals(alert.getAlertType())) {
+                alertColor = INSTITUTIONAL_RED;
+            } else if ("WARNING".equals(alert.getAlertType())) {
+                alertColor = new BaseColor(255, 152, 0); // Naranja
+            } else {
+                // INFO u otros
+                alertColor = INSTITUTIONAL_GOLD;
+            }
 
             PdfPTable alertBox = new PdfPTable(1);
             alertBox.setWidthPercentage(100);
@@ -491,53 +508,53 @@ public class DefenseCalendarPdfGenerator {
         cardsTable.setSpacingBefore(10);
         cardsTable.setSpacingAfter(20);
 
-        // Tarjetas principales
+        // Tarjetas principales (sin emojis)
         addSummaryCardWithIcon(cardsTable, "Total Programadas",
-                String.valueOf(summary.getTotalScheduled()), "📅", INSTITUTIONAL_GOLD);
+                String.valueOf(summary.getTotalScheduled()), INSTITUTIONAL_GOLD);
 
         addSummaryCardWithIcon(cardsTable, "Hoy",
-                String.valueOf(summary.getDefensesToday()), "⏰", INSTITUTIONAL_RED);
+                String.valueOf(summary.getDefensesToday()), INSTITUTIONAL_RED);
 
         addSummaryCardWithIcon(cardsTable, "Esta Semana",
-                String.valueOf(summary.getUpcomingThisWeek()), "📆", INSTITUTIONAL_RED);
+                String.valueOf(summary.getUpcomingThisWeek()), INSTITUTIONAL_RED);
 
         addSummaryCardWithIcon(cardsTable, "Completadas (Mes)",
-                String.valueOf(summary.getCompletedThisMonth()), "✅", INSTITUTIONAL_GOLD);
+                String.valueOf(summary.getCompletedThisMonth()), INSTITUTIONAL_GOLD);
 
         document.add(cardsTable);
     }
 
     /**
-     * Agregar tarjeta individual con icono
+     * Agregar tarjeta individual (sin emoji - solo texto)
      */
     private void addSummaryCardWithIcon(PdfPTable table, String label, String value,
-                                        String icon, BaseColor color) {
+                                        BaseColor color) {
         PdfPCell card = new PdfPCell();
-        card.setPadding(12);
+        card.setPadding(15);
         card.setBorderColor(color);
         card.setBorderWidth(2f);
         card.setBackgroundColor(WHITE);
-        card.setFixedHeight(70);
+        card.setMinimumHeight(75);
 
-        // Icono
-        Paragraph iconPara = new Paragraph(icon,
-                new Font(Font.FontFamily.HELVETICA, 18, Font.NORMAL, color));
-        iconPara.setAlignment(Element.ALIGN_CENTER);
-        card.addElement(iconPara);
+        // Etiqueta primero (más prominente)
+        Paragraph labelPara = new Paragraph(label,
+                new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, BaseColor.BLACK));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingAfter(5);
+        card.addElement(labelPara);
 
-        // Valor grande
+        // Valor grande (número principal)
         Paragraph valuePara = new Paragraph(value,
-                new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, color));
+                new Font(Font.FontFamily.HELVETICA, 24, Font.BOLD, color));
         valuePara.setAlignment(Element.ALIGN_CENTER);
-        valuePara.setSpacingBefore(3);
+        valuePara.setSpacingAfter(3);
         card.addElement(valuePara);
 
-        // Etiqueta
-        Paragraph labelPara = new Paragraph(label,
+        // Texto "sustentaciones" pequeño para dar contexto
+        Paragraph unitPara = new Paragraph("sustentaciones",
                 new Font(Font.FontFamily.HELVETICA, 7, Font.NORMAL, TEXT_GRAY));
-        labelPara.setAlignment(Element.ALIGN_CENTER);
-        labelPara.setSpacingBefore(3);
-        card.addElement(labelPara);
+        unitPara.setAlignment(Element.ALIGN_CENTER);
+        card.addElement(unitPara);
 
         table.addCell(card);
     }
@@ -572,9 +589,20 @@ public class DefenseCalendarPdfGenerator {
         labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         innerTable.addCell(labelCell);
 
-        // Barra de progreso
+        // Barra de progreso con 3 niveles de color
         float percentage = successRate.floatValue() / 100f;
-        BaseColor barColor = percentage >= 0.7 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+        BaseColor barColor;
+        if (percentage >= 0.8) {
+            // Excelente (≥ 80%)
+            barColor = INSTITUTIONAL_GOLD;
+        } else if (percentage >= 0.6) {
+            // Aceptable (60-79%)
+            barColor = new BaseColor(255, 193, 7); // Naranja/Amarillo
+        } else {
+            // Bajo (< 60%)
+            barColor = INSTITUTIONAL_RED;
+        }
+
         PdfPCell barCell = createSuccessRateBar(successRate, percentage, barColor);
         innerTable.addCell(barCell);
 
@@ -647,21 +675,21 @@ public class DefenseCalendarPdfGenerator {
         cardsTable.setSpacingBefore(10);
         cardsTable.setSpacingAfter(20);
 
-        // Tasa de aprobación
+        // Tasa de aprobación (sin emoji)
         addSummaryCardWithIcon(cardsTable, "Tasa Aprobación",
-                String.format("%.1f%%", statistics.getApprovalRate()), "✅", INSTITUTIONAL_GOLD);
+                String.format("%.1f%%", statistics.getApprovalRate()), INSTITUTIONAL_GOLD);
 
-        // Tasa de distinción
+        // Tasa de distinción (sin emoji)
         addSummaryCardWithIcon(cardsTable, "Tasa Distinción",
-                String.format("%.1f%%", statistics.getDistinctionRate()), "🏆", INSTITUTIONAL_GOLD);
+                String.format("%.1f%%", statistics.getDistinctionRate()), INSTITUTIONAL_GOLD);
 
-        // Calificación promedio
+        // Calificación promedio (sin emoji)
         addSummaryCardWithIcon(cardsTable, "Nota Promedio",
-                String.format("%.2f", statistics.getAverageGrade()), "📚", INSTITUTIONAL_RED);
+                String.format("%.2f", statistics.getAverageGrade()), INSTITUTIONAL_RED);
 
-        // Total completadas
+        // Total completadas (sin emoji)
         addSummaryCardWithIcon(cardsTable, "Total Completadas",
-                String.valueOf(statistics.getTotalCompleted()), "📊", INSTITUTIONAL_RED);
+                String.valueOf(statistics.getTotalCompleted()), INSTITUTIONAL_RED);
 
         document.add(cardsTable);
     }
@@ -920,32 +948,32 @@ public class DefenseCalendarPdfGenerator {
         cardsTable.setSpacingBefore(10);
         cardsTable.setSpacingAfter(20);
 
-        // Total periodos
+        // Total periodos (sin emoji)
         addSummaryCardWithIcon(cardsTable, "Periodos",
-                String.valueOf(monthlyData.size()), "📅", INSTITUTIONAL_GOLD);
+                String.valueOf(monthlyData.size()), INSTITUTIONAL_GOLD);
 
-        // Total completadas en periodo
+        // Total completadas en periodo (sin emoji)
         int totalCompleted = monthlyData.stream()
                 .mapToInt(MonthlyDefenseAnalysisDTO::getCompleted)
                 .sum();
         addSummaryCardWithIcon(cardsTable, "Total Completadas",
-                String.valueOf(totalCompleted), "✅", INSTITUTIONAL_GOLD);
+                String.valueOf(totalCompleted), INSTITUTIONAL_GOLD);
 
-        // Promedio tasa de éxito
+        // Promedio tasa de éxito (sin emoji)
         double avgSuccess = monthlyData.stream()
                 .mapToDouble(MonthlyDefenseAnalysisDTO::getSuccessRate)
                 .average()
                 .orElse(0);
         addSummaryCardWithIcon(cardsTable, "Tasa Éxito Prom.",
-                String.format("%.1f%%", avgSuccess), "🎯", INSTITUTIONAL_RED);
+                String.format("%.1f%%", avgSuccess), INSTITUTIONAL_RED);
 
-        // Promedio calificación
+        // Promedio calificación (sin emoji)
         double avgGrade = monthlyData.stream()
                 .mapToDouble(MonthlyDefenseAnalysisDTO::getAverageGrade)
                 .average()
                 .orElse(0);
         addSummaryCardWithIcon(cardsTable, "Nota Promedio",
-                String.format("%.2f", avgGrade), "📚", INSTITUTIONAL_RED);
+                String.format("%.2f", avgGrade), INSTITUTIONAL_RED);
 
         document.add(cardsTable);
     }

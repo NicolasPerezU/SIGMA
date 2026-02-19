@@ -474,10 +474,20 @@ public class ModalityHistoricalPdfGenerator {
      */
     private PdfPCell createBarCell(int value, float percentage) {
         PdfPTable barContainer = new PdfPTable(2);
+
+        // Asegurar que los widths sean válidos (entre 0.1 y 99.9)
+        float filledWidth = Math.max(Math.min(percentage * 100, 99.9f), 0.1f);
+        float emptyWidth = Math.max(100 - filledWidth, 0.1f);
+
         try {
-            barContainer.setWidths(new float[]{percentage * 100, (1 - percentage) * 100 + 0.01f});
+            barContainer.setWidths(new float[]{filledWidth, emptyWidth});
         } catch (DocumentException e) {
-            // Continuar sin ajustar widths
+            // Si hay error, usar valores por defecto
+            try {
+                barContainer.setWidths(new float[]{50, 50});
+            } catch (DocumentException ex) {
+                // Continuar sin ajustar widths
+            }
         }
         barContainer.setWidthPercentage(100);
 
@@ -1562,16 +1572,20 @@ public class ModalityHistoricalPdfGenerator {
      */
     private PdfPCell createEnhancedBarCell(int value, float percentage, BaseColor color) {
         PdfPTable barContainer = new PdfPTable(2);
-        float barWidth = Math.max(percentage * 100, 5); // Mínimo 5% para visibilidad
-        float emptyWidth = 100 - barWidth;
+
+        // Asegurar que el ancho de la barra sea al menos 5% para visibilidad
+        // pero nunca mayor a 100%
+        float barWidth = Math.max(Math.min(percentage * 100, 100), 5);
+        float emptyWidth = Math.max(100 - barWidth, 0.1f); // Evitar valores negativos o cero
 
         try {
             barContainer.setWidths(new float[]{barWidth, emptyWidth});
         } catch (DocumentException e) {
+            // Si hay error en los widths, usar valores por defecto
             try {
                 barContainer.setWidths(new float[]{50, 50});
             } catch (DocumentException ex) {
-                // Ignorar
+                // Ignorar si falla el fallback
             }
         }
         barContainer.setWidthPercentage(100);
@@ -1611,10 +1625,28 @@ public class ModalityHistoricalPdfGenerator {
 
         if (periods.size() < 2) return;
 
-        // Comparar primer y último periodo
+        // Comparar primer y último periodo (nota: lista está ordenada del más reciente al más antiguo)
         int firstValue = periods.get(0).getTotalInstances();
         int lastValue = periods.get(periods.size() - 1).getTotalInstances();
-        double change = firstValue > 0 ? ((double)(lastValue - firstValue) / firstValue * 100) : 0;
+
+        // Calcular cambio absoluto y porcentual
+        int absoluteChange = lastValue - firstValue;
+        double change;
+        String changeText;
+
+        if (firstValue > 0) {
+            // Calcular cambio porcentual normal
+            change = ((double) absoluteChange / firstValue) * 100;
+            changeText = String.format("%+.1f%%", change);
+        } else if (lastValue > 0) {
+            // Si firstValue es 0 pero lastValue no, es un crecimiento desde cero
+            change = 100.0; // Consideramos como 100% de crecimiento desde cero
+            changeText = "+100% (desde 0)";
+        } else {
+            // Ambos son 0, no hay cambio
+            change = 0;
+            changeText = "0%";
+        }
 
         PdfPTable trendTable = new PdfPTable(1);
         trendTable.setWidthPercentage(90);
@@ -1622,7 +1654,7 @@ public class ModalityHistoricalPdfGenerator {
         trendTable.setHorizontalAlignment(Element.ALIGN_CENTER);
 
         PdfPCell trendCell = new PdfPCell();
-        BaseColor trendColor = change > 0 ? INSTITUTIONAL_GOLD : INSTITUTIONAL_RED;
+        BaseColor trendColor = change > 0 ? INSTITUTIONAL_GOLD : change < 0 ? INSTITUTIONAL_RED : INSTITUTIONAL_GOLD;
         trendCell.setBackgroundColor(trendColor);
         trendCell.setPadding(8);
         trendCell.setBorder(Rectangle.NO_BORDER);
@@ -1633,7 +1665,7 @@ public class ModalityHistoricalPdfGenerator {
         Paragraph trendPara = new Paragraph();
         trendPara.add(new Chunk(trendIcon + " " + trendText + ": ",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, WHITE)));
-        trendPara.add(new Chunk(String.format("%+.1f%%", change),
+        trendPara.add(new Chunk(changeText,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, WHITE)));
         trendPara.add(new Chunk(" (de " + firstValue + " a " + lastValue + " instancias)",
                 FontFactory.getFont(FontFactory.HELVETICA, 9, WHITE)));
@@ -1743,7 +1775,14 @@ public class ModalityHistoricalPdfGenerator {
         // Diferencia entre pico y valle
         if (trends.getPeakInstances() != null && trends.getLowestInstances() != null) {
             int difference = trends.getPeakInstances() - trends.getLowestInstances();
-            double percentageDiff = trends.getLowestInstances() > 0 ?
+
+            // Calcular porcentaje de variabilidad de forma más significativa
+            // Usamos el promedio entre pico y valle como base de referencia
+            double average = (trends.getPeakInstances() + trends.getLowestInstances()) / 2.0;
+            double percentageDiff = average > 0 ? (difference / average * 100) : 0;
+
+            // Alternativamente, podemos calcular el incremento desde el valle al pico
+            double increaseFromLowest = trends.getLowestInstances() > 0 ?
                     ((double) difference / trends.getLowestInstances() * 100) : 0;
 
             PdfPTable diffTable = new PdfPTable(1);
@@ -1762,10 +1801,18 @@ public class ModalityHistoricalPdfGenerator {
             Paragraph diffText = new Paragraph();
             diffText.add(new Chunk("📊 Variabilidad Histórica: ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_BLACK)));
-            diffText.add(new Chunk(difference + " instancias ",
+            diffText.add(new Chunk(difference + " instancias de diferencia ",
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INSTITUTIONAL_RED)));
-            diffText.add(new Chunk("(" + String.format("%.1f%%", percentageDiff) + " de diferencia)",
-                    FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_GRAY)));
+
+            // Mostrar incremento desde el valle si es significativo
+            if (trends.getLowestInstances() > 0 && increaseFromLowest > 0) {
+                diffText.add(new Chunk("(" + String.format("+%.1f%%", increaseFromLowest) + " desde el valle)",
+                        FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_GRAY)));
+            } else if (trends.getLowestInstances() == 0) {
+                diffText.add(new Chunk("(crecimiento desde 0)",
+                        FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_GRAY)));
+            }
+
             diffText.setAlignment(Element.ALIGN_CENTER);
 
             diffCell.addElement(diffText);

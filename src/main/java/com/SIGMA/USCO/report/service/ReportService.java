@@ -1572,18 +1572,47 @@ public class ReportService {
 
         long yearsActive = ChronoUnit.YEARS.between(oldestDate, LocalDateTime.now());
 
+        // Determinar el tipo de modalidad basado en las instancias existentes
+        String modalityTypeStr = determineModalityType(modalities);
+
         return ModalityHistoricalReportDTO.ModalityInfoDTO.builder()
                 .modalityId(degreeModality.getId())
                 .modalityName(degreeModality.getName())
-                .modalityCode(null) // Campo no disponible en entidad
+                .modalityCode(null)
                 .description(degreeModality.getDescription())
                 .requiresDirector(isDirectorRequired(degreeModality.getName()))
-                .modalityType("MIXED") // Se determina después
+                .modalityType(modalityTypeStr)
                 .isActive(degreeModality.getStatus() != null)
                 .createdAt(oldestDate)
                 .yearsActive((int) yearsActive)
                 .totalHistoricalInstances(modalities.size())
                 .build();
+    }
+
+    /**
+     * Determina el tipo de modalidad (INDIVIDUAL, GRUPAL o MIXTA)
+     * basándose en las instancias existentes
+     */
+    private String determineModalityType(List<StudentModality> modalities) {
+        if (modalities == null || modalities.isEmpty()) {
+            return "MIXTA";
+        }
+
+        boolean hasIndividual = modalities.stream()
+                .anyMatch(m -> m.getModalityType() == com.SIGMA.USCO.Modalities.Entity.enums.ModalityType.INDIVIDUAL);
+
+        boolean hasGroup = modalities.stream()
+                .anyMatch(m -> m.getModalityType() == com.SIGMA.USCO.Modalities.Entity.enums.ModalityType.GROUP);
+
+        if (hasIndividual && hasGroup) {
+            return "MIXTA";
+        } else if (hasIndividual) {
+            return "INDIVIDUAL";
+        } else if (hasGroup) {
+            return "GRUPAL";
+        } else {
+            return "MIXTA";
+        }
     }
 
     /**
@@ -3200,6 +3229,60 @@ public class ReportService {
                     double completionRate = typeModalities.size() > 0 ?
                             (completedCount * 100.0) / typeModalities.size() : 0.0;
 
+                    // Calcular días promedio para completar (solo modalidades completadas)
+                    Double avgDaysToComplete = typeModalities.stream()
+                            .filter(m -> m.getStatus() == ModalityProcessStatus.GRADED_APPROVED)
+                            .filter(m -> m.getSelectionDate() != null && m.getUpdatedAt() != null)
+                            .mapToLong(m -> ChronoUnit.DAYS.between(m.getSelectionDate(), m.getUpdatedAt()))
+                            .average()
+                            .orElse(0.0);
+
+                    // Encontrar días mínimo y máximo
+                    Integer minDays = typeModalities.stream()
+                            .filter(m -> m.getStatus() == ModalityProcessStatus.GRADED_APPROVED)
+                            .filter(m -> m.getSelectionDate() != null && m.getUpdatedAt() != null)
+                            .mapToInt(m -> (int) ChronoUnit.DAYS.between(m.getSelectionDate(), m.getUpdatedAt()))
+                            .min()
+                            .orElse(0);
+
+                    Integer maxDays = typeModalities.stream()
+                            .filter(m -> m.getStatus() == ModalityProcessStatus.GRADED_APPROVED)
+                            .filter(m -> m.getSelectionDate() != null && m.getUpdatedAt() != null)
+                            .mapToInt(m -> (int) ChronoUnit.DAYS.between(m.getSelectionDate(), m.getUpdatedAt()))
+                            .max()
+                            .orElse(0);
+
+                    // Calcular GPA promedio de estudiantes en esta modalidad
+                    List<Double> gpas = new ArrayList<>();
+                    for (StudentModality modality : typeModalities) {
+                        List<StudentModalityMember> members = studentModalityMemberRepository
+                                .findByStudentModalityIdAndStatus(modality.getId(), MemberStatus.ACTIVE);
+
+                        for (StudentModalityMember member : members) {
+                            StudentProfile profile = studentProfileRepository.findById(member.getStudent().getId()).orElse(null);
+                            if (profile != null && profile.getGpa() != null) {
+                                gpas.add(profile.getGpa());
+                            }
+                        }
+                    }
+
+                    Double averageGPA = gpas.isEmpty() ? 0.0 : gpas.stream()
+                            .mapToDouble(Double::doubleValue)
+                            .average()
+                            .orElse(0.0);
+
+                    // Top directores (los 3 más activos)
+                    List<String> topDirectors = typeModalities.stream()
+                            .filter(m -> m.getProjectDirector() != null)
+                            .collect(Collectors.groupingBy(
+                                    m -> m.getProjectDirector().getName() + " " + m.getProjectDirector().getLastName(),
+                                    Collectors.counting()))
+                            .entrySet().stream()
+                            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                            .limit(3)
+                            .map(e -> e.getKey() + " (" + e.getValue() + ")")
+                            .collect(Collectors.toList());
+
                     return StudentListingReportDTO.ModalityStatisticsDTO.builder()
                             .modalityType(typeName)
                             .modalityName(typeName)
@@ -3207,6 +3290,11 @@ public class ReportService {
                             .activeStudents((int) activeCount)
                             .completedStudents((int) completedCount)
                             .completionRate(Math.round(completionRate * 100.0) / 100.0)
+                            .averageDaysToComplete(avgDaysToComplete > 0 ? Math.round(avgDaysToComplete * 100.0) / 100.0 : null)
+                            .minDaysToComplete(minDays > 0 ? minDays : null)
+                            .maxDaysToComplete(maxDays > 0 ? maxDays : null)
+                            .topDirectors(topDirectors.isEmpty() ? null : topDirectors)
+                            .averageGPA(averageGPA > 0 ? Math.round(averageGPA * 100.0) / 100.0 : null)
                             .build();
                 })
                 .sorted(Comparator.comparing(StudentListingReportDTO.ModalityStatisticsDTO::getTotalStudents).reversed())
@@ -3231,11 +3319,43 @@ public class ReportService {
 
                     double percentage = total > 0 ? (statusModalities.size() * 100.0) / total : 0.0;
 
+                    // Calcular días promedio en este estado
+                    Double avgDaysInStatus = statusModalities.stream()
+                            .filter(m -> m.getSelectionDate() != null)
+                            .mapToLong(m -> ChronoUnit.DAYS.between(m.getSelectionDate(), LocalDateTime.now()))
+                            .average()
+                            .orElse(0.0);
+
+                    // Top modalidades en este estado (las 3 más comunes)
+                    List<String> topModalities = statusModalities.stream()
+                            .collect(Collectors.groupingBy(
+                                    m -> m.getProgramDegreeModality().getDegreeModality().getName(),
+                                    Collectors.counting()))
+                            .entrySet().stream()
+                            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                            .limit(3)
+                            .map(Map.Entry::getKey)
+                            .collect(Collectors.toList());
+
+                    // Determinar tendencia (simplificada - basada en cantidad)
+                    String trend = "STABLE";
+                    if (ReportUtils.getActiveStatuses().contains(status)) {
+                        trend = statusModalities.size() > (total * 0.2) ? "INCREASING" : "STABLE";
+                    } else if (status == ModalityProcessStatus.GRADED_APPROVED) {
+                        trend = statusModalities.size() > (total * 0.3) ? "INCREASING" : "STABLE";
+                    } else if (status == ModalityProcessStatus.GRADED_FAILED ||
+                               status == ModalityProcessStatus.MODALITY_CANCELLED) {
+                        trend = statusModalities.size() > (total * 0.1) ? "INCREASING" : "DECLINING";
+                    }
+
                     return StudentListingReportDTO.StatusStatisticsDTO.builder()
                             .status(status.name())
                             .statusDescription(ReportUtils.describeModalityStatus(status))
                             .studentCount(statusModalities.size())
                             .percentage(Math.round(percentage * 100.0) / 100.0)
+                            .averageDaysInStatus(avgDaysInStatus > 0 ? Math.round(avgDaysInStatus * 100.0) / 100.0 : null)
+                            .topModalities(topModalities.isEmpty() ? null : topModalities)
+                            .trend(trend)
                             .build();
                 })
                 .sorted(Comparator.comparing(StudentListingReportDTO.StatusStatisticsDTO::getStudentCount).reversed())
@@ -3275,6 +3395,36 @@ public class ReportService {
                     double completionRate = semesterModalities.size() > 0 ?
                             (completed * 100.0) / semesterModalities.size() : 0.0;
 
+                    // Calcular GPA promedio de estudiantes en este semestre
+                    List<Double> semesterGPAs = new ArrayList<>();
+                    for (StudentModality modality : semesterModalities) {
+                        List<StudentModalityMember> members = studentModalityMemberRepository
+                                .findByStudentModalityIdAndStatus(modality.getId(), MemberStatus.ACTIVE);
+
+                        for (StudentModalityMember member : members) {
+                            StudentProfile profile = studentProfileRepository.findById(member.getStudent().getId()).orElse(null);
+                            if (profile != null && profile.getGpa() != null) {
+                                semesterGPAs.add(profile.getGpa());
+                            }
+                        }
+                    }
+
+                    Double averageGPA = semesterGPAs.isEmpty() ? null : semesterGPAs.stream()
+                            .mapToDouble(Double::doubleValue)
+                            .average()
+                            .orElse(0.0);
+
+                    // Top modalidades de este semestre (las 3 más comunes)
+                    List<String> topModalityTypes = semesterModalities.stream()
+                            .collect(Collectors.groupingBy(
+                                    m -> m.getProgramDegreeModality().getDegreeModality().getName(),
+                                    Collectors.counting()))
+                            .entrySet().stream()
+                            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                            .limit(3)
+                            .map(Map.Entry::getKey)
+                            .collect(Collectors.toList());
+
                     return StudentListingReportDTO.SemesterStatisticsDTO.builder()
                             .semester(period)
                             .year(year)
@@ -3283,6 +3433,8 @@ public class ReportService {
                             .modalitiesStarted(semesterModalities.size())
                             .modalitiesCompleted((int) completed)
                             .completionRate(Math.round(completionRate * 100.0) / 100.0)
+                            .averageGPA(averageGPA != null ? Math.round(averageGPA * 100.0) / 100.0 : null)
+                            .topModalityTypes(topModalityTypes.isEmpty() ? null : topModalityTypes)
                             .build();
                 })
                 .sorted(Comparator.comparing(StudentListingReportDTO.SemesterStatisticsDTO::getYear)

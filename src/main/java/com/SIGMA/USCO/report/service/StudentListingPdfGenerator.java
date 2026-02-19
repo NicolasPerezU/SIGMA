@@ -10,8 +10,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Servicio para generar PDF del reporte de listado de estudiantes con filtros
@@ -40,7 +38,6 @@ public class StudentListingPdfGenerator {
     private static final Font TABLE_HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, WHITE);
     private static final Font TABLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_BLACK);
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     public ByteArrayOutputStream generatePDF(StudentListingReportDTO report)
@@ -395,10 +392,17 @@ public class StudentListingPdfGenerator {
             return;
         }
 
-        // Crear tabla detallada
-        PdfPTable table = new PdfPTable(8);
+        Paragraph totalInfo = new Paragraph(
+                String.format("Total de estudiantes en el listado: %d", report.getStudents().size()),
+                BOLD_FONT
+        );
+        totalInfo.setSpacingAfter(15);
+        document.add(totalInfo);
+
+        // Crear tabla detallada con más columnas
+        PdfPTable table = new PdfPTable(11);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.8f, 1f, 2f, 1.2f, 0.8f, 1.5f, 1f, 1.5f});
+        table.setWidths(new float[]{1.5f, 0.8f, 1.8f, 1f, 0.6f, 0.6f, 1.2f, 0.7f, 1f, 0.7f, 0.8f});
         table.setSpacingBefore(10);
         table.setHeaderRows(1);
 
@@ -407,37 +411,86 @@ public class StudentListingPdfGenerator {
         addTableHeader(table, "Código");
         addTableHeader(table, "Modalidad");
         addTableHeader(table, "Estado");
-        addTableHeader(table, "Progreso");
+        addTableHeader(table, "Prog.");
+        addTableHeader(table, "GPA");
         addTableHeader(table, "Director");
         addTableHeader(table, "Días");
         addTableHeader(table, "Estado Temp.");
+        addTableHeader(table, "Grupo");
+        addTableHeader(table, "Créditos");
 
         // Datos
         boolean alternate = false;
         for (StudentListingReportDTO.StudentDetailDTO student : report.getStudents()) {
-            addTableCell(table, student.getFullName(), alternate);
+            // Nombre completo
+            addTableCell(table, truncate(student.getFullName(), 25), alternate);
+
+            // Código
             addTableCell(table, student.getStudentCode() != null ? student.getStudentCode() : "N/D", alternate);
-            addTableCell(table, student.getModalityType(), alternate);
-            addTableCell(table, truncate(student.getModalityStatusDescription(), 20), alternate);
-            addTableCell(table, String.format("%.0f%%", student.getProgressPercentage()), alternate);
+
+            // Modalidad
+            addTableCell(table, truncate(student.getModalityType(), 25), alternate);
+
+            // Estado
+            addTableCell(table, truncate(student.getModalityStatusDescription() != null ?
+                    student.getModalityStatusDescription() : "N/D", 18), alternate);
+
+            // Progreso
+            Double progress = student.getProgressPercentage() != null ? student.getProgressPercentage() : 0.0;
+            addTableCell(table, String.format("%.0f%%", progress), alternate);
+
+            // GPA
+            Double gpa = student.getCumulativeAverage() != null ? student.getCumulativeAverage() : 0.0;
+            addTableCell(table, String.format("%.2f", gpa), alternate);
+
+            // Director
             addTableCell(table, student.getDirectorName() != null ?
-                truncate(student.getDirectorName(), 20) : "Sin asignar", alternate);
-            addTableCell(table, String.valueOf(student.getDaysInModality()), alternate);
+                truncate(student.getDirectorName(), 18) : "Sin asignar", alternate);
+
+            // Días en modalidad
+            Integer days = student.getDaysInModality() != null ? student.getDaysInModality() : 0;
+            addTableCell(table, String.valueOf(days), alternate);
+
+            // Estado temporal
             addTableCell(table, translateTimelineStatus(student.getTimelineStatus()), alternate);
+
+            // Tamaño del grupo
+            Integer groupSize = student.getGroupSize() != null ? student.getGroupSize() : 1;
+            String groupInfo = groupSize > 1 ? String.valueOf(groupSize) : "Ind.";
+            addTableCell(table, groupInfo, alternate);
+
+            // Créditos completados
+            Integer credits = student.getCompletedCredits() != null ? student.getCompletedCredits() : 0;
+            addTableCell(table, String.valueOf(credits), alternate);
 
             alternate = !alternate;
         }
 
         document.add(table);
 
-        // Nota sobre tabla
+        // Notas explicativas mejoradas
         document.add(new Paragraph("\n"));
-        Paragraph note = new Paragraph(
-            "* Estado Temp.: Estado temporal de avance (A Tiempo, En Riesgo, Retrasado)",
-            TINY_FONT
-        );
-        note.setIndentationLeft(10);
-        document.add(note);
+        PdfPTable legendTable = new PdfPTable(1);
+        legendTable.setWidthPercentage(100);
+
+        PdfPCell legendCell = new PdfPCell();
+        legendCell.setBackgroundColor(LIGHT_GOLD);
+        legendCell.setPadding(8);
+        legendCell.setBorder(Rectangle.BOX);
+        legendCell.setBorderColor(INSTITUTIONAL_GOLD);
+
+        Paragraph legendText = new Paragraph();
+        legendText.add(new Chunk("LEYENDA: ", BOLD_FONT));
+        legendText.add(new Chunk(
+                "Prog. = Progreso | GPA = Promedio acumulado | " +
+                "Estado Temp. = A Tiempo/En Riesgo/Retrasado | " +
+                "Grupo = Tamaño del grupo (Ind. = Individual) | " +
+                "Créditos = Créditos académicos completados",
+                TINY_FONT
+        ));
+        legendCell.addElement(legendText);
+        legendTable.addCell(legendCell);
+        document.add(legendTable);
     }
 
     /**
@@ -453,12 +506,23 @@ public class StudentListingPdfGenerator {
             return;
         }
 
-        // Tabla de estadísticas
-        PdfPTable table = new PdfPTable(5);
+        // Agregar resumen introductorio
+        Paragraph intro = new Paragraph(
+                String.format("Se han identificado %d tipos de modalidades diferentes. " +
+                        "A continuación se presenta el análisis detallado de cada una:",
+                        report.getModalityStatistics().size()),
+                NORMAL_FONT
+        );
+        intro.setSpacingAfter(15);
+        document.add(intro);
+
+        // Tabla de estadísticas mejorada
+        PdfPTable table = new PdfPTable(6);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{2.5f, 1f, 1f, 1f, 1.2f});
+        table.setWidths(new float[]{2.5f, 1f, 1f, 1f, 1.2f, 1.2f});
         table.setSpacingBefore(10);
         table.setSpacingAfter(15);
+        table.setHeaderRows(1);
 
         // Encabezados
         addTableHeader(table, "Tipo de Modalidad");
@@ -466,20 +530,62 @@ public class StudentListingPdfGenerator {
         addTableHeader(table, "Activos");
         addTableHeader(table, "Completados");
         addTableHeader(table, "Tasa Complet.");
+        addTableHeader(table, "GPA Prom.");
 
         // Datos
         boolean alternate = false;
         for (StudentListingReportDTO.ModalityStatisticsDTO stat : report.getModalityStatistics()) {
-            addTableCell(table, stat.getModalityType(), alternate);
-            addTableCell(table, String.valueOf(stat.getTotalStudents()), alternate);
-            addTableCell(table, String.valueOf(stat.getActiveStudents()), alternate);
-            addTableCell(table, String.valueOf(stat.getCompletedStudents()), alternate);
-            addTableCell(table, String.format("%.1f%%", stat.getCompletionRate()), alternate);
+            // Tipo de modalidad
+            addTableCell(table, truncate(stat.getModalityType() != null ?
+                    stat.getModalityType() : "Sin especificar", 35), alternate);
+
+            // Total estudiantes
+            Integer total = stat.getTotalStudents() != null ? stat.getTotalStudents() : 0;
+            addTableCell(table, String.valueOf(total), alternate);
+
+            // Activos
+            Integer active = stat.getActiveStudents() != null ? stat.getActiveStudents() : 0;
+            addTableCell(table, String.valueOf(active), alternate);
+
+            // Completados
+            Integer completed = stat.getCompletedStudents() != null ? stat.getCompletedStudents() : 0;
+            addTableCell(table, String.valueOf(completed), alternate);
+
+            // Tasa de completación
+            Double completionRate = stat.getCompletionRate() != null ? stat.getCompletionRate() : 0.0;
+            addTableCell(table, String.format("%.1f%%", completionRate), alternate);
+
+            // GPA promedio
+            Double avgGPA = stat.getAverageGPA() != null ? stat.getAverageGPA() : 0.0;
+            addTableCell(table, String.format("%.2f", avgGPA), alternate);
 
             alternate = !alternate;
         }
 
         document.add(table);
+
+        // Agregar análisis de top directores si está disponible
+        for (StudentListingReportDTO.ModalityStatisticsDTO stat : report.getModalityStatistics()) {
+            if (stat.getTopDirectors() != null && !stat.getTopDirectors().isEmpty()) {
+                addSubsectionTitle(document, "Top Directores en " + stat.getModalityType());
+
+                PdfPTable directorTable = new PdfPTable(1);
+                directorTable.setWidthPercentage(90);
+                directorTable.setSpacingBefore(5);
+                directorTable.setSpacingAfter(10);
+                directorTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+                for (String director : stat.getTopDirectors()) {
+                    PdfPCell cell = new PdfPCell(new Phrase("• " + director, SMALL_FONT));
+                    cell.setBorder(Rectangle.NO_BORDER);
+                    cell.setPadding(3);
+                    directorTable.addCell(cell);
+                }
+
+                document.add(directorTable);
+                break; // Solo mostrar para la primera modalidad con datos
+            }
+        }
     }
 
     /**
@@ -495,12 +601,25 @@ public class StudentListingPdfGenerator {
             return;
         }
 
-        // Gráfico de barras
-        addSubsectionTitle(document, "Distribución de Estudiantes por Estado");
+        // Agregar resumen introductorio
+        int totalStudentsInStates = report.getStatusStatistics().stream()
+                .mapToInt(s -> s.getStudentCount() != null ? s.getStudentCount() : 0)
+                .sum();
+
+        Paragraph intro = new Paragraph(
+                String.format("Distribución de %d estudiantes en %d estados diferentes:",
+                        totalStudentsInStates, report.getStatusStatistics().size()),
+                NORMAL_FONT
+        );
+        intro.setSpacingAfter(15);
+        document.add(intro);
+
+        // Gráfico de barras mejorado
+        addSubsectionTitle(document, "Distribución Visual de Estudiantes por Estado");
 
         // Encontrar máximo para escalar
         int maxValue = report.getStatusStatistics().stream()
-            .mapToInt(StudentListingReportDTO.StatusStatisticsDTO::getStudentCount)
+            .mapToInt(s -> s.getStudentCount() != null ? s.getStudentCount() : 0)
             .max()
             .orElse(1);
 
@@ -516,18 +635,20 @@ public class StudentListingPdfGenerator {
             cell.setBorder(Rectangle.NO_BORDER);
 
             // Tabla interna para la barra
-            PdfPTable barTable = new PdfPTable(2);
+            PdfPTable barTable = new PdfPTable(3);
             barTable.setWidthPercentage(100);
 
             try {
-                barTable.setWidths(new float[]{2f, 5f});
+                barTable.setWidths(new float[]{2f, 4.5f, 1.5f});
             } catch (DocumentException e) {
                 // Ignorar
             }
 
             // Etiqueta
+            String statusLabel = stat.getStatusDescription() != null ?
+                    stat.getStatusDescription() : "Estado desconocido";
             PdfPCell labelCell = new PdfPCell(new Phrase(
-                truncate(stat.getStatusDescription(), 30),
+                truncate(statusLabel, 30),
                 SMALL_FONT
             ));
             labelCell.setBorder(Rectangle.NO_BORDER);
@@ -536,19 +657,88 @@ public class StudentListingPdfGenerator {
             barTable.addCell(labelCell);
 
             // Barra
-            float percentage = maxValue > 0 ? (float) stat.getStudentCount() / maxValue : 0;
+            Integer count = stat.getStudentCount() != null ? stat.getStudentCount() : 0;
+            Double pct = stat.getPercentage() != null ? stat.getPercentage() : 0.0;
+            float percentage = maxValue > 0 ? (float) count / maxValue : 0;
             PdfPCell barCell = createBarCell(
-                stat.getStudentCount() + " (" + String.format("%.1f%%", stat.getPercentage()) + ")",
+                count + " estudiantes",
                 percentage,
                 INSTITUTIONAL_GOLD
             );
             barTable.addCell(barCell);
+
+            // Información adicional
+            PdfPCell infoCell = new PdfPCell();
+            infoCell.setBorder(Rectangle.NO_BORDER);
+            infoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            infoCell.setPadding(3);
+
+            Paragraph infoPara = new Paragraph();
+            infoPara.add(new Chunk(String.format("%.1f%%\n", pct),
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, INSTITUTIONAL_RED)));
+
+            // Agregar días promedio si está disponible
+            if (stat.getAverageDaysInStatus() != null && stat.getAverageDaysInStatus() > 0) {
+                infoPara.add(new Chunk(String.format("(%.0f días)", stat.getAverageDaysInStatus()),
+                        FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_GRAY)));
+            }
+
+            infoCell.addElement(infoPara);
+            barTable.addCell(infoCell);
 
             cell.addElement(barTable);
             chartTable.addCell(cell);
         }
 
         document.add(chartTable);
+
+        // Tabla adicional con modalidades top por estado
+        addSubsectionTitle(document, "Modalidades Más Comunes por Estado");
+
+        PdfPTable topModalitiesTable = new PdfPTable(2);
+        topModalitiesTable.setWidthPercentage(90);
+        topModalitiesTable.setSpacingBefore(10);
+        topModalitiesTable.setSpacingAfter(15);
+        topModalitiesTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+        boolean hasTopModalities = false;
+        for (StudentListingReportDTO.StatusStatisticsDTO stat : report.getStatusStatistics()) {
+            if (stat.getTopModalities() != null && !stat.getTopModalities().isEmpty()) {
+                hasTopModalities = true;
+
+                PdfPCell stateCell = new PdfPCell(new Phrase(
+                        stat.getStatusDescription() != null ? stat.getStatusDescription() : "N/D",
+                        BOLD_FONT));
+                stateCell.setBackgroundColor(LIGHT_GOLD);
+                stateCell.setPadding(6);
+                stateCell.setBorder(Rectangle.BOX);
+                stateCell.setBorderColor(INSTITUTIONAL_GOLD);
+                topModalitiesTable.addCell(stateCell);
+
+                StringBuilder modalities = new StringBuilder();
+                for (int i = 0; i < Math.min(3, stat.getTopModalities().size()); i++) {
+                    if (i > 0) modalities.append("\n");
+                    modalities.append("• ").append(stat.getTopModalities().get(i));
+                }
+
+                PdfPCell modalitiesCell = new PdfPCell(new Phrase(modalities.toString(), SMALL_FONT));
+                modalitiesCell.setPadding(6);
+                modalitiesCell.setBorder(Rectangle.BOX);
+                modalitiesCell.setBorderColor(INSTITUTIONAL_GOLD);
+                topModalitiesTable.addCell(modalitiesCell);
+            }
+        }
+
+        if (hasTopModalities) {
+            document.add(topModalitiesTable);
+        } else {
+            Paragraph noDataPara = new Paragraph(
+                    "No hay información detallada de modalidades por estado disponible.",
+                    SMALL_FONT);
+            noDataPara.setSpacingBefore(5);
+            noDataPara.setSpacingAfter(15);
+            document.add(noDataPara);
+        }
     }
 
     /**
@@ -557,19 +747,37 @@ public class StudentListingPdfGenerator {
     private void addSemesterStatistics(Document document, StudentListingReportDTO report)
             throws DocumentException {
 
-        addSectionTitle(document, "7. ESTADÍSTICAS POR SEMESTRE");
+        addSectionTitle(document, "7. ESTADÍSTICAS POR SEMESTRE ACADÉMICO");
 
         if (report.getSemesterStatistics() == null || report.getSemesterStatistics().isEmpty()) {
             document.add(new Paragraph("No hay estadísticas por semestre disponibles.", NORMAL_FONT));
             return;
         }
 
-        // Tabla de estadísticas
-        PdfPTable table = new PdfPTable(5);
+        // Agregar resumen introductorio
+        int totalSemesters = report.getSemesterStatistics().size();
+        int totalStarted = report.getSemesterStatistics().stream()
+                .mapToInt(s -> s.getModalitiesStarted() != null ? s.getModalitiesStarted() : 0)
+                .sum();
+        int totalCompleted = report.getSemesterStatistics().stream()
+                .mapToInt(s -> s.getModalitiesCompleted() != null ? s.getModalitiesCompleted() : 0)
+                .sum();
+
+        Paragraph intro = new Paragraph(
+                String.format("Análisis de %d semestres académicos: %d modalidades iniciadas, %d completadas",
+                        totalSemesters, totalStarted, totalCompleted),
+                NORMAL_FONT
+        );
+        intro.setSpacingAfter(15);
+        document.add(intro);
+
+        // Tabla de estadísticas mejorada
+        PdfPTable table = new PdfPTable(7);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.2f, 1f, 1.2f, 1.2f, 1.2f});
+        table.setWidths(new float[]{1.2f, 1f, 1.2f, 1.2f, 1.2f, 1f, 2f});
         table.setSpacingBefore(10);
         table.setSpacingAfter(15);
+        table.setHeaderRows(1);
 
         // Encabezados
         addTableHeader(table, "Semestre");
@@ -577,20 +785,126 @@ public class StudentListingPdfGenerator {
         addTableHeader(table, "Iniciadas");
         addTableHeader(table, "Completadas");
         addTableHeader(table, "Tasa Complet.");
+        addTableHeader(table, "GPA Prom.");
+        addTableHeader(table, "Modalidades Top");
 
         // Datos
         boolean alternate = false;
         for (StudentListingReportDTO.SemesterStatisticsDTO stat : report.getSemesterStatistics()) {
-            addTableCell(table, stat.getSemester(), alternate);
-            addTableCell(table, String.valueOf(stat.getStudentCount()), alternate);
-            addTableCell(table, String.valueOf(stat.getModalitiesStarted()), alternate);
-            addTableCell(table, String.valueOf(stat.getModalitiesCompleted()), alternate);
-            addTableCell(table, String.format("%.1f%%", stat.getCompletionRate()), alternate);
+            // Semestre
+            String semesterLabel = stat.getSemester() != null ? stat.getSemester() : "N/D";
+            if (stat.getYear() != null) {
+                semesterLabel += "-" + stat.getYear();
+            }
+            addTableCell(table, semesterLabel, alternate);
+
+            // Estudiantes
+            Integer students = stat.getStudentCount() != null ? stat.getStudentCount() : 0;
+            addTableCell(table, String.valueOf(students), alternate);
+
+            // Iniciadas
+            Integer started = stat.getModalitiesStarted() != null ? stat.getModalitiesStarted() : 0;
+            addTableCell(table, String.valueOf(started), alternate);
+
+            // Completadas
+            Integer completed = stat.getModalitiesCompleted() != null ? stat.getModalitiesCompleted() : 0;
+            addTableCell(table, String.valueOf(completed), alternate);
+
+            // Tasa de completación
+            Double completionRate = stat.getCompletionRate() != null ? stat.getCompletionRate() : 0.0;
+            addTableCell(table, String.format("%.1f%%", completionRate), alternate);
+
+            // GPA promedio
+            Double avgGPA = stat.getAverageGPA() != null ? stat.getAverageGPA() : 0.0;
+            addTableCell(table, String.format("%.2f", avgGPA), alternate);
+
+            // Top modalidades
+            String topModalities = "N/D";
+            if (stat.getTopModalityTypes() != null && !stat.getTopModalityTypes().isEmpty()) {
+                topModalities = stat.getTopModalityTypes().stream()
+                        .limit(2)
+                        .map(m -> truncate(m, 15))
+                        .collect(java.util.stream.Collectors.joining(", "));
+            }
+            addTableCell(table, topModalities, alternate);
 
             alternate = !alternate;
         }
 
         document.add(table);
+
+        // Gráfico de tendencia de completación
+        addSubsectionTitle(document, "Tendencia de Tasa de Completación por Semestre");
+
+        PdfPTable trendTable = new PdfPTable(1);
+        trendTable.setWidthPercentage(100);
+        trendTable.setSpacingBefore(10);
+        trendTable.setSpacingAfter(15);
+
+        // Encontrar máxima tasa para escalar
+        double maxRate = report.getSemesterStatistics().stream()
+                .mapToDouble(s -> s.getCompletionRate() != null ? s.getCompletionRate() : 0.0)
+                .max()
+                .orElse(100.0);
+
+        for (StudentListingReportDTO.SemesterStatisticsDTO stat : report.getSemesterStatistics()) {
+            PdfPCell trendCell = new PdfPCell();
+            trendCell.setPadding(3);
+            trendCell.setBorder(Rectangle.NO_BORDER);
+
+            PdfPTable innerTable = new PdfPTable(2);
+            try {
+                innerTable.setWidths(new float[]{1.5f, 5.5f});
+            } catch (DocumentException e) {
+                // Ignorar
+            }
+
+            // Etiqueta
+            String semLabel = stat.getSemester() != null ? stat.getSemester() : "N/D";
+            if (stat.getYear() != null) {
+                semLabel += "-" + stat.getYear();
+            }
+            PdfPCell labelCell = new PdfPCell(new Phrase(semLabel, SMALL_FONT));
+            labelCell.setBorder(Rectangle.NO_BORDER);
+            labelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            labelCell.setPadding(3);
+            innerTable.addCell(labelCell);
+
+            // Barra de completación
+            Double rate = stat.getCompletionRate() != null ? stat.getCompletionRate() : 0.0;
+            float barPercentage = maxRate > 0 ? (float) (rate / maxRate) : 0;
+
+            // Color basado en la tasa: verde para alto, amarillo para medio, rojo para bajo
+            BaseColor barColor = rate >= 70 ? INSTITUTIONAL_GOLD :
+                                 rate >= 40 ? new BaseColor(255, 193, 7) :
+                                 INSTITUTIONAL_RED;
+
+            PdfPCell barCell = createBarCell(
+                    String.format("%.1f%% (%d/%d)", rate,
+                            stat.getModalitiesCompleted() != null ? stat.getModalitiesCompleted() : 0,
+                            stat.getModalitiesStarted() != null ? stat.getModalitiesStarted() : 0),
+                    barPercentage,
+                    barColor
+            );
+            innerTable.addCell(barCell);
+
+            trendCell.addElement(innerTable);
+            trendTable.addCell(trendCell);
+        }
+
+        document.add(trendTable);
+
+        // Nota explicativa
+        Paragraph note = new Paragraph(
+                "La tasa de completación indica el porcentaje de modalidades completadas respecto " +
+                "a las iniciadas en cada semestre. Los colores indican: Dorado = Excelente (≥70%), " +
+                "Amarillo = Medio (40-69%), Rojo = Bajo (<40%).",
+                TINY_FONT
+        );
+        note.setSpacingBefore(10);
+        note.setIndentationLeft(15);
+        note.setIndentationRight(15);
+        document.add(note);
     }
 
     // ==================== NUEVOS MÉTODOS PARA VISUALIZACIONES MEJORADAS ====================
@@ -607,60 +921,59 @@ public class StudentListingPdfGenerator {
         cardsTable.setSpacingBefore(10);
         cardsTable.setSpacingAfter(20);
 
-        // Total estudiantes
+        // Total estudiantes - CORREGIDO: usar totalStudents del DTO
+        Integer totalStudents = stats.getTotalStudents() != null ? stats.getTotalStudents() : 0;
         addSummaryCardWithIcon(cardsTable, "Total Estudiantes",
-                String.valueOf(stats.getIndividualModalities() + stats.getGroupModalities()),
-                "👥", INSTITUTIONAL_GOLD);
+                String.valueOf(totalStudents), INSTITUTIONAL_GOLD);
 
         // Tasa de asignación de directores
-        int total = stats.getStudentsWithDirector() + stats.getStudentsWithoutDirector();
-        double directorRate = total > 0 ? (double) stats.getStudentsWithDirector() / total * 100 : 0;
+        int studentsWithDir = stats.getStudentsWithDirector() != null ? stats.getStudentsWithDirector() : 0;
+        int studentsWithoutDir = stats.getStudentsWithoutDirector() != null ? stats.getStudentsWithoutDirector() : 0;
+        int total = studentsWithDir + studentsWithoutDir;
+        double directorRate = total > 0 ? (double) studentsWithDir / total * 100 : 0;
         addSummaryCardWithIcon(cardsTable, "Con Director",
-                String.format("%.0f%%", directorRate), "👨‍🏫", INSTITUTIONAL_GOLD);
+                String.format("%.0f%%", directorRate), INSTITUTIONAL_GOLD);
 
         // Estudiantes a tiempo
-        int totalTimeline = stats.getStudentsOnTime() + stats.getStudentsAtRisk() + stats.getStudentsDelayed();
-        double onTimeRate = totalTimeline > 0 ? (double) stats.getStudentsOnTime() / totalTimeline * 100 : 0;
+        int onTime = stats.getStudentsOnTime() != null ? stats.getStudentsOnTime() : 0;
+        int atRisk = stats.getStudentsAtRisk() != null ? stats.getStudentsAtRisk() : 0;
+        int delayed = stats.getStudentsDelayed() != null ? stats.getStudentsDelayed() : 0;
+        int totalTimeline = onTime + atRisk + delayed;
+        double onTimeRate = totalTimeline > 0 ? (double) onTime / totalTimeline * 100 : 0;
         addSummaryCardWithIcon(cardsTable, "A Tiempo",
-                String.format("%.0f%%", onTimeRate), "✅", INSTITUTIONAL_GOLD);
+                String.format("%.0f%%", onTimeRate), INSTITUTIONAL_GOLD);
 
         // Promedio académico
+        Double avgGPA = stats.getAverageCumulativeGPA() != null ? stats.getAverageCumulativeGPA() : 0.0;
         addSummaryCardWithIcon(cardsTable, "Promedio GPA",
-                String.format("%.2f", stats.getAverageCumulativeGPA()), "📚", INSTITUTIONAL_RED);
+                String.format("%.2f", avgGPA), INSTITUTIONAL_RED);
 
         document.add(cardsTable);
     }
 
     /**
-     * Agregar tarjeta con icono
+     * Agregar tarjeta resumen (sin emoji - solo texto)
      */
     private void addSummaryCardWithIcon(PdfPTable table, String label, String value,
-                                        String icon, BaseColor color) {
+                                        BaseColor color) {
         PdfPCell card = new PdfPCell();
-        card.setPadding(12);
+        card.setPadding(15);
         card.setBorderColor(color);
         card.setBorderWidth(2f);
         card.setBackgroundColor(WHITE);
-        card.setFixedHeight(70);
+        card.setMinimumHeight(75);
 
-        // Icono
-        Paragraph iconPara = new Paragraph(icon,
-                FontFactory.getFont(FontFactory.HELVETICA, 18, color));
-        iconPara.setAlignment(Element.ALIGN_CENTER);
-        card.addElement(iconPara);
-
-        // Valor grande
+        // Valor grande (número principal)
         Paragraph valuePara = new Paragraph(value,
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, color));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24, color));
         valuePara.setAlignment(Element.ALIGN_CENTER);
-        valuePara.setSpacingBefore(3);
+        valuePara.setSpacingAfter(5);
         card.addElement(valuePara);
 
-        // Etiqueta
+        // Etiqueta descriptiva
         Paragraph labelPara = new Paragraph(label,
-                FontFactory.getFont(FontFactory.HELVETICA, 7, TEXT_GRAY));
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, TEXT_BLACK));
         labelPara.setAlignment(Element.ALIGN_CENTER);
-        labelPara.setSpacingBefore(3);
         card.addElement(labelPara);
 
         table.addCell(card);
@@ -673,11 +986,18 @@ public class StudentListingPdfGenerator {
                                            StudentListingReportDTO.GeneralStatisticsDTO stats)
             throws DocumentException {
 
-        int individual = stats.getIndividualModalities();
-        int group = stats.getGroupModalities();
-        int total = individual + group;
+        Integer individualCount = stats.getIndividualModalities() != null ? stats.getIndividualModalities() : 0;
+        Integer groupCount = stats.getGroupModalities() != null ? stats.getGroupModalities() : 0;
+        int total = individualCount + groupCount;
 
-        if (total == 0) return;
+        if (total == 0) {
+            Paragraph noDataPara = new Paragraph("No hay datos de modalidades individuales/grupales disponibles.",
+                    SMALL_FONT);
+            noDataPara.setSpacingBefore(5);
+            noDataPara.setSpacingAfter(15);
+            document.add(noDataPara);
+            return;
+        }
 
         addSubsectionTitle(document, "📊 Comparativa Individual vs Grupal");
 
@@ -695,9 +1015,9 @@ public class StudentListingPdfGenerator {
         Paragraph individualContent = new Paragraph();
         individualContent.add(new Chunk("INDIVIDUALES\n",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
-        individualContent.add(new Chunk(individual + " estudiantes\n",
+        individualContent.add(new Chunk(individualCount + " estudiantes\n",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, WHITE)));
-        individualContent.add(new Chunk(String.format("%.1f%% del total", (double) individual / total * 100),
+        individualContent.add(new Chunk(String.format("%.1f%% del total", (double) individualCount / total * 100),
                 FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
         individualContent.setAlignment(Element.ALIGN_CENTER);
         individualCell.addElement(individualContent);
@@ -712,9 +1032,9 @@ public class StudentListingPdfGenerator {
         Paragraph groupContent = new Paragraph();
         groupContent.add(new Chunk("GRUPALES\n",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, WHITE)));
-        groupContent.add(new Chunk(group + " estudiantes\n",
+        groupContent.add(new Chunk(groupCount + " estudiantes\n",
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, WHITE)));
-        groupContent.add(new Chunk(String.format("%.1f%% del total", (double) group / total * 100),
+        groupContent.add(new Chunk(String.format("%.1f%% del total", (double) groupCount / total * 100),
                 FontFactory.getFont(FontFactory.HELVETICA, 10, WHITE)));
         groupContent.setAlignment(Element.ALIGN_CENTER);
         groupCell.addElement(groupContent);
@@ -730,12 +1050,19 @@ public class StudentListingPdfGenerator {
                                        StudentListingReportDTO.GeneralStatisticsDTO stats)
             throws DocumentException {
 
-        int onTime = stats.getStudentsOnTime();
-        int atRisk = stats.getStudentsAtRisk();
-        int delayed = stats.getStudentsDelayed();
-        int total = onTime + atRisk + delayed;
+        Integer onTimeCount = stats.getStudentsOnTime() != null ? stats.getStudentsOnTime() : 0;
+        Integer atRiskCount = stats.getStudentsAtRisk() != null ? stats.getStudentsAtRisk() : 0;
+        Integer delayedCount = stats.getStudentsDelayed() != null ? stats.getStudentsDelayed() : 0;
+        int total = onTimeCount + atRiskCount + delayedCount;
 
-        if (total == 0) return;
+        if (total == 0) {
+            Paragraph noDataPara = new Paragraph("No hay datos de estado temporal disponibles.",
+                    SMALL_FONT);
+            noDataPara.setSpacingBefore(5);
+            noDataPara.setSpacingAfter(15);
+            document.add(noDataPara);
+            return;
+        }
 
         addSubsectionTitle(document, "📈 Gráfico de Estado de Avance");
 
@@ -745,13 +1072,13 @@ public class StudentListingPdfGenerator {
         chartTable.setSpacingAfter(15);
 
         // A tiempo
-        addTimelineBar(chartTable, "A Tiempo", onTime, total, INSTITUTIONAL_GOLD);
+        addTimelineBar(chartTable, "A Tiempo", onTimeCount, total, INSTITUTIONAL_GOLD);
 
         // En riesgo
-        addTimelineBar(chartTable, "En Riesgo", atRisk, total, INSTITUTIONAL_RED);
+        addTimelineBar(chartTable, "En Riesgo", atRiskCount, total, new BaseColor(255, 152, 0));
 
         // Retrasados
-        addTimelineBar(chartTable, "Retrasados", delayed, total, INSTITUTIONAL_RED);
+        addTimelineBar(chartTable, "Retrasados", delayedCount, total, INSTITUTIONAL_RED);
 
         document.add(chartTable);
     }
@@ -860,18 +1187,37 @@ public class StudentListingPdfGenerator {
         indicatorsTable.setSpacingAfter(15);
 
         // GPA Promedio con indicador visual
+        Double avgGPA = stats.getAverageCumulativeGPA() != null ? stats.getAverageCumulativeGPA() : 0.0;
         addPerformanceIndicator(indicatorsTable, "Promedio GPA",
-                stats.getAverageCumulativeGPA(), 5.0, "GPA");
+                avgGPA, 5.0, "GPA");
 
-        // Créditos completados (normalizado a 0-100)
-        double creditPercentage = (stats.getAverageCompletedCredits() / 180) * 100; // Asumiendo 180 créditos totales
-        addPerformanceIndicator(indicatorsTable, "Créditos Completados",
+        // Créditos completados - Calculamos el porcentaje real si hay datos
+        Double avgCredits = stats.getAverageCompletedCredits() != null ? stats.getAverageCompletedCredits() : 0.0;
+        // Asumimos que el programa tiene aproximadamente 160-180 créditos
+        // Limitamos el porcentaje a 100% máximo
+        double creditPercentage = Math.min((avgCredits / 170.0) * 100, 100);
+        addPerformanceIndicator(indicatorsTable, "Avance Créditos",
                 creditPercentage, 100, "%");
 
-        // Días promedio (invertido - menos es mejor, normalizado)
-        double daysNormalized = Math.max(0, 100 - (stats.getAverageDaysInModality() / 365 * 100));
+        // Eficiencia temporal basada en días promedio
+        // Menos días = mejor eficiencia
+        Double avgDays = stats.getAverageDaysInModality() != null ? stats.getAverageDaysInModality() : 0.0;
+        // Calculamos eficiencia: óptimo = 180 días (6 meses), máximo razonable = 730 días (2 años)
+        // Invertimos la escala: menos días = mayor eficiencia
+        double efficiencyPercentage = 0;
+        if (avgDays > 0) {
+            if (avgDays <= 180) {
+                efficiencyPercentage = 100; // Excelente
+            } else if (avgDays <= 365) {
+                efficiencyPercentage = 100 - ((avgDays - 180) / 185 * 30); // 70-100%
+            } else if (avgDays <= 730) {
+                efficiencyPercentage = 70 - ((avgDays - 365) / 365 * 70); // 0-70%
+            } else {
+                efficiencyPercentage = 0; // Muy retrasado
+            }
+        }
         addPerformanceIndicator(indicatorsTable, "Eficiencia Temporal",
-                daysNormalized, 100, "%");
+                Math.max(0, efficiencyPercentage), 100, "%");
 
         document.add(indicatorsTable);
     }
@@ -951,19 +1297,19 @@ public class StudentListingPdfGenerator {
         int modalityTypes = distribution.getByModalityType() != null ?
                 distribution.getByModalityType().size() : 0;
         addSummaryCardWithIcon(cardsTable, "Tipos Modalidad",
-                String.valueOf(modalityTypes), "📊", INSTITUTIONAL_GOLD);
+                String.valueOf(modalityTypes), INSTITUTIONAL_GOLD);
 
         // Estados diferentes
         int states = distribution.getByStatus() != null ?
                 distribution.getByStatus().size() : 0;
         addSummaryCardWithIcon(cardsTable, "Estados Diferentes",
-                String.valueOf(states), "📌", INSTITUTIONAL_RED);
+                String.valueOf(states), INSTITUTIONAL_RED);
 
         // Estados temporales
         int timelineStates = distribution.getByTimelineStatus() != null ?
                 distribution.getByTimelineStatus().size() : 0;
         addSummaryCardWithIcon(cardsTable, "Estados Temporales",
-                String.valueOf(timelineStates), "⏱", INSTITUTIONAL_GOLD);
+                String.valueOf(timelineStates), INSTITUTIONAL_GOLD);
 
         document.add(cardsTable);
     }
@@ -1227,23 +1573,35 @@ public class StudentListingPdfGenerator {
     }
 
     /**
-     * Tarjeta de estadística
+     * Tarjeta de estadística mejorada con etiqueta más visible
      */
     private void addStatsCard(PdfPTable table, String label, String value, BaseColor color) {
         PdfPCell cell = new PdfPCell();
         cell.setBackgroundColor(color);
-        cell.setPadding(12);
+        cell.setPadding(15);
         cell.setBorder(Rectangle.NO_BORDER);
-        cell.setFixedHeight(55);
+        cell.setMinimumHeight(70);
 
-        Paragraph content = new Paragraph();
-        content.add(new Chunk(value + "\n",
-            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, BaseColor.WHITE)));
-        content.add(new Chunk(label,
-            FontFactory.getFont(FontFactory.HELVETICA, 8, new BaseColor(240, 240, 240))));
-        content.setAlignment(Element.ALIGN_CENTER);
+        // Etiqueta primero (más prominente)
+        Paragraph labelPara = new Paragraph(label,
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE));
+        labelPara.setAlignment(Element.ALIGN_CENTER);
+        labelPara.setSpacingAfter(5);
+        cell.addElement(labelPara);
 
-        cell.addElement(content);
+        // Valor grande
+        Paragraph valuePara = new Paragraph(value,
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, BaseColor.WHITE));
+        valuePara.setAlignment(Element.ALIGN_CENTER);
+        valuePara.setSpacingAfter(3);
+        cell.addElement(valuePara);
+
+        // Texto "estudiantes" pequeño para dar contexto
+        Paragraph unitPara = new Paragraph("estudiantes",
+            FontFactory.getFont(FontFactory.HELVETICA, 7, new BaseColor(240, 240, 240)));
+        unitPara.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(unitPara);
+
         table.addCell(cell);
     }
 
