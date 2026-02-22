@@ -158,8 +158,6 @@ public class DefenseCalendarPdfGenerator {
 
         ExecutiveSummaryDTO summary = report.getExecutiveSummary();
 
-        // NUEVO: Tarjetas de resumen con iconos grandes
-        addExecutiveSummaryCards(document, summary);
 
         // Crear tabla de resumen con 3 columnas
         PdfPTable summaryGrid = new PdfPTable(3);
@@ -358,8 +356,6 @@ public class DefenseCalendarPdfGenerator {
     private void addStatistics(Document document, DefenseStatisticsDTO statistics) throws DocumentException {
         addSectionTitle(document, "5. ESTADÍSTICAS GENERALES");
 
-        // NUEVO: Tarjetas principales con iconos
-        addStatisticsSummaryCards(document, statistics);
 
         addSubsectionTitle(document, "5.1 Resumen de Sustentaciones");
 
@@ -399,10 +395,7 @@ public class DefenseCalendarPdfGenerator {
     private void addMonthlyAnalysis(Document document, List<MonthlyDefenseAnalysisDTO> monthlyData) throws DocumentException {
         addSectionTitle(document, "6. ANÁLISIS MENSUAL");
 
-        // NUEVO: Tarjetas de resumen de tendencia
-        addMonthlyTrendCards(document, monthlyData);
-
-        // NUEVO: Gráfico de evolución mensual
+        // Gráfico de evolución mensual
         addMonthlyEvolutionChart(document, monthlyData);
 
         // Tabla detallada

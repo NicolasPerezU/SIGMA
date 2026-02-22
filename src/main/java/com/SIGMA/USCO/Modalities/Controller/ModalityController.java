@@ -170,6 +170,12 @@ public class ModalityController {
         return modalityService.approveModalityByCommittee(studentModalityId);
     }
 
+    @PostMapping("/{studentModalityId}/approve-examiners")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY_BY_EXAMINER')")
+    public ResponseEntity<?> approveByExaminer(@PathVariable Long studentModalityId) {
+        return modalityService.approveModalityByExaminers(studentModalityId);
+    }
+
     @PostMapping("/documents/{studentDocumentId}/review-committee")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
     public ResponseEntity<?> reviewDocumentCommittee(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
@@ -313,7 +319,7 @@ public class ModalityController {
     @PostMapping("/{studentModalityId}/propose-defense-director")
     @PreAuthorize("hasAuthority('PERM_PROPOSE_DEFENSE')")
     public ResponseEntity<?> proposeDefenseByDirector(@PathVariable Long studentModalityId, @RequestBody ScheduleDefenseDTO request) {
-        return modalityService.proposeDefenseByDirector(studentModalityId, request);
+        return modalityService.scheduleDefense(studentModalityId, request);
     }
 
 
@@ -468,6 +474,11 @@ public class ModalityController {
         return modalityService.createSeminar(request);
     }
 
+    @GetMapping("/seminar/{seminarId}/detail")
+    public ResponseEntity<?> getSeminarDetail(@PathVariable Long seminarId) {
+        return modalityService.getSeminarDetail(seminarId);
+    }
+
     @GetMapping("/seminar/available")
     @PreAuthorize("hasRole('ROLE_STUDENT')")
     public ResponseEntity<?> listActiveSeminarsWithSeats() {
@@ -520,6 +531,18 @@ public class ModalityController {
     @PreAuthorize("hasAuthority('PERM_CREATE_SEMINAR')")
     public ResponseEntity<?> completeSeminar(@PathVariable Long seminarId) {
         return modalityService.completeSeminar(seminarId);
+    }
+
+    @PostMapping("/{studentModalityId}/ready-for-defense")
+    @PreAuthorize("hasAuthority('PERM_PROPOSE_DEFENSE')")
+    public ResponseEntity<?> modalityReadyForDefenseByDirector(@PathVariable Long studentModalityId) {
+        return modalityService.modalityReadyForDefenseByDirector(studentModalityId);
+    }
+
+    @PostMapping("/{studentModalityId}/final-review-completed")
+    @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY_BY_EXAMINER')")
+    public ResponseEntity<?> examinerFinalReviewCompleted(@PathVariable Long studentModalityId) {
+        return modalityService.examinerFinalReviewCompleted(studentModalityId);
     }
 
 }

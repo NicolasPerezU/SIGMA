@@ -36,4 +36,12 @@ public class ProgramDegreeModality {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Override
+    public String toString() {
+        return "ProgramDegreeModality{" +
+                "id=" + id +
+                ", creditsRequired=" + creditsRequired +
+                ", active=" + active +
+                '}';
+    }
 }

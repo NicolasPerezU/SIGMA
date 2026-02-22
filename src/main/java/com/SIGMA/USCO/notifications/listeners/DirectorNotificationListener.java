@@ -255,7 +255,7 @@ public class DirectorNotificationListener {
                 Estudiante:
                 %s (%s)
                 
-                Modalidad de grado:
+                Programa académico:
                 “%s”
                 
                 Fecha de asignación:

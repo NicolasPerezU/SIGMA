@@ -26,6 +26,7 @@ public enum NotificationType {
     CORRECTION_REJECTED_FINAL,
 
     DIRECTOR_ASSIGNED,
+    EXAMINER_ASSIGNED,
     DIRECTOR_CHANGED,
 
     DEFENSE_SCHEDULED,
@@ -59,6 +60,10 @@ public enum NotificationType {
     SEMINAR_STARTED,
 
 
-    SEMINAR_CANCELLED
+    SEMINAR_CANCELLED,
+
+    MODALITY_APPROVED_BY_EXAMINERS,
+
+    READY_FOR_DEFENSE_REQUESTED // Notificación cuando el estudiante solicita revisión de defensa
 
 }

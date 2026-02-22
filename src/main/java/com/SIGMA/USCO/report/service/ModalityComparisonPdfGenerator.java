@@ -1178,7 +1178,8 @@ public class ModalityComparisonPdfGenerator {
         barCell.setBorder(Rectangle.NO_BORDER);
 
         float percentage = totalValue > 0 ? (float) value / totalValue * 100 : 0;
-        PdfPTable barTable = createProgressBarTable(percentage, value + " " + unit, color);
+        String barText = value + " " + unit + " (" + String.format("%.1f%%", percentage) + ")";
+        PdfPTable barTable = createProgressBarTable(percentage, barText, color);
         barCell.addElement(barTable);
         innerTable.addCell(barCell);
 

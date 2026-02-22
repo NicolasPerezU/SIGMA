@@ -5,5 +5,6 @@ public enum NotificationRecipientType {
     PROGRAM_HEAD,
     PROGRAM_CURRICULUM_COMMITTEE,
     PROJECT_DIRECTOR,
-    SYSTEM
+    SYSTEM,
+    EXAMINER
 }

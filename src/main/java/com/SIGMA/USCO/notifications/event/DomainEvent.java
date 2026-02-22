@@ -14,6 +14,14 @@ public abstract class DomainEvent {
     private final Long studentModalityId;
     private final Long actorUserId;
 
+    // Constructor sin argumentos requerido por Lombok y frameworks de serialización
+    protected DomainEvent() {
+        this.eventType = null;
+        this.studentModalityId = null;
+        this.actorUserId = null;
+        this.occurredAt = LocalDateTime.now();
+    }
+
     public DomainEvent(
             NotificationType eventType,
             Long studentModalityId,

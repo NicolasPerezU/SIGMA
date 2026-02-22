@@ -265,7 +265,7 @@ public class StudentListingPdfGenerator {
 
         StudentListingReportDTO.GeneralStatisticsDTO stats = report.getGeneralStatistics();
 
-        // NUEVO: Tarjetas de resumen con iconos
+        // Tarjetas de resumen principal
         addGeneralStatsSummaryCards(document, stats);
 
         // Estadísticas de modalidades mejoradas
@@ -276,14 +276,25 @@ public class StudentListingPdfGenerator {
         modalityTypeTable.setSpacingBefore(10);
         modalityTypeTable.setSpacingAfter(20);
 
+        // Modalidades individuales
         addStatsCard(modalityTypeTable, "Individuales",
-            String.valueOf(stats.getIndividualModalities()), INSTITUTIONAL_GOLD);
+            String.valueOf(stats.getIndividualModalities() != null ? stats.getIndividualModalities() : 0) + " modalidades",
+            INSTITUTIONAL_GOLD);
+
+        // Modalidades grupales
         addStatsCard(modalityTypeTable, "Grupales",
-            String.valueOf(stats.getGroupModalities()), INSTITUTIONAL_GOLD);
+            String.valueOf(stats.getGroupModalities() != null ? stats.getGroupModalities() : 0) + " modalidades",
+            INSTITUTIONAL_GOLD);
+
+        // Con director
         addStatsCard(modalityTypeTable, "Con Director",
-            String.valueOf(stats.getStudentsWithDirector()), INSTITUTIONAL_GOLD);
+            String.valueOf(stats.getStudentsWithDirector() != null ? stats.getStudentsWithDirector() : 0) + " estudiantes",
+            INSTITUTIONAL_GOLD);
+
+        // Sin director
         addStatsCard(modalityTypeTable, "Sin Director",
-            String.valueOf(stats.getStudentsWithoutDirector()), INSTITUTIONAL_RED);
+            String.valueOf(stats.getStudentsWithoutDirector() != null ? stats.getStudentsWithoutDirector() : 0) + " estudiantes",
+            INSTITUTIONAL_RED);
 
         document.add(modalityTypeTable);
 
@@ -300,11 +311,14 @@ public class StudentListingPdfGenerator {
         timelineTable.setHorizontalAlignment(Element.ALIGN_CENTER);
 
         addStatsCard(timelineTable, "A Tiempo",
-            String.valueOf(stats.getStudentsOnTime()), INSTITUTIONAL_GOLD);
+            String.valueOf(stats.getStudentsOnTime() != null ? stats.getStudentsOnTime() : 0) + " estudiantes",
+            INSTITUTIONAL_GOLD);
         addStatsCard(timelineTable, "En Riesgo",
-            String.valueOf(stats.getStudentsAtRisk()), INSTITUTIONAL_RED);
+            String.valueOf(stats.getStudentsAtRisk() != null ? stats.getStudentsAtRisk() : 0) + " estudiantes",
+            INSTITUTIONAL_RED);
         addStatsCard(timelineTable, "Retrasados",
-            String.valueOf(stats.getStudentsDelayed()), INSTITUTIONAL_RED);
+            String.valueOf(stats.getStudentsDelayed() != null ? stats.getStudentsDelayed() : 0) + " estudiantes",
+            INSTITUTIONAL_RED);
 
         document.add(timelineTable);
 
@@ -349,8 +363,6 @@ public class StudentListingPdfGenerator {
 
         StudentListingReportDTO.DistributionAnalysisDTO distribution = report.getDistributionAnalysis();
 
-        // NUEVO: Resumen de distribución en tarjetas
-        addDistributionSummaryCards(document, distribution);
 
         // Distribución por modalidad mejorada
         if (distribution.getByModalityType() != null && !distribution.getByModalityType().isEmpty()) {

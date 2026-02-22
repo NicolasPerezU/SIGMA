@@ -82,6 +82,10 @@ public class DataInitializer {
             Permission rejectModalityByCommittee = createPermission("REJECT_MODALITY_BY_COMMITTEE");
             Permission createSeminar = createPermission("CREATE_SEMINAR");
             Permission viewReport = createPermission("VIEW_REPORT");
+            Permission approvModalityByExaminer = createPermission("APPROVE_MODALITY_BY_EXAMINER");
+            Permission approveFinalModalityByExaminer = createPermission("APPROVE_FINAL_MODALITY_BY_EXAMINER");
+
+
 
 
             // Crear roles y asignar permisos
@@ -95,7 +99,7 @@ public class DataInitializer {
 
             createRole("PROJECT_DIRECTOR", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewModality, proposeDefense, approveCancellationByProjectDirector) );
 
-            createRole("EXAMINER", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality, assignProgramHead, viewFaculties, updateFaculty, deleteFaculty, viewPrograms, updateProgram, viewProgramHead, evaluateDefense, viewExaminerModalities) );
+            createRole("EXAMINER", Set.of(verDocumentos, crearUsuario, editarUsuario, activateOrDeactivateUser, createRole, updateRole, assignRole, createModality, updateModality, createRequiredDocument, updateRequiredDocument, reviewDocuments, viewDocuments, approveModality, viewAllModalities, approveCancellation, rejectCancellation, assignProjectDirector, scheduleDefense, viewReports, viewCancellations, viewRole, createPermission, viewPermission, viewUser, desactiveModality, viewModalityAdmin, deleteRequirement, deleteRequiredDocument, viewRequiredDocument, viewProjectDirector, viewFinalDefenseResult, createFaculty, createProgram, createProgramDegreeModality, assignProgramHead, viewFaculties, updateFaculty, deleteFaculty, viewPrograms, updateProgram, viewProgramHead, evaluateDefense, viewExaminerModalities, approvModalityByExaminer, approveFinalModalityByExaminer) );
         };
     }
 

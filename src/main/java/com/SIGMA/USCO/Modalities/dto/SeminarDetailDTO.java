@@ -53,20 +53,11 @@ public class SeminarDetailDTO {
         private String name;
         private String lastName;
         private String email;
-        private String documentType;
-        private String documentNumber;
-        private String phone;
+
 
         // Información académica
         private Integer approvedCredits;
-        private Integer totalCreditsProgram;
-        private Double academicAverage;
 
-        // Información de la modalidad de grado
-        private ModalityInfoDTO modalityInfo;
-
-        // Fecha de inscripción al seminario
-        private LocalDateTime enrollmentDate;
     }
 
     @Data

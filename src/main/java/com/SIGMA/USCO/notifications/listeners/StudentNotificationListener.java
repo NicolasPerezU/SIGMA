@@ -534,7 +534,7 @@ public class StudentNotificationListener {
         User student = modality.getLeader();
 
         String subject =
-                "Modalidad de grado aprobada por el Consejo Académico";
+                "Modalidad de grado aprobada por el Comité de Currículo del programa académico";
 
         String message = """
                 Estimado/a %s,
@@ -545,7 +545,7 @@ public class StudentNotificationListener {
                 
                 “%s”
                 
-                ha sido aprobada por el comité de curriculum del programa, tras la revisión realizada por las instancias académicas competentes.
+                ha sido aprobada por el comité de currículo del programa, tras la revisión realizada por las instancias académicas competentes.
                 
                 Estado actual del proceso:
                 Propuesta aprobada
@@ -553,9 +553,9 @@ public class StudentNotificationListener {
                 Director de Proyecto:
                 %s
                 
-                A partir de esta aprobación, puedes dar inicio formal al desarrollo de tu proyecto de grado bajo la dirección académica asignada, atendiendo los lineamientos y cronogramas establecidos por el programa.
+                Actualmente, tu modalidad ha pasado a la etapa de aprobación por parte del jurado asignado por el comité. Debes estar atento a las notificaciones y a las indicaciones del sistema para continuar con el proceso.
                 
-                Fecha de aprobación:
+                Fecha de aprobación por el comité:
                 %s
                 
                 Te recomendamos mantener comunicación constante con tu Director de Proyecto y con la jefatura del programa para el adecuado seguimiento del proceso.
@@ -1509,6 +1509,65 @@ public class StudentNotificationListener {
 
         notificationRepository.save(notification);
         dispatcher.dispatch(notification);
+    }
+
+    @EventListener
+    public void handleModalityApprovedByExaminers(ModalityApprovedByExaminers event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        User examiner = userRepository.findById(event.getExaminerUserId())
+                .orElseThrow(() -> new RuntimeException("Juez no encontrado"));
+
+        // Notificar a todos los miembros activos de la modalidad
+        var members = studentModalityMemberRepository.findByStudentModalityIdAndStatus(
+                modality.getId(),
+                com.SIGMA.USCO.Modalities.Entity.enums.MemberStatus.ACTIVE
+        );
+
+        String subject = "¡Modalidad de Grado Aprobada por el jurado!";
+        String message = """
+                Estimado/a %s,
+                \n
+                Nos complace informarte que tu modalidad de grado:\n\n
+                \"%s\"\n\n
+                ha sido **APROBADA** por los jurados asignados.\n\n
+                Programa académico: %s\n
+                Estado actual: PROPUESTA APROBADA\n
+                Fecha de aprobación: %s\n
+                Juez aprobador: %s %s (%s)\n\n
+                A partir de este momento, puedes continuar con el proceso de grado según los lineamientos establecidos.\n\n
+                Cordialmente,\n
+                Sistema de Gestión Académica - SIGMA\n
+                Universidad Surcolombiana
+                """;
+
+        for (var member : members) {
+            User student = member.getStudent();
+            String personalizedMessage = String.format(
+                    message,
+                    student.getName(),
+                    modality.getProgramDegreeModality().getDegreeModality().getName(),
+                    modality.getAcademicProgram().getName(),
+                    LocalDateTime.now().toString(),
+                    examiner.getName(),
+                    examiner.getLastName(),
+                    examiner.getEmail()
+            );
+
+            Notification notification = Notification.builder()
+                    .type(NotificationType.MODALITY_APPROVED_BY_EXAMINERS)
+                    .recipientType(NotificationRecipientType.STUDENT)
+                    .recipient(student)
+                    .triggeredBy(examiner)
+                    .studentModality(modality)
+                    .subject(subject)
+                    .message(personalizedMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
     }
 
 }

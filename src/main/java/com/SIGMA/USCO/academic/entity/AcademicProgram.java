@@ -48,4 +48,14 @@ public class AcademicProgram {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Override
+    public String toString() {
+        return "AcademicProgram{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", code='" + code + '\'' +
+                ", totalCredits=" + totalCredits +
+                ", active=" + active +
+                '}';
+    }
 }

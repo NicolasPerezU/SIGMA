@@ -42,12 +42,16 @@ public enum ModalityProcessStatus {
      * Próximo paso: DEFENSE_COMPLETED (realización de la sustentación)
      */
     EXAMINERS_ASSIGNED,
+    READY_FOR_EXAMINERS,
 
 
 
     CORRECTIONS_REQUESTED_EXAMINERS,
 
     READY_FOR_DEFENSE,
+
+    FINAL_REVIEW_COMPLETED,
+
     // ========== SUSTENTACIÓN Y EVALUACIÓN ==========
     /**
      * La sustentación fue realizada

@@ -23,6 +23,7 @@ public class Notification {
     private NotificationType type;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 100)
     private NotificationRecipientType recipientType;
 
 

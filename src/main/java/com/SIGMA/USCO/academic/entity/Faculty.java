@@ -45,5 +45,13 @@ public class Faculty {
     @OneToMany(mappedBy = "faculty")
     private List<StudentProfile> studentProfiles;
 
-
+    @Override
+    public String toString() {
+        return "Faculty{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", code='" + code + '\'' +
+                ", active=" + active +
+                '}';
+    }
 }
