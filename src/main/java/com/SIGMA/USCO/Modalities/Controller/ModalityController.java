@@ -14,7 +14,7 @@ import com.SIGMA.USCO.Users.Entity.enums.ProgramRole;
 import com.SIGMA.USCO.academic.entity.AcademicProgram;
 import com.SIGMA.USCO.academic.entity.StudentProfile;
 import com.SIGMA.USCO.documents.dto.DetailDocumentDTO;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
 import com.SIGMA.USCO.documents.entity.RequiredDocument;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.service.DocumentService;
@@ -588,6 +588,99 @@ public class ModalityController {
     @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
     public ResponseEntity<?> getExaminerEvaluationForModality(@PathVariable Long studentModalityId) {
         return modalityService.getExaminerEvaluationForModality(studentModalityId);
+    }
+
+    // =========================================================================
+    // SOLICITUD DE EDICIÓN DE PROPUESTA APROBADA
+    // =========================================================================
+
+    /**
+     * El estudiante solicita editar un documento MANDATORY que ya fue aprobado por los jurados.
+     * Body: { "reason": "motivo justificado de la solicitud (mínimo 20 caracteres)" }
+     */
+    @PostMapping("/documents/{studentDocumentId}/request-edit")
+    public ResponseEntity<?> requestDocumentEdit(
+            @PathVariable Long studentDocumentId,
+            @RequestBody com.SIGMA.USCO.documents.dto.DocumentEditRequestDTO request) {
+        return modalityService.requestDocumentEdit(studentDocumentId, request);
+    }
+
+    /**
+     * Un jurado vota sobre una solicitud de edición de documento.
+     * Sigue la lógica de consenso: ambos jurados primarios deben votar;
+     * si hay desacuerdo, el jurado de desempate decide.
+     * Body: { "approved": true|false, "resolutionNotes": "..." }
+     */
+    @PostMapping("/document-edit-requests/{editRequestId}/resolve")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
+    public ResponseEntity<?> resolveDocumentEditRequest(
+            @PathVariable Long editRequestId,
+            @RequestBody com.SIGMA.USCO.documents.dto.DocumentEditResolutionDTO request) {
+        return modalityService.resolveDocumentEditRequest(editRequestId, request);
+    }
+
+    /**
+     * El jurado autenticado obtiene las solicitudes de edición pendientes de una modalidad.
+     * Los jurados primarios ven las PENDING; el jurado de desempate ve las TIEBREAKER_REQUIRED.
+     */
+    @GetMapping("/{studentModalityId}/document-edit-requests/pending")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    public ResponseEntity<?> getPendingEditRequestsForExaminer(@PathVariable Long studentModalityId) {
+        return modalityService.getPendingEditRequestsForExaminer(studentModalityId);
+    }
+
+    /**
+     * El jurado autenticado obtiene TODAS las solicitudes de edición de documentos
+     * de una modalidad (todos los estados: pendiente, desempate, aprobado, rechazado).
+     * Incluye información completa: documento, solicitante, votos de cada jurado,
+     * si el jurado autenticado ya votó, si puede votar y el resultado final.
+     */
+    @GetMapping("/{studentModalityId}/document-edit-requests/all")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    public ResponseEntity<?> getAllEditRequestsForExaminer(@PathVariable Long studentModalityId) {
+        return modalityService.getAllEditRequestsForExaminer(studentModalityId);
+    }
+
+    // =========================================================================
+    // ENDPOINTS GET PARA EL ESTUDIANTE – SOLICITUDES DE EDICIÓN
+    // =========================================================================
+
+    /**
+     * El estudiante autenticado obtiene TODAS sus solicitudes de edición de documentos
+     * en todas sus modalidades, con el estado de votación de cada una.
+     */
+    @GetMapping("/my-document-edit-requests")
+    public ResponseEntity<?> getMyDocumentEditRequests() {
+        return modalityService.getMyDocumentEditRequests();
+    }
+
+    /**
+     * El estudiante autenticado obtiene todas las solicitudes de edición asociadas
+     * a una modalidad específica (por studentModalityId).
+     */
+    @GetMapping("/{studentModalityId}/my-document-edit-requests")
+    public ResponseEntity<?> getMyDocumentEditRequestsByModality(@PathVariable Long studentModalityId) {
+        return modalityService.getMyDocumentEditRequestsByModality(studentModalityId);
+    }
+
+    /**
+     * El estudiante autenticado obtiene el detalle de una solicitud de edición específica.
+     */
+    @GetMapping("/document-edit-requests/{editRequestId}")
+    public ResponseEntity<?> getDocumentEditRequestDetail(@PathVariable Long editRequestId) {
+        return modalityService.getDocumentEditRequestDetail(editRequestId);
+    }
+
+    /**
+     * Obtiene la lista de jurados (examinadores) asociados a una modalidad específica.
+     * Retorna información detallada de cada jurado: ID, nombre, email, tipo (primario 1, primario 2, desempate)
+     * y fecha de asignación.
+     * Ruta: GET /modalities/{studentModalityId}/examiners
+     */
+    @GetMapping("/{studentModalityId}/examiners")
+    @PreAuthorize( "hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    public ResponseEntity<?> getExaminersForModality(@PathVariable Long studentModalityId) {
+        return modalityService.getExaminersForModality(studentModalityId);
     }
 
 }

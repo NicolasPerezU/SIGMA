@@ -13,10 +13,13 @@ import com.SIGMA.USCO.academic.entity.*;
 import com.SIGMA.USCO.academic.repository.*;
 import com.SIGMA.USCO.documents.dto.*;
 import com.SIGMA.USCO.documents.entity.*;
+import com.SIGMA.USCO.documents.entity.enums.DocumentEditRequestStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
+import com.SIGMA.USCO.documents.entity.enums.EditRequestVoteDecision;
+import com.SIGMA.USCO.documents.entity.enums.ExaminerDocumentDecision;
 import com.SIGMA.USCO.documents.repository.*;
-import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
-import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
 import com.SIGMA.USCO.notifications.event.*;
 import com.SIGMA.USCO.notifications.listeners.ExaminerNotificationListener;
 import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
@@ -74,6 +77,8 @@ public class ModalityService {
     private final ProposalEvaluationRepository proposalEvaluationRepository;
     private final ExaminerDocumentReviewRepository examinerDocumentReviewRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final DocumentEditRequestRepository documentEditRequestRepository;
+    private final DocumentEditRequestVoteRepository documentEditRequestVoteRepository;
 
 
     @Value("${file.upload-dir}")
@@ -660,7 +665,92 @@ public class ModalityService {
                 currentModalityStatus == ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE ||
                 currentModalityStatus == ModalityProcessStatus.CORRECTIONS_REQUESTED_EXAMINERS;
 
-        if (isResubmittingCorrection) {
+        // ========== RESUBIDA POR EDICIÓN APROBADA ==========
+        // Verificar si el documento existente tiene una solicitud de edición aprobada
+        boolean isResubmittingApprovedEdit = false;
+        StudentDocument existingDoc = studentDocumentRepository
+                .findByStudentModalityIdAndDocumentConfigId(studentModalityId, requiredDocumentId)
+                .orElse(null);
+        if (existingDoc != null && existingDoc.getStatus() == DocumentStatus.EDIT_REQUEST_APPROVED) {
+            isResubmittingApprovedEdit = true;
+        }
+
+        if (isResubmittingApprovedEdit) {
+              // Cerrar la solicitud de edición aprobada (marcar como completada con el reenvío)
+            documentEditRequestRepository
+                    .findTopByStudentDocumentIdAndStatusOrderByCreatedAtDesc(
+                            existingDoc.getId(), DocumentEditRequestStatus.APPROVED)
+                    .ifPresent(req -> {
+                        // Los votos ya están registrados; solo guardamos la referencia para trazabilidad
+                        documentEditRequestRepository.save(req);
+                    });
+
+            // El documento vuelve a PENDING para re-revisión por jurados
+            studentDocument.setStatus(DocumentStatus.PENDING);
+            studentDocument.setFileName(originalFilename);
+            studentDocument.setFilePath(fullPath.toString());
+            studentDocument.setUploadDate(LocalDateTime.now());
+            studentDocumentRepository.save(studentDocument);
+
+            // Limpiar las reviews anteriores de jurados para este documento (ExaminerDocumentReview)
+            List<ExaminerDocumentReview> oldReviews = examinerDocumentReviewRepository
+                    .findByStudentDocumentId(studentDocument.getId());
+            examinerDocumentReviewRepository.deleteAll(oldReviews);
+
+            // Limpiar también los votos de la solicitud de edición aprobada (DocumentEditRequestVote)
+            documentEditRequestRepository
+                    .findTopByStudentDocumentIdAndStatusOrderByCreatedAtDesc(
+                            existingDoc.getId(), DocumentEditRequestStatus.APPROVED)
+                    .ifPresent(req -> {
+                        List<DocumentEditRequestVote> editVotes = documentEditRequestVoteRepository
+                                .findByEditRequestId(req.getId());
+                        documentEditRequestVoteRepository.deleteAll(editVotes);
+                    });
+
+            // Cambiar el estado de la modalidad a EXAMINERS_ASSIGNED para que los jurados revisen
+            studentModality.setStatus(ModalityProcessStatus.EXAMINERS_ASSIGNED);
+            studentModality.setUpdatedAt(LocalDateTime.now());
+            studentModalityRepository.save(studentModality);
+
+            // Trazabilidad en el historial del DOCUMENTO
+            documentHistoryRepository.save(
+                    StudentDocumentStatusHistory.builder()
+                            .studentDocument(studentDocument)
+                            .status(DocumentStatus.PENDING)
+                            .changeDate(LocalDateTime.now())
+                            .responsible(student)
+                            .observations("Estudiante resubió el documento '" +
+                                    originalFilename +
+                                    "' tras aprobación de solicitud de edición. Pendiente de re-revisión por jurados.")
+                            .build()
+            );
+
+            // Trazabilidad en el historial de la MODALIDAD
+            historyRepository.save(
+                    ModalityProcessStatusHistory.builder()
+                            .studentModality(studentModality)
+                            .status(ModalityProcessStatus.EXAMINERS_ASSIGNED)
+                            .changeDate(LocalDateTime.now())
+                            .responsible(student)
+                            .observations("Estudiante actualizó el documento '" +
+                                    studentDocument.getDocumentConfig().getDocumentName() +
+                                    "' con los cambios aprobados por los jurados. " +
+                                    "La modalidad regresa al estado de revisión por jurados.")
+                            .build()
+            );
+
+            notificationEventPublisher.publish(
+                    new StudentDocumentUpdatedEvent(studentModality.getId(), studentDocument.getId(), student.getId())
+            );
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Documento actualizado correctamente. Los jurados evaluarán la nueva versión.",
+                    "path", fullPath.toString(),
+                    "documentStatus", studentDocument.getStatus().name(),
+                    "modalityStatus", studentModality.getStatus().name()
+            ));
+
+        } else if (isResubmittingCorrection) {
             // Marcar el documento como corrección reenviada
             studentDocument.setStatus(DocumentStatus.CORRECTION_RESUBMITTED);
             studentDocumentRepository.save(studentDocument);
@@ -2769,6 +2859,8 @@ public class ModalityService {
                     "Todos los documentos finales han sido aprobados por los jurados. La modalidad avanza a revisión final completada.";
             case DOCUMENT_REVIEW_TIEBREAKER_REQUIRED ->
                     "Los jurados principales tienen decisiones divididas sobre un documento. Se requiere un jurado de desempate para resolver el conflicto.";
+            case EDIT_REQUESTED_BY_STUDENT ->
+                    "Has solicitado la edición de un documento previamente aprobado. Los jurados evaluadores están evaluando la solicitud. Recibirás una notificación con el resultado.";
             case CORRECTIONS_REQUESTED_EXAMINERS ->
                     "Uno o más jurados solicitaron correcciones en la documentación. Por favor, ajusta los documentos según las observaciones recibidas.";
             case READY_FOR_DEFENSE ->
@@ -8907,6 +8999,1005 @@ public class ModalityService {
             "success", true,
             "evaluation", dto
         ));
+    }
+
+    // =========================================================================
+    // SOLICITUD DE EDICIÓN DE PROPUESTA APROBADA (STUDENT → EXAMINER)
+    // =========================================================================
+
+    /**
+     * Permite al estudiante autenticado solicitar la edición de un documento
+     * que ya fue aprobado por los jurados (estado ACCEPTED_FOR_EXAMINER_REVIEW).
+     * Solo se permite si la modalidad no está cerrada/calificada.
+     */
+    @Transactional
+    public ResponseEntity<?> requestDocumentEdit(Long studentDocumentId, DocumentEditRequestDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        StudentDocument document = studentDocumentRepository.findById(studentDocumentId)
+                .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+
+        StudentModality studentModality = document.getStudentModality();
+
+        // Validar que el estudiante sea miembro activo de la modalidad
+        boolean isActiveMember = studentModalityMemberRepository.isActiveMember(
+                studentModality.getId(), student.getId());
+        if (!isActiveMember) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No eres miembro activo de esta modalidad"
+            ));
+        }
+
+        // Validar que sea un documento MANDATORY
+        if (document.getDocumentConfig().getDocumentType() != DocumentType.MANDATORY) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Solo puedes solicitar edición de documentos de tipo MANDATORY (obligatorios)"
+            ));
+        }
+
+        // Validar que el documento esté aprobado por jurados
+        if (document.getStatus() != DocumentStatus.ACCEPTED_FOR_EXAMINER_REVIEW) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Solo puedes solicitar edición de documentos que hayan sido aprobados por los jurados. Estado actual: " + document.getStatus()
+            ));
+        }
+
+        // Validar que la modalidad no esté en un estado final
+        ModalityProcessStatus modalityStatus = studentModality.getStatus();
+        if (modalityStatus == ModalityProcessStatus.GRADED_APPROVED ||
+                modalityStatus == ModalityProcessStatus.GRADED_FAILED ||
+                modalityStatus == ModalityProcessStatus.MODALITY_CLOSED ||
+                modalityStatus == ModalityProcessStatus.MODALITY_CANCELLED ||
+                modalityStatus == ModalityProcessStatus.SEMINAR_CANCELED ||
+                modalityStatus == ModalityProcessStatus.CANCELLED_BY_CORRECTION_TIMEOUT) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No se puede solicitar edición de documentos en modalidades cerradas o calificadas"
+            ));
+        }
+
+        // Validar que no haya ya una solicitud pendiente o en desempate para este documento
+        boolean hasPending = documentEditRequestRepository.existsByStudentDocumentIdAndStatus(
+                studentDocumentId, DocumentEditRequestStatus.PENDING);
+        boolean hasTiebreaker = documentEditRequestRepository.existsByStudentDocumentIdAndStatus(
+                studentDocumentId, DocumentEditRequestStatus.TIEBREAKER_REQUIRED);
+        if (hasPending || hasTiebreaker) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Ya existe una solicitud de edición pendiente para este documento"
+            ));
+        }
+
+        // Guardar el estado previo de la modalidad para trazabilidad
+        ModalityProcessStatus previousModalityStatus = studentModality.getStatus();
+
+        // Cambiar el estado del documento a EDIT_REQUESTED
+        document.setStatus(DocumentStatus.EDIT_REQUESTED);
+        document.setUploadDate(LocalDateTime.now());
+        studentDocumentRepository.save(document);
+
+        // Historial del DOCUMENTO
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(document)
+                        .status(DocumentStatus.EDIT_REQUESTED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(student)
+                        .observations("Estudiante solicitó edición del documento aprobado. Motivo: " + request.getReason())
+                        .build()
+        );
+
+        // Cambiar el estado de la MODALIDAD a EDIT_REQUESTED_BY_STUDENT
+        studentModality.setStatus(ModalityProcessStatus.EDIT_REQUESTED_BY_STUDENT);
+        studentModality.setUpdatedAt(LocalDateTime.now());
+        studentModalityRepository.save(studentModality);
+
+        // Crear la solicitud de edición
+        DocumentEditRequest editRequest = DocumentEditRequest.builder()
+                .studentDocument(document)
+                .requester(student)
+                .reason(request.getReason())
+                .status(DocumentEditRequestStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+        documentEditRequestRepository.save(editRequest);
+
+        // Trazabilidad en el historial de la MODALIDAD
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(ModalityProcessStatus.EDIT_REQUESTED_BY_STUDENT)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(student)
+                        .observations("Estudiante solicitó edición del documento '" +
+                                document.getDocumentConfig().getDocumentName() +
+                                ". Motivo: " + request.getReason() +
+                                ". La solicitud fue enviada a los jurados para su evaluación.")
+                        .build()
+        );
+
+        // Notificar a los jurados
+        notificationEventPublisher.publish(
+                new DocumentEditRequestedEvent(
+                        studentModality.getId(),
+                        studentDocumentId,
+                        editRequest.getId(),
+                        request.getReason(),
+                        document.getDocumentConfig().getDocumentName(),
+                        student.getId()
+                )
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "editRequestId", editRequest.getId(),
+                "documentId", document.getId(),
+                "documentName", document.getDocumentConfig().getDocumentName(),
+                "newDocumentStatus", DocumentStatus.EDIT_REQUESTED.name(),
+                "newModalityStatus", ModalityProcessStatus.EDIT_REQUESTED_BY_STUDENT.name(),
+                "message", "Solicitud de edición registrada correctamente. Los jurados evaluadores serán notificados para votar."
+        ));
+    }
+
+    /**
+     * Permite a un jurado votar sobre una solicitud de edición de documento.
+     *
+     * Lógica de consenso (igual que revisión de documentos):
+     * - AMBOS jurados primarios aprueban → solicitud APPROVED, documento pasa a EDIT_REQUEST_APPROVED
+     * - AMBOS rechazan → solicitud REJECTED, documento vuelve a ACCEPTED_FOR_EXAMINER_REVIEW
+     * - UNO aprueba + UNO rechaza → TIEBREAKER_REQUIRED, el jurado de desempate decide
+     * - JURADO DE DESEMPATE vota → su decisión es definitiva
+     */
+    @Transactional
+    public ResponseEntity<?> resolveDocumentEditRequest(Long editRequestId, DocumentEditResolutionDTO request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User examiner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        boolean hasExaminerRole = examiner.getRoles().stream()
+                .anyMatch(role -> role.getName().equals("EXAMINER"));
+        if (!hasExaminerRole) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "Solo los jurados pueden votar sobre solicitudes de edición de documentos"
+            ));
+        }
+
+        if (request.getApproved() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Debe indicar si aprueba (approved: true) o rechaza (approved: false) la solicitud"
+            ));
+        }
+
+        // Si rechaza, las notas son obligatorias
+        if (Boolean.FALSE.equals(request.getApproved()) &&
+                (request.getResolutionNotes() == null || request.getResolutionNotes().isBlank())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Debe proporcionar notas al rechazar una solicitud de edición"
+            ));
+        }
+
+        DocumentEditRequest editRequest = documentEditRequestRepository.findById(editRequestId)
+                .orElseThrow(() -> new RuntimeException("Solicitud de edición no encontrada"));
+
+        // Solo se puede votar si la solicitud está PENDING o TIEBREAKER_REQUIRED
+        if (editRequest.getStatus() != DocumentEditRequestStatus.PENDING &&
+                editRequest.getStatus() != DocumentEditRequestStatus.TIEBREAKER_REQUIRED) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Esta solicitud ya fue resuelta. Estado actual: " + editRequest.getStatus()
+            ));
+        }
+
+        StudentDocument document = editRequest.getStudentDocument();
+        StudentModality studentModality = document.getStudentModality();
+
+        // Validar que el jurado esté asignado a la modalidad
+        DefenseExaminer defenseExaminer = defenseExaminerRepository
+                .findByStudentModalityIdAndExaminerId(studentModality.getId(), examiner.getId())
+                .orElse(null);
+        if (defenseExaminer == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No estás asignado como jurado a esta modalidad"
+            ));
+        }
+
+        ExaminerType examinerType = defenseExaminer.getExaminerType();
+        boolean isTiebreaker = examinerType == ExaminerType.TIEBREAKER_EXAMINER;
+
+        // Validar que no haya ya votado
+        if (documentEditRequestVoteRepository.existsByEditRequestIdAndExaminerId(editRequestId, examiner.getId())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Ya registraste tu veredicto sobre esta solicitud de edición"
+            ));
+        }
+
+        // Si es jurado de desempate y la solicitud no está en TIEBREAKER_REQUIRED → no puede votar aún
+        if (isTiebreaker && editRequest.getStatus() != DocumentEditRequestStatus.TIEBREAKER_REQUIRED) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "El jurado de desempate solo interviene cuando los jurados principales tienen veredictos divididos"
+            ));
+        }
+
+        // Si es jurado primario y la solicitud está en TIEBREAKER_REQUIRED → ya no puede votar
+        if (!isTiebreaker && editRequest.getStatus() == DocumentEditRequestStatus.TIEBREAKER_REQUIRED) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Los jurados principales ya votaron. Esta solicitud está en espera del jurado de desempate"
+            ));
+        }
+
+        EditRequestVoteDecision voteDecision = Boolean.TRUE.equals(request.getApproved())
+                ? EditRequestVoteDecision.APPROVED
+                : EditRequestVoteDecision.REJECTED;
+
+        // Guardar el voto
+        DocumentEditRequestVote vote = DocumentEditRequestVote.builder()
+                .editRequest(editRequest)
+                .examiner(examiner)
+                .decision(voteDecision)
+                .notes(request.getResolutionNotes())
+                .isTiebreakerVote(isTiebreaker)
+                .votedAt(LocalDateTime.now())
+                .build();
+        documentEditRequestVoteRepository.save(vote);
+
+        // ===== LÓGICA DE CONSENSO =====
+        return processEditRequestConsensus(editRequest, document, studentModality, examiner, isTiebreaker, voteDecision, request.getResolutionNotes());
+    }
+
+    /**
+     * Procesa el consenso de votos sobre una solicitud de edición.
+     */
+    private ResponseEntity<?> processEditRequestConsensus(
+            DocumentEditRequest editRequest,
+            StudentDocument document,
+            StudentModality studentModality,
+            User examiner,
+            boolean isTiebreaker,
+            EditRequestVoteDecision currentVote,
+            String notes) {
+
+        Long editRequestId = editRequest.getId();
+
+        // Si es el jurado de desempate → su voto es definitivo
+        if (isTiebreaker) {
+            return applyFinalEditRequestDecision(
+                    editRequest, document, studentModality, examiner,
+                    currentVote == EditRequestVoteDecision.APPROVED, notes, true
+            );
+        }
+
+        // Obtener los jurados primarios de la modalidad
+        List<DefenseExaminer> primaryExaminers = defenseExaminerRepository
+                .findPrimaryExaminersByStudentModalityId(studentModality.getId());
+
+        if (primaryExaminers.size() < 2) {
+            // Solo hay un jurado primario → su voto es suficiente
+            return applyFinalEditRequestDecision(
+                    editRequest, document, studentModality, examiner,
+                    currentVote == EditRequestVoteDecision.APPROVED, notes, false
+            );
+        }
+
+        // Obtener todos los votos de jurados primarios para esta solicitud
+        List<DocumentEditRequestVote> primaryVotes = documentEditRequestVoteRepository
+                .findByEditRequestId(editRequestId)
+                .stream()
+                .filter(v -> !v.getIsTiebreakerVote())
+                .collect(Collectors.toList());
+
+        // Si aún no han votado todos los jurados primarios, esperar
+        if (primaryVotes.size() < 2) {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "editRequestId", editRequestId,
+                    "message", "Veredicto registrado. Esperando el veredicto del otro jurado principal.",
+                    "votesReceived", primaryVotes.size(),
+                    "votesRequired", 2
+            ));
+        }
+
+        // Ambos han votado — analizar resultado
+        long approvedCount = primaryVotes.stream()
+                .filter(v -> v.getDecision() == EditRequestVoteDecision.APPROVED)
+                .count();
+        long rejectedCount = primaryVotes.stream()
+                .filter(v -> v.getDecision() == EditRequestVoteDecision.REJECTED)
+                .count();
+
+        if (approvedCount == 2) {
+            // Ambos aprueban → APPROVED
+            return applyFinalEditRequestDecision(editRequest, document, studentModality, examiner, true, null, false);
+        }
+
+        if (rejectedCount == 2) {
+            // Ambos rechazan → REJECTED
+            String combinedNotes = primaryVotes.stream()
+                    .filter(v -> v.getNotes() != null && !v.getNotes().isBlank())
+                    .map(DocumentEditRequestVote::getNotes)
+                    .collect(Collectors.joining(" | "));
+            return applyFinalEditRequestDecision(editRequest, document, studentModality, examiner, false,
+                    combinedNotes.isBlank() ? notes : combinedNotes, false);
+        }
+
+        // Votos divididos (uno aprueba, uno rechaza) → TIEBREAKER_REQUIRED
+        editRequest.setStatus(DocumentEditRequestStatus.TIEBREAKER_REQUIRED);
+        documentEditRequestRepository.save(editRequest);
+
+        // Trazabilidad en historial del DOCUMENTO
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(document)
+                        .status(DocumentStatus.EDIT_REQUESTED)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(examiner)
+                        .observations("Votos de jurados primarios divididos sobre la solicitud de edición. Se requiere jurado de desempate.")
+                        .build()
+        );
+
+        // Trazabilidad en historial de la MODALIDAD
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(studentModality.getStatus())
+                        .changeDate(LocalDateTime.now())
+                        .responsible(examiner)
+                        .observations("Solicitud de edición del documento '" +
+                                document.getDocumentConfig().getDocumentName() +
+                                "': votos de jurados principales divididos. Se requiere veredicto del jurado de desempate para resolver.")
+                        .build()
+        );
+
+        // Notificar al jurado de desempate
+        notificationEventPublisher.publish(
+                new DocumentEditRequestedEvent(
+                        studentModality.getId(),
+                        document.getId(),
+                        editRequest.getId(),
+                        editRequest.getReason() + " [REQUIERE DESEMPATE: votos divididos entre jurados principales]",
+                        document.getDocumentConfig().getDocumentName(),
+                        examiner.getId()
+                )
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "editRequestId", editRequestId,
+                "newStatus", DocumentEditRequestStatus.TIEBREAKER_REQUIRED.name(),
+                "message", "Los jurados principales tienen votos divididos. El jurado de desempate deberá resolver la solicitud.",
+                "votes", buildVotesSummary(documentEditRequestVoteRepository.findByEditRequestId(editRequestId))
+        ));
+    }
+
+    /**
+     * Aplica la decisión final sobre la solicitud de edición (aprobada o rechazada).
+     */
+    private ResponseEntity<?> applyFinalEditRequestDecision(
+            DocumentEditRequest editRequest,
+            StudentDocument document,
+            StudentModality studentModality,
+            User responsible,
+            boolean approved,
+            String finalNotes,
+            boolean wasTiebreaker) {
+
+        DocumentEditRequestStatus finalStatus = approved
+                ? DocumentEditRequestStatus.APPROVED
+                : DocumentEditRequestStatus.REJECTED;
+
+        editRequest.setStatus(finalStatus);
+        editRequest.setResolvedBy(responsible);
+        editRequest.setResolutionNotes(finalNotes);
+        editRequest.setResolvedAt(LocalDateTime.now());
+        documentEditRequestRepository.save(editRequest);
+
+        if (approved) {
+            document.setStatus(DocumentStatus.EDIT_REQUEST_APPROVED);
+            document.setNotes("Solicitud de edición aprobada" + (wasTiebreaker ? " por el jurado de desempate" : " por consenso de jurados") +
+                    ". Puedes resubir el documento con los cambios necesarios.");
+        } else {
+            document.setStatus(DocumentStatus.ACCEPTED_FOR_EXAMINER_REVIEW);
+            document.setNotes("Solicitud de edición rechazada" + (wasTiebreaker ? " por el jurado de desempate" : " por consenso de jurados") +
+                    (finalNotes != null ? ". Motivo: " + finalNotes : ""));
+        }
+        document.setUploadDate(LocalDateTime.now());
+        studentDocumentRepository.save(document);
+
+        // Actualizar el estado de la MODALIDAD
+        // - Si se APRUEBA: la modalidad permanece en EDIT_REQUESTED_BY_STUDENT hasta que el estudiante resuba
+        // - Si se RECHAZA: la modalidad vuelve a EXAMINERS_ASSIGNED (estado antes de la solicitud)
+        if (!approved) {
+            studentModality.setStatus(ModalityProcessStatus.PROPOSAL_APPROVED);
+            studentModality.setUpdatedAt(LocalDateTime.now());
+            studentModalityRepository.save(studentModality);
+        }
+        // Si se aprueba, el estado sigue en EDIT_REQUESTED_BY_STUDENT; cambiará a EXAMINERS_ASSIGNED
+        // cuando el estudiante resuba el documento (en uploadRequiredDocument)
+
+        // Trazabilidad en historial del DOCUMENTO
+        documentHistoryRepository.save(
+                StudentDocumentStatusHistory.builder()
+                        .studentDocument(document)
+                        .status(approved ? DocumentStatus.EDIT_REQUEST_APPROVED : DocumentStatus.ACCEPTED_FOR_EXAMINER_REVIEW)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(responsible)
+                        .observations("Solicitud de edición " + (approved ? "APROBADA" : "RECHAZADA") +
+                                (wasTiebreaker ? " por jurado de desempate" : " por consenso de jurados") +
+                                (finalNotes != null ? ". Notas: " + finalNotes : ""))
+                        .build()
+        );
+
+        // Trazabilidad en historial de la MODALIDAD
+        ModalityProcessStatus newModalityStatus = approved
+                ? ModalityProcessStatus.EDIT_REQUESTED_BY_STUDENT
+                : ModalityProcessStatus.EXAMINERS_ASSIGNED;
+
+        historyRepository.save(
+                ModalityProcessStatusHistory.builder()
+                        .studentModality(studentModality)
+                        .status(newModalityStatus)
+                        .changeDate(LocalDateTime.now())
+                        .responsible(responsible)
+                        .observations("Solicitud de edición del documento '" +
+                                document.getDocumentConfig().getDocumentName() + "' " +
+                                (approved ? "APROBADA" : "RECHAZADA") +
+                                (wasTiebreaker ? " por el jurado de desempate" : " por consenso de jurados principales") +
+                                (approved
+                                        ? ". El estudiante puede resubir el documento con los cambios necesarios."
+                                        : ". El documento permanece aprobado y la modalidad vuelve a su estado anterior.") +
+                                (finalNotes != null && !finalNotes.isBlank() ? " Observaciones: " + finalNotes : ""))
+                        .build()
+        );
+
+        // Notificar a los estudiantes del resultado
+        notificationEventPublisher.publish(
+                new DocumentEditResolvedEvent(
+                        studentModality.getId(),
+                        document.getId(),
+                        editRequest.getId(),
+                        approved,
+                        finalNotes,
+                        document.getDocumentConfig().getDocumentName(),
+                        responsible.getId()
+                )
+        );
+
+        List<Map<String, Object>> votesSummary = buildVotesSummary(
+                documentEditRequestVoteRepository.findByEditRequestId(editRequest.getId())
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "editRequestId", editRequest.getId(),
+                "documentId", document.getId(),
+                "documentName", document.getDocumentConfig().getDocumentName(),
+                "finalStatus", finalStatus.name(),
+                "newDocumentStatus", document.getStatus().name(),
+                "newModalityStatus", studentModality.getStatus().name(),
+                "resolvedByTiebreaker", wasTiebreaker,
+                "votes", votesSummary,
+                "message", approved
+                        ? "Solicitud aprobada. El estudiante puede resubir el documento con los cambios."
+                        : "Solicitud rechazada. El documento permanece en estado aprobado."
+        ));
+    }
+
+    /**
+     * Construye un resumen de los votos de los jurados.
+     */
+    private List<Map<String, Object>> buildVotesSummary(List<DocumentEditRequestVote> votes) {
+        return votes.stream().map(v -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("examinerName", v.getExaminer().getName() + " " + v.getExaminer().getLastName());
+            m.put("examinerEmail", v.getExaminer().getEmail());
+            m.put("decision", v.getDecision().name());
+            m.put("notes", v.getNotes());
+            m.put("isTiebreakerVote", v.getIsTiebreakerVote());
+            m.put("votedAt", v.getVotedAt());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * El jurado autenticado obtiene TODAS las solicitudes de edición de documentos
+     * asociadas a una modalidad, con información completa del proceso:
+     * - Información del documento y del solicitante
+     * - Estado actual de la solicitud
+     * - Votos ya registrados por los jurados (nombre, tipo, decisión, notas)
+     * - Si el jurado autenticado ya ha votado o no
+     * - Resultado final (si ya está resuelto)
+     * Visible para todos los estados (PENDING, TIEBREAKER_REQUIRED, APPROVED, REJECTED).
+     */
+    @Transactional
+    public ResponseEntity<?> getAllEditRequestsForExaminer(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User examiner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        DefenseExaminer defenseExaminer = defenseExaminerRepository
+                .findByStudentModalityIdAndExaminerId(studentModalityId, examiner.getId())
+                .orElse(null);
+
+        if (defenseExaminer == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No estás asignado como jurado a esta modalidad"
+            ));
+        }
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        // Obtener todos los miembros activos
+        List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(studentModalityId, MemberStatus.ACTIVE);
+
+        List<String> studentNames = activeMembers.stream()
+                .map(m -> m.getStudent().getName() + " " + m.getStudent().getLastName() +
+                        " (" + m.getStudent().getEmail() + ")" +
+                        (Boolean.TRUE.equals(m.getIsLeader()) ? " – Líder" : ""))
+                .collect(Collectors.toList());
+
+        // Obtener TODAS las solicitudes de edición de la modalidad (todos los estados)
+        List<DocumentEditRequest> allRequests = documentEditRequestRepository
+                .findByStudentModalityId(studentModalityId);
+
+        List<Map<String, Object>> requestDTOs = new ArrayList<>();
+
+        for (DocumentEditRequest req : allRequests) {
+            StudentDocument doc = req.getStudentDocument();
+
+            List<DocumentEditRequestVote> votes = documentEditRequestVoteRepository
+                    .findByEditRequestId(req.getId());
+
+            boolean alreadyVoted = votes.stream()
+                    .anyMatch(v -> v.getExaminer().getId().equals(examiner.getId()));
+
+            DocumentEditRequestVote myVote = votes.stream()
+                    .filter(v -> v.getExaminer().getId().equals(examiner.getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            List<Map<String, Object>> voteDTOs = votes.stream().map(v -> {
+                Map<String, Object> voteMap = new LinkedHashMap<>();
+                voteMap.put("examinerName", v.getExaminer().getName() + " " + v.getExaminer().getLastName());
+                voteMap.put("examinerEmail", v.getExaminer().getEmail());
+                String examinerTypeLabel = defenseExaminerRepository
+                        .findByStudentModalityIdAndExaminerId(studentModalityId, v.getExaminer().getId())
+                        .map(de -> de.getExaminerType().toSpanish())
+                        .orElse("Jurado");
+                voteMap.put("examinerTypeLabel", examinerTypeLabel);
+                voteMap.put("decision", v.getDecision().name());
+                voteMap.put("decisionLabel", v.getDecision() == com.SIGMA.USCO.documents.entity.enums.EditRequestVoteDecision.APPROVED
+                        ? "Aprobado" : "Rechazado");
+                voteMap.put("notes", v.getNotes());
+                voteMap.put("isTiebreakerVote", v.getIsTiebreakerVote());
+                voteMap.put("votedAt", v.getVotedAt());
+                return voteMap;
+            }).collect(Collectors.toList());
+
+            String statusDesc = switch (req.getStatus()) {
+                case PENDING -> "Pendiente de votación por los jurados principales";
+                case TIEBREAKER_REQUIRED -> "Votos de jurados principales divididos – en espera del jurado de desempate";
+                case APPROVED -> "Solicitud aprobada – el estudiante puede resubir el documento con los cambios";
+                case REJECTED -> "Solicitud rechazada – el documento permanece en estado aprobado";
+            };
+
+            boolean canVote;
+            if (defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER) {
+                canVote = req.getStatus() == DocumentEditRequestStatus.TIEBREAKER_REQUIRED && !alreadyVoted;
+            } else {
+                canVote = req.getStatus() == DocumentEditRequestStatus.PENDING && !alreadyVoted;
+            }
+
+            Map<String, Object> requestMap = new LinkedHashMap<>();
+            requestMap.put("editRequestId", req.getId());
+            requestMap.put("documentId", doc.getId());
+            requestMap.put("documentName", doc.getDocumentConfig().getDocumentName());
+            requestMap.put("documentType", doc.getDocumentConfig().getDocumentType().name());
+            requestMap.put("currentDocumentStatus", doc.getStatus().name());
+            requestMap.put("requesterName", req.getRequester().getName() + " " + req.getRequester().getLastName());
+            requestMap.put("requesterEmail", req.getRequester().getEmail());
+            requestMap.put("reason", req.getReason());
+            requestMap.put("status", req.getStatus().name());
+            requestMap.put("statusDescription", statusDesc);
+            requestMap.put("createdAt", req.getCreatedAt());
+            requestMap.put("resolvedAt", req.getResolvedAt());
+            requestMap.put("finalResolutionNotes", req.getResolutionNotes());
+            requestMap.put("totalVotes", votes.size());
+            requestMap.put("votes", voteDTOs);
+            requestMap.put("authenticatedExaminerAlreadyVoted", alreadyVoted);
+            requestMap.put("authenticatedExaminerCanVote", canVote);
+
+            if (myVote != null) {
+                Map<String, Object> myVoteMap = new LinkedHashMap<>();
+                myVoteMap.put("decision", myVote.getDecision().name());
+                myVoteMap.put("decisionLabel", myVote.getDecision() == com.SIGMA.USCO.documents.entity.enums.EditRequestVoteDecision.APPROVED
+                        ? "Aprobado" : "Rechazado");
+                myVoteMap.put("notes", myVote.getNotes());
+                myVoteMap.put("votedAt", myVote.getVotedAt());
+                requestMap.put("myVote", myVoteMap);
+            } else {
+                requestMap.put("myVote", null);
+            }
+
+            requestDTOs.add(requestMap);
+        }
+
+        // Información del jurado autenticado en contexto de esta modalidad
+        Map<String, Object> examinerContext = new LinkedHashMap<>();
+        examinerContext.put("examinerId", examiner.getId());
+        examinerContext.put("examinerName", examiner.getName() + " " + examiner.getLastName());
+        examinerContext.put("examinerEmail", examiner.getEmail());
+        examinerContext.put("examinerType", defenseExaminer.getExaminerType().name());
+        examinerContext.put("examinerTypeLabel", defenseExaminer.getExaminerType().toSpanish());
+        examinerContext.put("isTiebreaker", defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER);
+
+        // Información de la modalidad
+        Map<String, Object> modalityInfo = new LinkedHashMap<>();
+        modalityInfo.put("studentModalityId", studentModality.getId());
+        modalityInfo.put("modalityName", studentModality.getProgramDegreeModality().getDegreeModality().getName());
+        modalityInfo.put("academicProgram", studentModality.getProgramDegreeModality().getAcademicProgram().getName());
+        modalityInfo.put("currentModalityStatus", studentModality.getStatus().name());
+        modalityInfo.put("students", studentNames);
+
+        long pending = allRequests.stream().filter(r -> r.getStatus() == DocumentEditRequestStatus.PENDING).count();
+        long tiebreakerRequired = allRequests.stream().filter(r -> r.getStatus() == DocumentEditRequestStatus.TIEBREAKER_REQUIRED).count();
+        long approvedCount = allRequests.stream().filter(r -> r.getStatus() == DocumentEditRequestStatus.APPROVED).count();
+        long rejectedCount = allRequests.stream().filter(r -> r.getStatus() == DocumentEditRequestStatus.REJECTED).count();
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "examiner", examinerContext,
+                "modality", modalityInfo,
+                "summary", Map.of(
+                        "total", allRequests.size(),
+                        "pending", pending,
+                        "tiebreakerRequired", tiebreakerRequired,
+                        "approved", approvedCount,
+                        "rejected", rejectedCount
+                ),
+                "editRequests", requestDTOs
+        ));
+    }
+
+    /**
+     * Lista todas las solicitudes de edición pendientes para una modalidad,
+     * para que el jurado autenticado pueda revisarlas.
+     * Incluye el estado de votación actual y los votos ya registrados.
+     */
+    @Transactional
+    public ResponseEntity<?> getPendingEditRequestsForExaminer(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User examiner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        DefenseExaminer defenseExaminer = defenseExaminerRepository
+                .findByStudentModalityIdAndExaminerId(studentModalityId, examiner.getId())
+                .orElse(null);
+        if (defenseExaminer == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No estás asignado como jurado a esta modalidad"
+            ));
+        }
+
+        boolean isTiebreaker = defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER;
+
+        StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        List<StudentDocument> docs = studentDocumentRepository.findByStudentModalityId(studentModalityId);
+        List<DocumentEditRequestResponseDTO> result = new ArrayList<>();
+
+        for (StudentDocument doc : docs) {
+            // Mostrar pendientes y en desempate (el de desempate solo ve las que son TIEBREAKER_REQUIRED)
+            List<DocumentEditRequest> requests = documentEditRequestRepository
+                    .findByStudentDocumentId(doc.getId())
+                    .stream()
+                    .filter(req -> {
+                        if (isTiebreaker) {
+                            return req.getStatus() == DocumentEditRequestStatus.TIEBREAKER_REQUIRED;
+                        } else {
+                            return req.getStatus() == DocumentEditRequestStatus.PENDING;
+                        }
+                    })
+                    .collect(Collectors.toList());
+
+            for (DocumentEditRequest req : requests) {
+                List<DocumentEditRequestVote> votes = documentEditRequestVoteRepository
+                        .findByEditRequestId(req.getId());
+
+                boolean alreadyVoted = votes.stream()
+                        .anyMatch(v -> v.getExaminer().getId().equals(examiner.getId()));
+
+                List<DocumentEditRequestResponseDTO.EditVoteDTO> voteDTOs = votes.stream()
+                        .map(v -> DocumentEditRequestResponseDTO.EditVoteDTO.builder()
+                                .examinerName(v.getExaminer().getName() + " " + v.getExaminer().getLastName())
+                                .examinerEmail(v.getExaminer().getEmail())
+                                .decision(v.getDecision().name())
+                                .notes(v.getNotes())
+                                .isTiebreakerVote(v.getIsTiebreakerVote())
+                                .votedAt(v.getVotedAt())
+                                .build())
+                        .collect(Collectors.toList());
+
+                String statusDesc = switch (req.getStatus()) {
+                    case PENDING -> "Pendiente de votación por los jurados principales";
+                    case TIEBREAKER_REQUIRED -> "Veredictos divididos – requiere veredicto del jurado de desempate";
+                    case APPROVED -> "Solicitud aprobada";
+                    case REJECTED -> "Solicitud rechazada";
+                };
+
+                result.add(DocumentEditRequestResponseDTO.builder()
+                        .editRequestId(req.getId())
+                        .studentDocumentId(doc.getId())
+                        .documentName(doc.getDocumentConfig().getDocumentName())
+                        .documentType(doc.getDocumentConfig().getDocumentType().name())
+                        .requesterName(req.getRequester().getName() + " " + req.getRequester().getLastName())
+                        .requesterEmail(req.getRequester().getEmail())
+                        .reason(req.getReason())
+                        .status(req.getStatus().name())
+                        .statusDescription(statusDesc)
+                        .createdAt(req.getCreatedAt())
+                        .resolvedAt(req.getResolvedAt())
+                        .votes(voteDTOs)
+                        .finalResolutionNotes(req.getResolutionNotes())
+                        .build());
+
+                // Agregar flag de si ya votó en la respuesta
+                // (lo añadimos al map de la respuesta principal)
+                log.info("Solicitud {} - Jurado {} ya votó: {}", req.getId(), examiner.getEmail(), alreadyVoted);
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "studentModalityId", studentModalityId,
+                "examinerType", defenseExaminer.getExaminerType().name(),
+                "isTiebreaker", isTiebreaker,
+                "pendingEditRequests", result
+        ));
+    }
+
+    // =========================================================================
+    // MÉTODOS GET PARA EL ESTUDIANTE – SOLICITUDES DE EDICIÓN
+    // =========================================================================
+
+    /**
+     * El estudiante autenticado obtiene TODAS sus solicitudes de edición de documentos,
+     * agrupadas por modalidad, con el estado de votación de cada una.
+     */
+    @Transactional
+    public ResponseEntity<?> getMyDocumentEditRequests() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        List<DocumentEditRequest> requests = documentEditRequestRepository.findByRequesterId(student.getId());
+
+        List<DocumentEditRequestResponseDTO> result = requests.stream()
+                .map(req -> buildEditRequestResponseDTO(req))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "totalRequests", result.size(),
+                "editRequests", result
+        ));
+    }
+
+    /**
+     * El estudiante autenticado obtiene todas las solicitudes de edición
+     * asociadas a una modalidad específica (por studentModalityId).
+     * Útil para ver el estado actualizado de sus solicitudes en la modalidad actual.
+     */
+    @Transactional
+    public ResponseEntity<?> getMyDocumentEditRequestsByModality(Long studentModalityId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Validar que el estudiante sea miembro activo de la modalidad
+        boolean isActiveMember = studentModalityMemberRepository.isActiveMember(studentModalityId, student.getId());
+        if (!isActiveMember) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No eres miembro activo de esta modalidad"
+            ));
+        }
+
+        List<DocumentEditRequest> requests = documentEditRequestRepository
+                .findByStudentModalityId(studentModalityId);
+
+        List<DocumentEditRequestResponseDTO> result = requests.stream()
+                .map(req -> buildEditRequestResponseDTO(req))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "studentModalityId", studentModalityId,
+                "totalRequests", result.size(),
+                "editRequests", result
+        ));
+    }
+
+    /**
+     * El estudiante autenticado obtiene el detalle de una solicitud de edición específica por ID.
+     */
+    @Transactional
+    public ResponseEntity<?> getDocumentEditRequestDetail(Long editRequestId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        DocumentEditRequest request = documentEditRequestRepository.findById(editRequestId)
+                .orElseThrow(() -> new RuntimeException("Solicitud de edición no encontrada"));
+
+        StudentModality studentModality = request.getStudentDocument().getStudentModality();
+
+        // Validar que el estudiante sea miembro activo de la modalidad o el solicitante
+        boolean isActiveMember = studentModalityMemberRepository.isActiveMember(
+                studentModality.getId(), student.getId());
+        if (!isActiveMember && !request.getRequester().getId().equals(student.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "No tienes permiso para ver esta solicitud de edición"
+            ));
+        }
+
+        DocumentEditRequestResponseDTO dto = buildEditRequestResponseDTO(request);
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "editRequest", dto
+        ));
+    }
+
+    /**
+     * Construye el DTO de respuesta para una solicitud de edición.
+     */
+    private DocumentEditRequestResponseDTO buildEditRequestResponseDTO(DocumentEditRequest req) {
+
+        StudentDocument doc = req.getStudentDocument();
+
+        List<DocumentEditRequestVote> votes = documentEditRequestVoteRepository
+                .findByEditRequestId(req.getId());
+
+        List<DocumentEditRequestResponseDTO.EditVoteDTO> voteDTOs = votes.stream()
+                .map(v -> DocumentEditRequestResponseDTO.EditVoteDTO.builder()
+                        .examinerName(v.getExaminer().getName() + " " + v.getExaminer().getLastName())
+                        .examinerEmail(v.getExaminer().getEmail())
+                        .decision(v.getDecision().name())
+                        .notes(v.getNotes())
+                        .isTiebreakerVote(v.getIsTiebreakerVote())
+                        .votedAt(v.getVotedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        String statusDesc = switch (req.getStatus()) {
+            case PENDING -> "Pendiente de votación por los jurados evaluadores";
+            case TIEBREAKER_REQUIRED -> "Votos de jurados principales divididos – en espera del jurado de desempate";
+            case APPROVED -> "Solicitud aprobada – puedes resubir el documento con los cambios";
+            case REJECTED -> "Solicitud rechazada – el documento permanece en estado aprobado";
+        };
+
+        return DocumentEditRequestResponseDTO.builder()
+                .editRequestId(req.getId())
+                .studentDocumentId(doc.getId())
+                .documentName(doc.getDocumentConfig().getDocumentName())
+                .documentType(doc.getDocumentConfig().getDocumentType().name())
+                .requesterName(req.getRequester().getName() + " " + req.getRequester().getLastName())
+                .requesterEmail(req.getRequester().getEmail())
+                .reason(req.getReason())
+                .status(req.getStatus().name())
+                .statusDescription(statusDesc)
+                .createdAt(req.getCreatedAt())
+                .resolvedAt(req.getResolvedAt())
+                .votes(voteDTOs)
+                .finalResolutionNotes(req.getResolutionNotes())
+                .build();
+    }
+
+    /**
+     * Obtiene la lista de jurados (examinadores) asociados a una modalidad específica.
+     * Retorna información detallada de cada jurado incluyendo su tipo (primario 1, primario 2, desempate).
+     *
+     * @param studentModalityId ID de la modalidad del estudiante
+     * @return ResponseEntity con lista de jurados o error si la modalidad no existe
+     */
+    public ResponseEntity<?> getExaminersForModality(Long studentModalityId) {
+        try {
+            StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
+                    .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+            List<DefenseExaminer> examiners = defenseExaminerRepository
+                    .findByStudentModalityId(studentModalityId);
+
+            if (examiners.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "studentModalityId", studentModalityId,
+                        "examiners", List.of(),
+                        "message", "No hay jurados asignados a esta modalidad"
+                ));
+            }
+
+            List<Map<String, Object>> examinersList = examiners.stream()
+                    .map(examiner -> Map.<String, Object>of(
+                            "examinerId", examiner.getExaminer().getId(),
+                            "examinerName", examiner.getExaminer().getName(),
+                            "examinerLastName", examiner.getExaminer().getLastName(),
+                            "examinerEmail", examiner.getExaminer().getEmail(),
+                            "examinerType", examiner.getExaminerType().name(),
+                            "examinerTypeDescription", translateExaminerType(examiner.getExaminerType()),
+                            "assignmentDate", examiner.getAssignmentDate()
+                    ))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "studentModalityId", studentModalityId,
+                    "modalityName", studentModality.getProgramDegreeModality().getDegreeModality().getName(),
+                    "modalityStatus", studentModality.getStatus().name(),
+                    "examinersCount", examinersList.size(),
+                    "examiners", examinersList
+            ));
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "message", "Error al obtener los jurados: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Traduce el enum ExaminerType al español para mejor legibilidad.
+     */
+    private String translateExaminerType(ExaminerType type) {
+        return switch (type) {
+            case PRIMARY_EXAMINER_1 -> "Jurado Principal 1";
+            case PRIMARY_EXAMINER_2 -> "Jurado Principal 2";
+            case TIEBREAKER_EXAMINER -> "Jurado de Desempate";
+        };
     }
 
 }

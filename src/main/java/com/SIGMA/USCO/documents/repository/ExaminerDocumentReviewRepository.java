@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.documents.repository;
 
 import com.SIGMA.USCO.documents.entity.ExaminerDocumentReview;
+import com.SIGMA.USCO.documents.entity.enums.ExaminerDocumentDecision;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,6 +34,6 @@ public interface ExaminerDocumentReviewRepository extends JpaRepository<Examiner
            "AND edr.decision = :decision")
     long countByStudentDocumentIdAndDecision(
             @Param("studentDocumentId") Long studentDocumentId,
-            @Param("decision") com.SIGMA.USCO.documents.entity.ExaminerDocumentDecision decision);
+            @Param("decision") ExaminerDocumentDecision decision);
 }
 

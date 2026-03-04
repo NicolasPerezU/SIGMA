@@ -1914,6 +1914,7 @@ public class StudentNotificationListener {
             case DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos de propuesta aprobados por los jurados";
             case SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos finales aprobados por los jurados";
             case DOCUMENT_REVIEW_TIEBREAKER_REQUIRED -> "Revisión de documentos con desempate requerida";
+            case EDIT_REQUESTED_BY_STUDENT -> "Edición de documento solicitado por estudiante";
             case CORRECTIONS_REQUESTED_EXAMINERS -> "Correcciones solicitadas por Jurados";
             case READY_FOR_DEFENSE -> "Lista para sustentación";
             case FINAL_REVIEW_COMPLETED -> "Revisión final completada";
@@ -1951,6 +1952,115 @@ public class StudentNotificationListener {
             case TIEBREAKER_REJECTED -> "Reprobado por desempate";
             case REJECTED_BY_COMMITTEE -> "Rechazado por comité";
         };
+    }
+
+    /**
+     * Notifica a todos los estudiantes miembros de la modalidad cuando un jurado
+     * aprueba o rechaza su solicitud de edición de un documento.
+     */
+    @EventListener
+    public void onDocumentEditResolved(DocumentEditResolvedEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        List<StudentModalityMember> members = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(modality.getId(), MemberStatus.ACTIVE);
+
+        boolean approved = event.isApproved();
+        String subject = approved
+                ? "Solicitud de edición de documento aprobada"
+                : "Solicitud de edición de documento rechazada";
+
+        for (StudentModalityMember member : members) {
+            User student = member.getStudent();
+            String message;
+            if (approved) {
+                message = """
+                        Estimado/a %s,
+
+                        Reciba un cordial saludo.
+
+                        Le informamos que su solicitud de edición del siguiente documento
+                        ha sido APROBADA por el jurado evaluador:
+
+                        ───────────────────────────────
+                        DOCUMENTO
+                        ───────────────────────────────
+                        "%s"
+
+                        ───────────────────────────────
+                        NOTAS DEL JURADO
+                        ───────────────────────────────
+                        %s
+
+                        ───────────────────────────────
+                        ACCIÓN REQUERIDA
+                        ───────────────────────────────
+                        Puede ingresar al sistema SIGMA y resubir el documento
+                        con los cambios que consideró necesarios. Una vez resubido,
+                        el jurado evaluará la nueva versión.
+
+                        Esta notificación se genera automáticamente para efectos
+                        de control y trazabilidad institucional.
+
+                        Sistema de Gestión Académica – SIGMA
+                        Universidad Surcolombiana
+                        """.formatted(
+                        student.getName(),
+                        event.getDocumentName(),
+                        event.getResolutionNotes() != null ? event.getResolutionNotes() : "Sin notas adicionales"
+                );
+            } else {
+                message = """
+                        Estimado/a %s,
+
+                        Reciba un cordial saludo.
+
+                        Le informamos que su solicitud de edición del siguiente documento
+                        ha sido RECHAZADA por el jurado evaluador:
+
+                        ───────────────────────────────
+                        DOCUMENTO
+                        ───────────────────────────────
+                        "%s"
+
+                        ───────────────────────────────
+                        MOTIVO DEL RECHAZO
+                        ───────────────────────────────
+                        %s
+
+                        ───────────────────────────────
+                        INFORMACIÓN ADICIONAL
+                        ───────────────────────────────
+                        El documento permanece en su estado aprobado actual.
+                        Si tiene dudas sobre esta decisión, puede comunicarse
+                        con la Jefatura de Programa o el Director de Proyecto.
+
+                        Esta notificación se genera automáticamente para efectos
+                        de control y trazabilidad institucional.
+
+                        Sistema de Gestión Académica – SIGMA
+                        Universidad Surcolombiana
+                        """.formatted(
+                        student.getName(),
+                        event.getDocumentName(),
+                        event.getResolutionNotes() != null ? event.getResolutionNotes() : "Sin motivo registrado"
+                );
+            }
+
+            Notification notification = Notification.builder()
+                    .type(approved ? NotificationType.DOCUMENT_EDIT_APPROVED : NotificationType.DOCUMENT_EDIT_REJECTED)
+                    .recipientType(NotificationRecipientType.STUDENT)
+                    .recipient(student)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(subject)
+                    .message(message)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
     }
 }
 

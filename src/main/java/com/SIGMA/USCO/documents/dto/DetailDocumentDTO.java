@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.documents.dto;
 
-import com.SIGMA.USCO.documents.entity.DocumentType;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

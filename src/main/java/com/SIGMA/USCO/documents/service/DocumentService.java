@@ -9,6 +9,8 @@ import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.documents.dto.StatusHistoryDTO;
 import com.SIGMA.USCO.documents.dto.RequiredDocumentDTO;
 import com.SIGMA.USCO.documents.entity.*;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
 import com.SIGMA.USCO.documents.repository.RequiredDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.documents.repository.StudentDocumentStatusHistoryRepository;

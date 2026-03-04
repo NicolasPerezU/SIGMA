@@ -1,6 +1,6 @@
 package com.SIGMA.USCO.documents.dto;
 
-import com.SIGMA.USCO.documents.entity.ProposalAspectGrade;
+import com.SIGMA.USCO.documents.entity.enums.ProposalAspectGrade;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 

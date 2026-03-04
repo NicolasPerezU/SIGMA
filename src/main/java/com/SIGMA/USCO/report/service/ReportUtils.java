@@ -26,6 +26,8 @@ public class ReportUtils {
             ModalityProcessStatus.DEFENSE_REQUESTED_BY_PROJECT_DIRECTOR,
             ModalityProcessStatus.DEFENSE_SCHEDULED,
             ModalityProcessStatus.EXAMINERS_ASSIGNED,
+            ModalityProcessStatus.EDIT_REQUESTED_BY_STUDENT,
+            ModalityProcessStatus.DOCUMENT_REVIEW_TIEBREAKER_REQUIRED,
             ModalityProcessStatus.READY_FOR_DEFENSE,
             ModalityProcessStatus.DEFENSE_COMPLETED,
             ModalityProcessStatus.UNDER_EVALUATION_PRIMARY_EXAMINERS,
@@ -56,6 +58,7 @@ public class ReportUtils {
             case UNDER_REVIEW_PROGRAM_CURRICULUM_COMMITTEE -> "En Revisión - Comité";
             case CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE -> "Correcciones Solicitadas - Comité";
             case READY_FOR_DIRECTOR_ASSIGNMENT -> "Listo para Asignar Director";
+            case READY_FOR_APPROVED_BY_PROGRAM_CURRICULUM_COMMITTEE -> "Listo para Aprobación por Comité";
             case PROPOSAL_APPROVED -> "Propuesta Aprobada";
 
             // Estados de programación de sustentación
@@ -64,6 +67,12 @@ public class ReportUtils {
             case EXAMINERS_ASSIGNED -> "Jurados Asignados";
             case CORRECTIONS_REQUESTED_EXAMINERS -> "Correcciones Solicitadas - Jurados";
             case READY_FOR_DEFENSE -> "Listo para Sustentar";
+            case DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos Aprobados por Jurados";
+            case SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos Finales Aprobados por Jurados";
+            case DOCUMENT_REVIEW_TIEBREAKER_REQUIRED -> "Requiere Jurado de Desempate (Documento)";
+            case FINAL_REVIEW_COMPLETED -> "Revisión Final Completada";
+            case EDIT_REQUESTED_BY_STUDENT -> "Solicitud de Edición por Estudiante";
+            case SEMINAR_CANCELED -> "Seminario Cancelado";
 
             // Estados de sustentación y evaluación
             case DEFENSE_COMPLETED -> "Sustentación Completada";

@@ -8,10 +8,14 @@ import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
+import com.SIGMA.USCO.notifications.event.DefenseReadyByDirectorEvent;
+import com.SIGMA.USCO.notifications.event.DefenseScheduledEvent;
 import com.SIGMA.USCO.notifications.service.NotificationDispatcherService;
 import com.SIGMA.USCO.notifications.repository.NotificationRepository;
 import com.SIGMA.USCO.Modalities.Entity.DefenseExaminer;
 import com.SIGMA.USCO.Modalities.Repository.DefenseExaminerRepository;
+import com.SIGMA.USCO.notifications.event.DocumentEditRequestedEvent;
+import com.SIGMA.USCO.notifications.event.DocumentEditResolvedEvent;
 import com.SIGMA.USCO.notifications.event.DefenseReadyByDirectorEvent;
 import com.SIGMA.USCO.notifications.event.DefenseScheduledEvent;
 import lombok.RequiredArgsConstructor;
@@ -558,6 +562,95 @@ public class ExaminerNotificationListener {
                     .type(NotificationType.DEFENSE_SCHEDULED)
                     .recipientType(NotificationRecipientType.STUDENT)
                     .recipient(student)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(subject)
+                    .message(message)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
+    }
+
+    /**
+     * Notifica a los jurados asignados a la modalidad cuando un estudiante solicita
+     * editar un documento previamente aprobado.
+     */
+    @EventListener
+    public void onDocumentEditRequested(DocumentEditRequestedEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+
+        List<DefenseExaminer> examiners = defenseExaminerRepository.findByStudentModalityId(event.getStudentModalityId());
+
+        String studentNames = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(modality.getId(), MemberStatus.ACTIVE)
+                .stream()
+                .map(m -> m.getStudent().getName() + " " + m.getStudent().getLastName())
+                .collect(Collectors.joining(", "));
+
+        String subject = "Solicitud de edición de documento aprobado – Modalidad de grado";
+
+        for (DefenseExaminer examinerAssignment : examiners) {
+            User examiner = examinerAssignment.getExaminer();
+            String message = """
+                    Estimado/a %s %s,
+
+                    Reciba un cordial saludo.
+
+                    Le informamos que el/los estudiante(s) de la siguiente modalidad de grado
+                    ha(n) solicitado editar un documento que ya fue previamente aprobado:
+
+                    ───────────────────────────────
+                    INFORMACIÓN DE LA MODALIDAD
+                    ───────────────────────────────
+                    Modalidad de grado:
+                    "%s"
+
+                    Programa académico:
+                    "%s"
+
+                    Estudiante(s):
+                    %s
+
+                    ───────────────────────────────
+                    DOCUMENTO
+                    ───────────────────────────────
+                    Nombre del documento:
+                    "%s"
+
+                    ID de solicitud: %d
+
+                    ───────────────────────────────
+                    MOTIVO DE LA SOLICITUD
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    ACCIÓN REQUERIDA
+                    ───────────────────────────────
+                    Como jurado evaluador, le solicitamos ingresar al sistema SIGMA
+                    y aprobar o rechazar la solicitud de edición del estudiante,
+                    según su criterio académico.
+
+                    Cordialmente,
+                    Sistema de Gestión Académica – SIGMA
+                    """.formatted(
+                    examiner.getName(),
+                    examiner.getLastName(),
+                    modality.getProgramDegreeModality().getDegreeModality().getName(),
+                    modality.getProgramDegreeModality().getAcademicProgram().getName(),
+                    studentNames.isBlank() ? "No registrado" : studentNames,
+                    event.getDocumentName(),
+                    event.getEditRequestId(),
+                    event.getReason()
+            );
+
+            Notification notification = Notification.builder()
+                    .type(NotificationType.DOCUMENT_EDIT_REQUESTED)
+                    .recipientType(NotificationRecipientType.EXAMINER)
+                    .recipient(examiner)
                     .triggeredBy(null)
                     .studentModality(modality)
                     .subject(subject)

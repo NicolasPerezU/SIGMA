@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.documents.entity;
 
 import com.SIGMA.USCO.Users.Entity.User;
+import com.SIGMA.USCO.documents.entity.enums.ExaminerDocumentDecision;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

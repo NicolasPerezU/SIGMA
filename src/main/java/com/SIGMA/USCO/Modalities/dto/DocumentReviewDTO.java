@@ -1,7 +1,7 @@
 package com.SIGMA.USCO.Modalities.dto;
 
 import com.SIGMA.USCO.documents.dto.ProposalEvaluationRequest;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

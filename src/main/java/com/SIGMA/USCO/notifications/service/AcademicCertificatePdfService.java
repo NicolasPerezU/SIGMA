@@ -556,6 +556,7 @@ public class AcademicCertificatePdfService {
             case DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos de propuesta aprobados por los jurados";
             case SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos finales aprobados por los jurados";
             case DOCUMENT_REVIEW_TIEBREAKER_REQUIRED -> "Revisión con desempate requerida por jurados";
+            case EDIT_REQUESTED_BY_STUDENT -> "Edición de documento solicitado por estudiante";
             case CORRECTIONS_REQUESTED_EXAMINERS -> "Correcciones solicitadas por jurados";
             case READY_FOR_DEFENSE -> "Lista para sustentación";
             case FINAL_REVIEW_COMPLETED -> "Revisión final completada";

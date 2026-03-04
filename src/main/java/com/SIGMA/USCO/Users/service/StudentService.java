@@ -14,6 +14,7 @@ import com.SIGMA.USCO.academic.repository.FacultyRepository;
 import com.SIGMA.USCO.academic.repository.StudentProfileRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -205,8 +206,8 @@ public class StudentService {
 
         // Filtrar solo documentos MANDATORY y SECONDARY (excluir CANCELLATION)
         List<Map<String, Object>> response = documents.stream()
-                .filter(doc -> doc.getDocumentConfig().getDocumentType() == com.SIGMA.USCO.documents.entity.DocumentType.MANDATORY ||
-                              doc.getDocumentConfig().getDocumentType() == com.SIGMA.USCO.documents.entity.DocumentType.SECONDARY)
+                .filter(doc -> doc.getDocumentConfig().getDocumentType() == DocumentType.MANDATORY ||
+                              doc.getDocumentConfig().getDocumentType() == DocumentType.SECONDARY)
                 .map(doc -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("notes", doc.getNotes());

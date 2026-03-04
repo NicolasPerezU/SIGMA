@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.documents.entity;
 
 import com.SIGMA.USCO.Modalities.Entity.DegreeModality;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

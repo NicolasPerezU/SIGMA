@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.entity;
+package com.SIGMA.USCO.documents.entity.enums;
 
 public enum DocumentStatus {
 
@@ -12,6 +12,11 @@ public enum DocumentStatus {
     CORRECTIONS_REQUESTED_BY_PROGRAM_CURRICULUM_COMMITTEE,
     ACCEPTED_FOR_EXAMINER_REVIEW,
     REJECTED_FOR_EXAMINER_REVIEW,
-    CORRECTIONS_REQUESTED_BY_EXAMINER
+    CORRECTIONS_REQUESTED_BY_EXAMINER,
+
+    // Solicitud de edición de propuesta aprobada por el estudiante
+    EDIT_REQUESTED,
+    EDIT_REQUEST_APPROVED,
+    EDIT_REQUEST_REJECTED
 
 }

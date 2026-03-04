@@ -7,7 +7,7 @@ import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
@@ -487,6 +487,9 @@ public class DirectorNotificationListener {
             case ACCEPTED_FOR_EXAMINER_REVIEW -> "Aceptado por revisión de Jurado";
             case REJECTED_FOR_EXAMINER_REVIEW -> "Rechazado por Jurado";
             case CORRECTIONS_REQUESTED_BY_EXAMINER -> "Correcciones solicitadas por Jurado";
+            case EDIT_REQUESTED -> "Solicitud de edición pendiente de revisión por Jurado";
+            case EDIT_REQUEST_APPROVED -> "Solicitud de edición aprobada por Jurado (el estudiante puede resubir el documento)";
+            case EDIT_REQUEST_REJECTED -> "Solicitud de edición rechazada por Jurado";
         };
     }
 
@@ -515,6 +518,7 @@ public class DirectorNotificationListener {
             case DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos de propuesta aprobados por los jurados";
             case SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS -> "Documentos finales aprobados por los jurados";
             case DOCUMENT_REVIEW_TIEBREAKER_REQUIRED -> "Revisión de documentos con desempate requerida";
+            case EDIT_REQUESTED_BY_STUDENT -> "Edición de documento solicitado por estudiante";
             case CORRECTIONS_REQUESTED_EXAMINERS -> "Correcciones solicitadas por jurados";
             case READY_FOR_DEFENSE -> "Lista para sustentación";
             case FINAL_REVIEW_COMPLETED -> "Revisión final completada";

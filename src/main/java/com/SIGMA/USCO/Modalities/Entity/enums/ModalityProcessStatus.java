@@ -79,6 +79,12 @@ public enum ModalityProcessStatus {
      */
     DOCUMENT_REVIEW_TIEBREAKER_REQUIRED,
 
+    /**
+     * El estudiante ha solicitado la edición de un documento MANDATORY que ya fue
+     * aprobado por los jurados. La solicitud está pendiente de votación por los jurados.
+     */
+    EDIT_REQUESTED_BY_STUDENT,
+
     CORRECTIONS_REQUESTED_EXAMINERS,
 
     READY_FOR_DEFENSE,

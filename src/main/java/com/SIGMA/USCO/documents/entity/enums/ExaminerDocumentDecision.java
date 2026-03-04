@@ -1,4 +1,4 @@
-package com.SIGMA.USCO.documents.entity;
+package com.SIGMA.USCO.documents.entity.enums;
 
 /**
  * Decisión individual de un jurado sobre un documento.

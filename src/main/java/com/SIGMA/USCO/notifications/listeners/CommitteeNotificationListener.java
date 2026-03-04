@@ -5,7 +5,7 @@ import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
-import com.SIGMA.USCO.documents.entity.DocumentStatus;
+import com.SIGMA.USCO.documents.entity.enums.DocumentStatus;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
@@ -205,6 +205,9 @@ public class CommitteeNotificationListener {
             case ACCEPTED_FOR_EXAMINER_REVIEW -> "Aceptado para revisión de Jurado";
             case REJECTED_FOR_EXAMINER_REVIEW -> "Rechazado por Jurado";
             case CORRECTIONS_REQUESTED_BY_EXAMINER -> "Correcciones solicitadas por Jurado";
+            case EDIT_REQUESTED -> "Solicitud de edición pendiente";
+            case EDIT_REQUEST_APPROVED -> "Aprobado para edición";
+            case EDIT_REQUEST_REJECTED -> "Rechazado para edición";
         };
     }
 

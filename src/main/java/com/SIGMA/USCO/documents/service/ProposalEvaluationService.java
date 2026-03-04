@@ -5,7 +5,7 @@ import com.SIGMA.USCO.Users.Entity.User;
 import com.SIGMA.USCO.Users.repository.UserRepository;
 import com.SIGMA.USCO.documents.dto.ProposalEvaluationRequest;
 import com.SIGMA.USCO.documents.dto.ProposalEvaluationResponseDTO;
-import com.SIGMA.USCO.documents.entity.DocumentType;
+import com.SIGMA.USCO.documents.entity.enums.DocumentType;
 import com.SIGMA.USCO.documents.entity.ProposalEvaluation;
 import com.SIGMA.USCO.documents.entity.StudentDocument;
 import com.SIGMA.USCO.documents.repository.ProposalEvaluationRepository;
