@@ -20,6 +20,7 @@ import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
 import com.SIGMA.USCO.notifications.event.*;
 import com.SIGMA.USCO.notifications.listeners.ExaminerNotificationListener;
 import com.SIGMA.USCO.notifications.publisher.NotificationEventPublisher;
+import org.springframework.context.ApplicationEventPublisher;
 import com.SIGMA.USCO.notifications.repository.NotificationRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -66,12 +67,13 @@ public class ModalityService {
     private final ProgramDegreeModalityRepository programDegreeModalityRepository;
     private final ProgramAuthorityRepository programAuthorityRepository;
     private final DefenseExaminerRepository defenseExaminerRepository;
-    private final ExaminerEvaluationRepository examinerEvaluationRepository;
+    private final DefenseEvaluationCriteriaRepository defenseEvaluationCriteriaRepository;
     private final SeminarRepository seminarRepository;
     private final ExaminerNotificationListener examinerNotificationListener;
     private final NotificationRepository notificationRepository;
     private final ProposalEvaluationRepository proposalEvaluationRepository;
     private final ExaminerDocumentReviewRepository examinerDocumentReviewRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
 
     @Value("${file.upload-dir}")
@@ -1120,52 +1122,8 @@ public class ModalityService {
         if (request.getStatus() == DocumentStatus.CORRECTIONS_REQUESTED_BY_PROGRAM_HEAD) {
             StudentModality studentModality = document.getStudentModality();
 
-            int currentAttempts = studentModality.getCorrectionAttempts() == null ? 0 : studentModality.getCorrectionAttempts();
-            int newAttempts = currentAttempts + 1;
-
-            if (newAttempts > 3) {
-                studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL);
-                studentModality.setCorrectionAttempts(newAttempts);
-                studentModality.setUpdatedAt(LocalDateTime.now());
-                studentModalityRepository.save(studentModality);
-
-                historyRepository.save(
-                        ModalityProcessStatusHistory.builder()
-                                .studentModality(studentModality)
-                                .status(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL)
-                                .changeDate(LocalDateTime.now())
-                                .responsible(reviewer)
-                                .observations("Propuesta rechazada definitivamente. El estudiante agotó las 3 oportunidades " +
-                                        "de corrección permitidas según reglamento. Último documento revisado: " +
-                                        document.getDocumentConfig().getDocumentName())
-                                .build()
-                );
-
-                documentHistoryRepository.save(
-                        StudentDocumentStatusHistory.builder()
-                                .studentDocument(document)
-                                .status(request.getStatus())
-                                .changeDate(LocalDateTime.now())
-                                .responsible(reviewer)
-                                .observations("RECHAZO FINAL: " + request.getNotes() + " - Máximo de intentos agotado (3/3)")
-                                .build()
-                );
-
-                return ResponseEntity.ok(
-                        Map.of(
-                                "success", true,
-                                "message", "La propuesta ha sido rechazada definitivamente. El estudiante agotó las 3 " +
-                                        "oportunidades de corrección permitidas por el reglamento.",
-                                "documentId", document.getId(),
-                                "newModalityStatus", ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL,
-                                "attemptsUsed", newAttempts
-                        )
-                );
-            }
 
             LocalDateTime now = LocalDateTime.now();
-
-            studentModality.setCorrectionAttempts(newAttempts);
 
             studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_HEAD);
             studentModality.setCorrectionRequestDate(now);
@@ -1182,8 +1140,7 @@ public class ModalityService {
                             .responsible(reviewer)
                             .observations("Jefe de programa solicitó correcciones en documento: " +
                                     document.getDocumentConfig().getDocumentName() +
-                                    ". Notas: " + request.getNotes() +
-                                    ". Intento " + newAttempts + " de 3.")
+                                    ". Notas: " + request.getNotes())
                             .build()
             );
 
@@ -1736,14 +1693,7 @@ public class ModalityService {
             document.setNotes("Aprobado por ambos jurados principales");
             studentDocumentRepository.save(document);
 
-            historyRepository.save(ModalityProcessStatusHistory.builder()
-                    .studentModality(studentModality)
-                    .status(studentModality.getStatus())
-                    .changeDate(LocalDateTime.now())
-                    .responsible(examiner)
-                    .observations("Ambos jurados principales aprobaron el documento: " +
-                            document.getDocumentConfig().getDocumentName())
-                    .build());
+
 
             // Verificar si todos los documentos del mismo tipo están aprobados
             checkAndTransitionIfAllMandatoryApprovedByExaminers(document, studentModality, examiner);
@@ -2266,8 +2216,7 @@ public class ModalityService {
                 .status(ModalityProcessStatus.SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS)
                 .changeDate(LocalDateTime.now())
                 .responsible(responsible)
-                .observations("Todos los documentos finales (SECONDARY) aprobados por consenso de jurados. " +
-                        "Procediendo automáticamente a completar la revisión final.")
+                .observations("Todos los documentos finales han sido aprobados por consenso de jurados.")
                 .build());
 
         // → FINAL_REVIEW_COMPLETED automático
@@ -2529,63 +2478,7 @@ public class ModalityService {
                 DocumentStatus.CORRECTIONS_REQUESTED_BY_PROGRAM_CURRICULUM_COMMITTEE) {
 
 
-            int currentAttempts = studentModality.getCorrectionAttempts() == null ? 0 : studentModality.getCorrectionAttempts();
-            int newAttempts = currentAttempts + 1;
-
-
-
-
-            if (newAttempts > 3) {
-                studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL);
-                studentModality.setCorrectionAttempts(newAttempts);
-                studentModality.setUpdatedAt(LocalDateTime.now());
-                studentModalityRepository.save(studentModality);
-
-                historyRepository.save(
-                        ModalityProcessStatusHistory.builder()
-                                .studentModality(studentModality)
-                                .status(ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL)
-                                .changeDate(LocalDateTime.now())
-                                .responsible(committeeMember)
-                                .observations("Propuesta rechazada definitivamente por el comité. El estudiante agotó las 3 " +
-                                        "oportunidades de corrección permitidas según reglamento. Último documento revisado: " +
-                                        document.getDocumentConfig().getDocumentName())
-                                .build()
-                );
-
-                // Notificar a todos los estudiantes miembros de la modalidad
-                List<StudentModalityMember> membersToNotify = studentModalityMemberRepository
-                        .findByStudentModalityIdAndStatus(studentModality.getId(), MemberStatus.ACTIVE);
-                for (StudentModalityMember member : membersToNotify) {
-                    notificationEventPublisher.publish(
-                            new CorrectionRejectedFinalEvent(
-                                    studentModality.getId(),
-                                    document.getId(),
-                                    member.getStudent().getId(),
-                                    document.getDocumentConfig().getDocumentName(),
-                                    request.getNotes(),
-                                    committeeMember.getId()
-                            )
-                    );
-                }
-
-                return ResponseEntity.ok(
-                        Map.of(
-                                "success", true,
-                                "message", "La propuesta ha sido rechazada definitivamente. El estudiante agotó las 3 " +
-                                        "oportunidades de corrección permitidas por el reglamento.",
-                                "documentId", document.getId(),
-                                "newModalityStatus", ModalityProcessStatus.CORRECTIONS_REJECTED_FINAL,
-                                "attemptsUsed", newAttempts
-                        )
-                );
-            }
-
             LocalDateTime now = LocalDateTime.now();
-
-
-            studentModality.setCorrectionAttempts(newAttempts);
-
 
             studentModality.setStatus(ModalityProcessStatus.CORRECTIONS_REQUESTED_PROGRAM_CURRICULUM_COMMITTEE);
             studentModality.setCorrectionRequestDate(now);
@@ -2603,8 +2496,7 @@ public class ModalityService {
                             .responsible(committeeMember)
                             .observations("Comité de currículo solicitó correcciones en documento: " +
                                     document.getDocumentConfig().getDocumentName() +
-                                    ". Notas: " + request.getNotes() +
-                                    ". Intento " + newAttempts + " de 3.")
+                                    ". Notas: " + request.getNotes())
                             .build()
             );
 
@@ -2870,7 +2762,7 @@ public class ModalityService {
             case EXAMINERS_ASSIGNED ->
                     "Los jurados han sido asignados a la modalidad. Próximo paso: revisión de documentos por parte de los jurados.";
             case READY_FOR_EXAMINERS ->
-                    "La modalidad está lista para ser revisada por los jurados asignados. Próximo paso: sustentación y evaluación.";
+                    "La modalidad está lista para asignar a los jurados asignados. Próximo paso: Revisión de documentos por parte de los jurados.";
             case DOCUMENTS_APPROVED_BY_EXAMINERS ->
                     "Todos los documentos obligatorios de la propuesta han sido aprobados por los jurados. La modalidad avanza a aprobación de propuesta.";
             case SECONDARY_DOCUMENTS_APPROVED_BY_EXAMINERS ->
@@ -4364,7 +4256,7 @@ public class ModalityService {
         List<StudentModalityExaminerDTO.ExaminerInfo> examinersList = allExaminers.stream()
                 .map(de -> {
                     // Verificar si este examinador ya evaluó
-                    boolean hasEvaluated = examinerEvaluationRepository
+                    boolean hasEvaluated = defenseEvaluationCriteriaRepository
                             .findByDefenseExaminerId(de.getId())
                             .isPresent();
 
@@ -4383,7 +4275,7 @@ public class ModalityService {
         StudentModalityExaminerDTO.ExaminerEvaluationInfo myEvaluationInfo = null;
         boolean hasEvaluated = false;
 
-        ExaminerEvaluation myEvaluation = examinerEvaluationRepository
+        DefenseEvaluationCriteria myEvaluation = defenseEvaluationCriteriaRepository
                 .findByDefenseExaminerId(defenseExaminer.getId())
                 .orElse(null);
 
@@ -4392,9 +4284,9 @@ public class ModalityService {
             myEvaluationInfo = StudentModalityExaminerDTO.ExaminerEvaluationInfo.builder()
                     .evaluationId(myEvaluation.getId())
                     .grade(myEvaluation.getGrade())
-                    .decision(myEvaluation.getDecision() != null ? myEvaluation.getDecision().name() : null)
+                    .decision(myEvaluation.getGrade() != null ? (myEvaluation.getGrade() >= 3.5 ? "APPROVED" : "REJECTED") : null)
                     .observations(myEvaluation.getObservations())
-                    .evaluationDate(myEvaluation.getEvaluationDate())
+                    .evaluationDate(myEvaluation.getEvaluatedAt())
                     .isFinalDecision(myEvaluation.getIsFinalDecision())
                     .build();
         }
@@ -5077,8 +4969,9 @@ public class ModalityService {
         );
 
         notificationEventPublisher.publish(
-                new ModalityApprovedByCommitteeEvent(
+                new DirectorAssignedEvent(
                         studentModality.getId(),
+                        director.getId(),
                         committeeMember.getId()
                 )
         );
@@ -5948,6 +5841,10 @@ public class ModalityService {
         // Notificar a los jurados asignados
         examinerNotificationListener.notifyExaminersAssignment(studentModalityId);
 
+        // Publicar evento para notificar a estudiantes y director
+        ExaminersAssignedEvent event = new ExaminersAssignedEvent(studentModalityId);
+        applicationEventPublisher.publishEvent(event);
+
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
@@ -5963,17 +5860,14 @@ public class ModalityService {
     @Transactional
     public ResponseEntity<?> registerFinalDefenseEvaluation(Long studentModalityId, ExaminerEvaluationDTO evaluationDTO) {
 
-
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
 
         User examiner = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-
         StudentModality studentModality = studentModalityRepository.findById(studentModalityId)
                 .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
-
 
         DefenseExaminer defenseExaminer = defenseExaminerRepository
                 .findByStudentModalityIdAndExaminerId(studentModalityId, examiner.getId())
@@ -5981,8 +5875,7 @@ public class ModalityService {
                         "No está asignado como jurado de esta sustentación"
                 ));
 
-
-        if (examinerEvaluationRepository.existsByDefenseExaminerId(defenseExaminer.getId())) {
+        if (defenseEvaluationCriteriaRepository.existsByDefenseExaminerId(defenseExaminer.getId())) {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
@@ -5990,7 +5883,6 @@ public class ModalityService {
                     )
             );
         }
-
 
         if (studentModality.getStatus() != ModalityProcessStatus.DEFENSE_COMPLETED &&
                 studentModality.getStatus() != ModalityProcessStatus.READY_FOR_DEFENSE &&
@@ -6009,31 +5901,79 @@ public class ModalityService {
             );
         }
 
-
-        if (!isGradeConsistentWithDecision(evaluationDTO.getGrade(), evaluationDTO.getDecision())) {
+        // Punto 3: El jurado de desempate SOLO puede evaluar si hay desacuerdo entre primarios
+        if (defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER &&
+                studentModality.getStatus() != ModalityProcessStatus.DISAGREEMENT_REQUIRES_TIEBREAKER) {
             return ResponseEntity.badRequest().body(
                     Map.of(
                             "success", false,
-                            "message", "La calificación no es consistente con la decisión tomada"
+                            "message", "El jurado de desempate solo puede evaluar cuando existe desacuerdo entre los jurados principales (un jurado aprueba y el otro rechaza).",
+                            "currentStatus", studentModality.getStatus()
                     )
             );
         }
 
+        // Los jurados primarios no pueden evaluar si ya hay desacuerdo resuelto al desempate
+        if (defenseExaminer.getExaminerType() != ExaminerType.TIEBREAKER_EXAMINER &&
+                studentModality.getStatus() == ModalityProcessStatus.DISAGREEMENT_REQUIRES_TIEBREAKER) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Existe desacuerdo entre los jurados principales. Solo el jurado de desempate puede evaluar en este momento.",
+                            "currentStatus", studentModality.getStatus()
+                    )
+            );
+        }
 
-        ExaminerEvaluation evaluation = ExaminerEvaluation.builder()
-                .defenseExaminer(defenseExaminer)
-                .grade(evaluationDTO.getGrade())
-                .decision(evaluationDTO.getDecision())
-                .observations(evaluationDTO.getObservations())
-                .evaluationDate(LocalDateTime.now())
-                .isFinalDecision(false)
-                .build();
+        // Validar nota
+        if (evaluationDTO.getGrade() == null || evaluationDTO.getGrade() < 0.0 || evaluationDTO.getGrade() > 5.0) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "La calificación debe estar entre 0.0 y 5.0"
+            ));
+        }
 
-        examinerEvaluationRepository.save(evaluation);
+        // Construir la entidad DefenseEvaluationCriteria con toda la información
+        DefenseEvaluationCriteria.DefenseEvaluationCriteriaBuilder criteriaBuilder =
+                DefenseEvaluationCriteria.builder()
+                        .defenseExaminer(defenseExaminer)
+                        .grade(evaluationDTO.getGrade())
+                        .observations(evaluationDTO.getObservations())
+                        .isFinalDecision(false)
+                        .evaluatedAt(LocalDateTime.now());
 
+        // ── Criterios de rúbrica (opcional) ──────────────────────────────────
+        if (evaluationDTO.getEvaluationCriteria() != null) {
+            DefenseEvaluationCriteriaDTO criteriaDTO = evaluationDTO.getEvaluationCriteria();
+
+            // Todos los 5 criterios son obligatorios cuando se envía el bloque
+            if (criteriaDTO.getDomainAndClarity() == null
+                    || criteriaDTO.getSynthesisAndCommunication() == null
+                    || criteriaDTO.getArgumentationAndResponse() == null
+                    || criteriaDTO.getInnovationAndImpact() == null
+                    || criteriaDTO.getProfessionalPresentation() == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "Si se envía el formulario de rúbrica, todos los criterios son obligatorios."
+                ));
+            }
+
+            criteriaBuilder
+                    .domainAndClarity(criteriaDTO.getDomainAndClarity())
+                    .synthesisAndCommunication(criteriaDTO.getSynthesisAndCommunication())
+                    .argumentationAndResponse(criteriaDTO.getArgumentationAndResponse())
+                    .innovationAndImpact(criteriaDTO.getInnovationAndImpact())
+                    .professionalPresentation(criteriaDTO.getProfessionalPresentation())
+                    .proposedMention(criteriaDTO.getProposedMention() != null
+                            ? criteriaDTO.getProposedMention()
+                            : ProposedMention.NONE);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        DefenseEvaluationCriteria evaluation = criteriaBuilder.build();
+        defenseEvaluationCriteriaRepository.save(evaluation);
 
         if (defenseExaminer.getExaminerType() == ExaminerType.TIEBREAKER_EXAMINER) {
-
             return processTiebreakerEvaluation(studentModality, evaluation, examiner);
         } else {
 
@@ -6057,7 +5997,7 @@ public class ModalityService {
                         "No está asignado como jurado de esta sustentación"
                 ));
 
-        ExaminerEvaluation evaluation = examinerEvaluationRepository
+        DefenseEvaluationCriteria evaluation = defenseEvaluationCriteriaRepository
                 .findByDefenseExaminerId(defenseExaminer.getId())
                 .orElse(null);
 
@@ -6070,37 +6010,37 @@ public class ModalityService {
             );
         }
 
-        return ResponseEntity.ok(
-                Map.of(
-                        "success", true,
-                        "evaluationId", evaluation.getId(),
-                        "grade", evaluation.getGrade(),
-                        "decision", evaluation.getDecision(),
-                        "observations", evaluation.getObservations(),
-                        "evaluationDate", evaluation.getEvaluationDate(),
-                        "isFinalDecision", evaluation.getIsFinalDecision(),
-                        "examinerType", defenseExaminer.getExaminerType()
-                )
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("evaluationId", evaluation.getId());
+        response.put("grade", evaluation.getGrade());
+        response.put("approved", evaluation.getGrade() != null && evaluation.getGrade() >= 3.5);
+        response.put("observations", evaluation.getObservations());
+        response.put("evaluationDate", evaluation.getEvaluatedAt());
+        response.put("isFinalDecision", evaluation.getIsFinalDecision());
+        response.put("examinerType", defenseExaminer.getExaminerType());
+
+        // Incluir criterios de rúbrica si existen
+        if (evaluation.getDomainAndClarity() != null) {
+            Map<String, Object> criteriaMap = new LinkedHashMap<>();
+            criteriaMap.put("id", evaluation.getId());
+            criteriaMap.put("domainAndClarity", evaluation.getDomainAndClarity());
+            criteriaMap.put("synthesisAndCommunication", evaluation.getSynthesisAndCommunication());
+            criteriaMap.put("argumentationAndResponse", evaluation.getArgumentationAndResponse());
+            criteriaMap.put("innovationAndImpact", evaluation.getInnovationAndImpact());
+            criteriaMap.put("professionalPresentation", evaluation.getProfessionalPresentation());
+            criteriaMap.put("proposedMention", evaluation.getProposedMention());
+            criteriaMap.put("evaluatedAt", evaluation.getEvaluatedAt());
+            response.put("evaluationCriteria", criteriaMap);
+        } else {
+            response.put("evaluationCriteria", null);
+        }
+
+        return ResponseEntity.ok(response);
     }
 
 
-
-    private boolean isGradeConsistentWithDecision(Double grade, ExaminerDecision decision) {
-        return switch (decision) {
-            case REJECTED -> grade < 3.0;
-            case APPROVED_NO_DISTINCTION -> grade >= 3.0 && grade < 4.0;
-            case APPROVED_MERITORIOUS -> grade >= 4.0 && grade < 4.5;
-            case APPROVED_LAUREATE -> grade >= 4.5 && grade <= 5.0;
-        };
-    }
-
-
-    private ResponseEntity<?> processPrimaryExaminerEvaluation(
-            StudentModality studentModality,
-            ExaminerEvaluation currentEvaluation,
-            User examiner) {
-
+    private ResponseEntity<?> processPrimaryExaminerEvaluation(StudentModality studentModality, DefenseEvaluationCriteria currentEvaluation, User examiner) {
 
         if (studentModality.getStatus() == ModalityProcessStatus.DEFENSE_COMPLETED) {
             studentModality.setStatus(ModalityProcessStatus.UNDER_EVALUATION_PRIMARY_EXAMINERS);
@@ -6108,8 +6048,7 @@ public class ModalityService {
             studentModalityRepository.save(studentModality);
         }
 
-
-        boolean bothEvaluated = examinerEvaluationRepository
+        boolean bothEvaluated = defenseEvaluationCriteriaRepository
                 .bothPrimaryExaminersHaveEvaluated(studentModality.getId());
 
         if (!bothEvaluated) {
@@ -6122,7 +6061,7 @@ public class ModalityService {
                             .responsible(examiner)
                             .observations("Jurado " + examiner.getName() + " ha registrado su evaluación. " +
                                     "Calificación: " + currentEvaluation.getGrade() +
-                                    ". Decisión: " + currentEvaluation.getDecision())
+                                    ". Resultado: " + (currentEvaluation.getGrade() >= 3.5 ? "APROBADO" : "REPROBADO"))
                             .build()
             );
 
@@ -6131,20 +6070,19 @@ public class ModalityService {
                             "success", true,
                             "message", "Evaluación registrada correctamente. Esperando evaluación del otro jurado principal.",
                             "grade", currentEvaluation.getGrade(),
-                            "decision", currentEvaluation.getDecision()
+                            "approved", currentEvaluation.getGrade() >= 3.5
                     )
             );
         }
 
 
-        List<ExaminerEvaluation> primaryEvaluations = examinerEvaluationRepository
+        List<DefenseEvaluationCriteria> primaryEvaluations = defenseEvaluationCriteriaRepository
                 .findPrimaryEvaluationsByStudentModalityId(studentModality.getId());
 
-        boolean hasConsensus = examinerEvaluationRepository
+        boolean hasConsensus = defenseEvaluationCriteriaRepository
                 .primaryExaminersHaveConsensus(studentModality.getId());
 
         if (hasConsensus) {
-
             return applyFinalResultWithConsensus(studentModality, primaryEvaluations, examiner);
         } else {
 
@@ -6153,40 +6091,43 @@ public class ModalityService {
     }
 
 
-    private ResponseEntity<?> applyFinalResultWithConsensus(
-            StudentModality studentModality,
-            List<ExaminerEvaluation> primaryEvaluations,
-            User examiner) {
+    private ResponseEntity<?> applyFinalResultWithConsensus(StudentModality studentModality, List<DefenseEvaluationCriteria> primaryEvaluations, User examiner) {
 
-        ExaminerDecision consensusDecision = primaryEvaluations.get(0).getDecision();
-
-
-        Double averageGrade = examinerEvaluationRepository
+        // La nota final es el promedio de las dos notas de los jurados principales (punto 4)
+        Double averageGrade = defenseEvaluationCriteriaRepository
                 .calculateAverageGradeOfPrimaryExaminers(studentModality.getId());
-
 
         primaryEvaluations.forEach(eval -> {
             eval.setIsFinalDecision(true);
-            examinerEvaluationRepository.save(eval);
+            defenseEvaluationCriteriaRepository.save(eval);
         });
 
+        // La aprobación se determina por nota: >= 3.5 = aprobado, < 3.5 = reprobado (punto 2)
+        boolean approved = averageGrade != null && averageGrade >= 3.5;
 
         AcademicDistinction distinction;
         ModalityProcessStatus finalStatus;
 
-        if (consensusDecision == ExaminerDecision.REJECTED) {
+        if (!approved) {
             distinction = AcademicDistinction.AGREED_REJECTED;
             finalStatus = ModalityProcessStatus.GRADED_FAILED;
         } else {
             finalStatus = ModalityProcessStatus.GRADED_APPROVED;
-            distinction = switch (consensusDecision) {
-                case APPROVED_NO_DISTINCTION -> AcademicDistinction.AGREED_APPROVED;
-                case APPROVED_MERITORIOUS -> AcademicDistinction.AGREED_MERITORIOUS;
-                case APPROVED_LAUREATE -> AcademicDistinction.AGREED_LAUREATE;
-                default -> AcademicDistinction.NO_DISTINCTION;
-            };
-        }
 
+            // La mención solo se otorga si AMBOS jurados la proponen en proposedMention (punto 1)
+            ProposedMention mention1 = primaryEvaluations.get(0).getProposedMention();
+            ProposedMention mention2 = primaryEvaluations.get(1).getProposedMention();
+
+            if (mention1 != null && mention2 != null && mention1 == mention2
+                    && mention1 == ProposedMention.LAUREATE) {
+                distinction = AcademicDistinction.AGREED_LAUREATE;
+            } else if (mention1 != null && mention2 != null && mention1 == mention2
+                    && mention1 == ProposedMention.MERITORIOUS) {
+                distinction = AcademicDistinction.AGREED_MERITORIOUS;
+            } else {
+                distinction = AcademicDistinction.AGREED_APPROVED;
+            }
+        }
 
         studentModality.setStatus(finalStatus);
         studentModality.setAcademicDistinction(distinction);
@@ -6194,11 +6135,12 @@ public class ModalityService {
         studentModality.setUpdatedAt(LocalDateTime.now());
         studentModalityRepository.save(studentModality);
 
-
         String observations = String.format(
-                "CONSENSO entre jurados principales. Calificación final: %.2f. " +
-                "Decisión: %s. Distinción: %s",
-                averageGrade, consensusDecision, distinction
+                "CONSENSO entre jurados principales. Calificación final (promedio): %.2f. " +
+                "Resultado: %s. Distinción: %s",
+                averageGrade,
+                approved ? "APROBADO" : "REPROBADO",
+                distinction
         );
 
         historyRepository.save(
@@ -6210,7 +6152,6 @@ public class ModalityService {
                         .observations(observations)
                         .build()
         );
-
 
         notificationEventPublisher.publish(
                 new FinalDefenseResultEvent(
@@ -6229,18 +6170,14 @@ public class ModalityService {
                         "finalStatus", finalStatus,
                         "academicDistinction", distinction,
                         "finalGrade", averageGrade,
-                        "message", finalStatus == ModalityProcessStatus.GRADED_APPROVED
+                        "message", approved
                                 ? "Modalidad APROBADA por consenso de los jurados"
                                 : "Modalidad REPROBADA por consenso de los jurados"
                 )
         );
     }
 
-    private ResponseEntity<?> requestTiebreakerExaminer(
-            StudentModality studentModality,
-            List<ExaminerEvaluation> primaryEvaluations,
-            User examiner) {
-
+    private ResponseEntity<?> requestTiebreakerExaminer(StudentModality studentModality, List<DefenseEvaluationCriteria> primaryEvaluations, User examiner) {
 
         studentModality.setStatus(ModalityProcessStatus.DISAGREEMENT_REQUIRES_TIEBREAKER);
         studentModality.setAcademicDistinction(AcademicDistinction.DISAGREEMENT_PENDING_TIEBREAKER);
@@ -6251,8 +6188,10 @@ public class ModalityService {
         String observations = String.format(
                 "DESACUERDO entre jurados principales. Jurado 1: %s (%.2f). Jurado 2: %s (%.2f). " +
                 "Se requiere asignar un tercer jurado para desempatar.",
-                primaryEvaluations.get(0).getDecision(), primaryEvaluations.get(0).getGrade(),
-                primaryEvaluations.get(1).getDecision(), primaryEvaluations.get(1).getGrade()
+                primaryEvaluations.get(0).getGrade() >= 3.5 ? "APROBADO" : "REPROBADO",
+                primaryEvaluations.get(0).getGrade(),
+                primaryEvaluations.get(1).getGrade() >= 3.5 ? "APROBADO" : "REPROBADO",
+                primaryEvaluations.get(1).getGrade()
         );
 
         historyRepository.save(
@@ -6277,45 +6216,48 @@ public class ModalityService {
     }
 
 
-    private ResponseEntity<?> processTiebreakerEvaluation(
-            StudentModality studentModality,
-            ExaminerEvaluation tiebreakerEvaluation,
-            User examiner) {
-
+    private ResponseEntity<?> processTiebreakerEvaluation(StudentModality studentModality, DefenseEvaluationCriteria tiebreakerEvaluation, User examiner) {
 
         tiebreakerEvaluation.setIsFinalDecision(true);
-        examinerEvaluationRepository.save(tiebreakerEvaluation);
+        defenseEvaluationCriteriaRepository.save(tiebreakerEvaluation);
 
+        // La aprobación se determina por nota: >= 3.5 = aprobado (punto 2 y 3)
+        // La nota final es la del jurado de desempate (punto 5)
+        double tiebreakerGrade = tiebreakerEvaluation.getGrade();
+        boolean approved = tiebreakerGrade >= 3.5;
 
-        ExaminerDecision tiebreakerDecision = tiebreakerEvaluation.getDecision();
         AcademicDistinction distinction;
         ModalityProcessStatus finalStatus;
 
-        if (tiebreakerDecision == ExaminerDecision.REJECTED) {
+        if (!approved) {
             distinction = AcademicDistinction.TIEBREAKER_REJECTED;
             finalStatus = ModalityProcessStatus.GRADED_FAILED;
         } else {
             finalStatus = ModalityProcessStatus.GRADED_APPROVED;
-            distinction = switch (tiebreakerDecision) {
-                case APPROVED_NO_DISTINCTION -> AcademicDistinction.TIEBREAKER_APPROVED;
-                case APPROVED_MERITORIOUS -> AcademicDistinction.TIEBREAKER_MERITORIOUS;
-                case APPROVED_LAUREATE -> AcademicDistinction.TIEBREAKER_LAUREATE;
-                default -> AcademicDistinction.NO_DISTINCTION;
-            };
+            // La mención la determina el proposedMention del jurado de desempate
+            ProposedMention tiebreakerMention = tiebreakerEvaluation.getProposedMention();
+            if (tiebreakerMention == ProposedMention.LAUREATE) {
+                distinction = AcademicDistinction.TIEBREAKER_LAUREATE;
+            } else if (tiebreakerMention == ProposedMention.MERITORIOUS) {
+                distinction = AcademicDistinction.TIEBREAKER_MERITORIOUS;
+            } else {
+                distinction = AcademicDistinction.TIEBREAKER_APPROVED;
+            }
         }
 
-
+        // La nota final en studentModality es la del tercer jurado (punto 5)
         studentModality.setStatus(finalStatus);
         studentModality.setAcademicDistinction(distinction);
-        studentModality.setFinalGrade(tiebreakerEvaluation.getGrade());
+        studentModality.setFinalGrade(tiebreakerGrade);
         studentModality.setUpdatedAt(LocalDateTime.now());
         studentModalityRepository.save(studentModality);
 
-
         String observations = String.format(
                 "DESEMPATE resuelto por tercer jurado. Calificación final: %.2f. " +
-                "Decisión: %s. Distinción: %s",
-                tiebreakerEvaluation.getGrade(), tiebreakerDecision, distinction
+                "Resultado: %s. Distinción: %s",
+                tiebreakerGrade,
+                approved ? "APROBADO" : "REPROBADO",
+                distinction
         );
 
         historyRepository.save(
@@ -6327,7 +6269,6 @@ public class ModalityService {
                         .observations(observations)
                         .build()
         );
-
 
         notificationEventPublisher.publish(
                 new FinalDefenseResultEvent(
@@ -6345,8 +6286,8 @@ public class ModalityService {
                         "isTiebreaker", true,
                         "finalStatus", finalStatus,
                         "academicDistinction", distinction,
-                        "finalGrade", tiebreakerEvaluation.getGrade(),
-                        "message", finalStatus == ModalityProcessStatus.GRADED_APPROVED
+                        "finalGrade", tiebreakerGrade,
+                        "message", approved
                                 ? "Modalidad APROBADA por decisión del jurado de desempate"
                                 : "Modalidad REPROBADA por decisión del jurado de desempate"
                 )
@@ -6419,7 +6360,7 @@ public class ModalityService {
 
         List<FinalDefenseResponse.ExaminerEvaluationDetail> examinerEvaluations = defenseExaminers.stream()
                 .map(defenseExaminer -> {
-                    ExaminerEvaluation evaluation = examinerEvaluationRepository
+                    DefenseEvaluationCriteria evaluation = defenseEvaluationCriteriaRepository
                             .findByDefenseExaminerId(defenseExaminer.getId())
                             .orElse(null);
 
@@ -6427,15 +6368,29 @@ public class ModalityService {
                         return null;
                     }
 
+                    FinalDefenseResponse.CriteriaDetail criteriaDetail = null;
+                    if (evaluation.getDomainAndClarity() != null) {
+                        criteriaDetail = FinalDefenseResponse.CriteriaDetail.builder()
+                                .domainAndClarity(evaluation.getDomainAndClarity())
+                                .synthesisAndCommunication(evaluation.getSynthesisAndCommunication())
+                                .argumentationAndResponse(evaluation.getArgumentationAndResponse())
+                                .innovationAndImpact(evaluation.getInnovationAndImpact())
+                                .professionalPresentation(evaluation.getProfessionalPresentation())
+                                .proposedMention(evaluation.getProposedMention())
+                                .evaluatedAt(evaluation.getEvaluatedAt())
+                                .build();
+                    }
+
                     return FinalDefenseResponse.ExaminerEvaluationDetail.builder()
                             .examinerName(defenseExaminer.getExaminer().getName() + " " +
                                         defenseExaminer.getExaminer().getLastName())
                             .examinerType(defenseExaminer.getExaminerType().name())
                             .grade(evaluation.getGrade())
-                            .decision(evaluation.getDecision())
+                            .approved(evaluation.getGrade() != null && evaluation.getGrade() >= 3.5)
                             .observations(evaluation.getObservations())
-                            .evaluationDate(evaluation.getEvaluationDate())
+                            .evaluationDate(evaluation.getEvaluatedAt())
                             .isFinalDecision(evaluation.getIsFinalDecision())
+                            .evaluationCriteria(criteriaDetail)
                             .build();
                 })
                 .filter(detail -> detail != null)
@@ -6516,7 +6471,7 @@ public class ModalityService {
 
         List<FinalDefenseResponse.ExaminerEvaluationDetail> examinerEvaluations = defenseExaminers.stream()
                 .map(defenseExaminer -> {
-                    ExaminerEvaluation evaluation = examinerEvaluationRepository
+                    DefenseEvaluationCriteria evaluation = defenseEvaluationCriteriaRepository
                             .findByDefenseExaminerId(defenseExaminer.getId())
                             .orElse(null);
 
@@ -6529,9 +6484,9 @@ public class ModalityService {
                                         defenseExaminer.getExaminer().getLastName())
                             .examinerType(defenseExaminer.getExaminerType().name())
                             .grade(evaluation.getGrade())
-                            .decision(evaluation.getDecision())
+                            .approved(evaluation.getGrade() != null && evaluation.getGrade() >= 3.5)
                             .observations(evaluation.getObservations())
-                            .evaluationDate(evaluation.getEvaluationDate())
+                            .evaluationDate(evaluation.getEvaluatedAt())
                             .isFinalDecision(evaluation.getIsFinalDecision())
                             .build();
                 })
@@ -8692,7 +8647,7 @@ public class ModalityService {
                         .status(ModalityProcessStatus.READY_FOR_DEFENSE)
                         .changeDate(LocalDateTime.now())
                         .responsible(projectDirector)
-                        .observations("Director de proyecto marcó la modalidad como lista para defensa")
+                        .observations("Director de proyecto marcó la modalidad como lista para sustentación")
                         .build()
         );
 
@@ -8931,7 +8886,7 @@ public class ModalityService {
                     ));
         }
 
-        ExaminerEvaluation evaluation = examinerEvaluationRepository
+        DefenseEvaluationCriteria evaluation = defenseEvaluationCriteriaRepository
                 .findByDefenseExaminerId(defenseExaminer.getId())
                 .orElse(null);
 
@@ -8944,9 +8899,8 @@ public class ModalityService {
 
         ExaminerEvaluationDTO dto = ExaminerEvaluationDTO.builder()
                 .grade(evaluation.getGrade())
-                .decision(evaluation.getDecision())
                 .observations(evaluation.getObservations())
-                .evaluationDate(evaluation.getEvaluationDate())
+                .evaluationDate(evaluation.getEvaluatedAt())
                 .build();
 
         return ResponseEntity.ok(Map.of(

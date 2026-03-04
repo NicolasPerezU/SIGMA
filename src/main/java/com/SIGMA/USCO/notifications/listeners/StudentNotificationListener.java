@@ -1,6 +1,7 @@
 package com.SIGMA.USCO.notifications.listeners;
 
 import com.SIGMA.USCO.Modalities.Entity.AcademicCertificate;
+import com.SIGMA.USCO.Modalities.Entity.DefenseExaminer;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.StudentModalityMember;
 import com.SIGMA.USCO.Modalities.Entity.enums.AcademicDistinction;
@@ -76,14 +77,10 @@ public class StudentNotificationListener {
                 RECOMENDACIONES
                 ───────────────────────────────
                 Le recomendamos consultar periódicamente el sistema
-                SIGMA y mantenerse atento/a a las notificaciones,
+                 y mantenerse atento/a a las notificaciones,
                 ya que por este medio se comunicarán solicitudes,
                 observaciones o decisiones relacionadas con su proceso.
-                
-                Este mensaje constituye una notificación automática
-                generada para efectos de control y trazabilidad
-                académica.
-                
+        
                 Sistema de Gestión Académica
         """.formatted(
             student.getName(),
@@ -396,8 +393,7 @@ public class StudentNotificationListener {
         estrictamente con los lineamientos académicos establecidos
         para el desarrollo de la sesión de defensa.
 
-        Esta notificación se genera automáticamente para efectos
-        de organización y control académico.
+        
 
         Sistema de Gestión Académica
         """.formatted(
@@ -469,8 +465,7 @@ public class StudentNotificationListener {
         director para coordinar las actividades iniciales y
         definir el plan de trabajo correspondiente.
 
-        Esta notificación se genera automáticamente para efectos
-        de control y trazabilidad institucional.
+        
 
         Sistema de Gestión Académica
         """.formatted(
@@ -599,8 +594,7 @@ public class StudentNotificationListener {
 
             Reciba nuestras felicitaciones por este importante logro académico.
 
-            Esta notificación se genera automáticamente para efectos
-            de control y registro institucional.
+            
 
             Sistema de Gestión Académica
             Universidad Surcolombiana
@@ -640,8 +634,7 @@ public class StudentNotificationListener {
             Jefatura de Programa, con el fin de definir los pasos a seguir
             dentro del proceso académico correspondiente.
 
-            Esta notificación se genera automáticamente para efectos
-            de registro y trazabilidad institucional.
+          
 
             Sistema de Gestión Académica – SIGMA
             Universidad Surcolombiana
@@ -695,8 +688,7 @@ public class StudentNotificationListener {
         Director de Proyecto y con la Jefatura de Programa para
         el adecuado seguimiento del proceso.
 
-        Esta notificación se genera automáticamente para efectos
-        de control y trazabilidad institucional.
+        
 
         Sistema de Gestión Académica 
         Universidad Surcolombiana
@@ -741,7 +733,7 @@ public class StudentNotificationListener {
         Reciba un cordial saludo.
 
         Nos permitimos informarle que la siguiente modalidad de grado
-        ha sido aprobada oficialmente por la Jefatura del programa académico:
+        ha sido aprobada oficialmente por la Jefatura del programa académico y/o coordinador de modalidades:
 
         ───────────────────────────────
         MODALIDAD DE GRADO
@@ -762,10 +754,8 @@ public class StudentNotificationListener {
         y conservar comunicación con la Jefatura de Programa ante cualquier
         inquietud relacionada con el trámite.
 
-        Esta notificación se genera automáticamente para efectos
-        de control y registro institucional.
-
-        Sistema de Gestión Académica – SIGMA
+     
+        Sistema de Gestión Académica 
         Universidad Surcolombiana
         """.formatted(
             student.getName(),
@@ -1847,11 +1837,63 @@ public class StudentNotificationListener {
         }
     }
 
+    @EventListener
+    public void onExaminersAssigned(ExaminersAssignedEvent event) {
+        StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
+                .orElseThrow(() -> new RuntimeException("Modalidad no encontrada"));
+        List<StudentModalityMember> members = studentModalityMemberRepository.findByStudentModalityIdAndStatus(modality.getId(), MemberStatus.ACTIVE);
+        List<DefenseExaminer> examiners = modality.getDefenseExaminers();
+        String jurados = examiners.stream()
+                .map(e -> e.getExaminer().getName() + " " + e.getExaminer().getLastName() + " (" + e.getExaminerType().name().replace('_', ' ') + ")")
+                .toList()
+                .isEmpty() ? "-" : String.join(", ", examiners.stream()
+                .map(e -> e.getExaminer().getName() + " " + e.getExaminer().getLastName() + " (" + e.getExaminerType().name().replace('_', ' ') + ")")
+                .toList());
+        String subject = "Asignación de jurados evaluadores a tu modalidad de grado";
+        String messageTemplate = """
+            Estimado/a %s,
+
+            Te informamos que se han asignado oficialmente los jurados evaluadores para tu modalidad de grado:
+
+            Modalidad: %s
+            Programa académico: %s
+            Jurados asignados: %s
+            Fecha de asignación: %s
+
+            Puedes consultar el detalle y el avance del proceso académico en SIGMA.
+
+            Cordialmente,
+            Sistema de Gestión Académica
+            """;
+        for (StudentModalityMember member : members) {
+            User student = member.getStudent();
+            String message = String.format(messageTemplate,
+                    student.getName() + " " + student.getLastName(),
+                    modality.getProgramDegreeModality().getDegreeModality().getName(),
+                    modality.getProgramDegreeModality().getAcademicProgram().getName(),
+                    jurados,
+                    LocalDateTime.now()
+            );
+            Notification notification = Notification.builder()
+                    .type(NotificationType.EXAMINER_ASSIGNED)
+                    .recipientType(NotificationRecipientType.STUDENT)
+                    .recipient(student)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(subject)
+                    .message(message)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+            dispatcher.dispatch(notification);
+        }
+    }
+
     private String translateModalityProcessStatus(ModalityProcessStatus status) {
         if (status == null) return "N/A";
         return switch (status) {
             case MODALITY_SELECTED -> "Modalidad seleccionada";
-            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura";
+            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura de programa y/o coordinación de modalidades";
             case CORRECTIONS_REQUESTED_PROGRAM_HEAD -> "Correcciones solicitadas por Jefatura";
             case CORRECTIONS_SUBMITTED -> "Correcciones enviadas";
             case CORRECTIONS_SUBMITTED_TO_PROGRAM_HEAD -> "Correcciones enviadas a Jefatura de Programa y/o coordinador de modalidades";
@@ -1911,3 +1953,10 @@ public class StudentNotificationListener {
         };
     }
 }
+
+
+
+
+
+
+

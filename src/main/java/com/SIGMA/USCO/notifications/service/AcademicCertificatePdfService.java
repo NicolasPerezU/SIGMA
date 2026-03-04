@@ -535,7 +535,7 @@ public class AcademicCertificatePdfService {
         if (status == null) return "No registrado";
         return switch (status) {
             case MODALITY_SELECTED -> "Modalidad seleccionada";
-            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura de Programa";
+            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura de Programa de programa y/o coordinación de modalidades";
             case CORRECTIONS_REQUESTED_PROGRAM_HEAD -> "Correcciones solicitadas por Jefatura de Programa";
             case CORRECTIONS_SUBMITTED -> "Correcciones enviadas";
             case CORRECTIONS_SUBMITTED_TO_PROGRAM_HEAD -> "Correcciones enviadas a Jefatura de Programa y/o Coordinación de Modalidades";

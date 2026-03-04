@@ -1,5 +1,6 @@
 package com.SIGMA.USCO.notifications.listeners;
 
+import com.SIGMA.USCO.Modalities.Entity.DefenseExaminer;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.StudentModalityMember;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
@@ -212,6 +213,14 @@ public class DirectorNotificationListener {
             .map(m -> m.getStudent().getName() + " " + m.getStudent().getLastName() + " (" + m.getStudent().getEmail() + ")")
             .collect(Collectors.joining(", "));
 
+        List<DefenseExaminer> examiners = modality.getDefenseExaminers();
+        String jurados = examiners.stream()
+                .map(e -> e.getExaminer().getName() + " " + e.getExaminer().getLastName() + " (" + e.getExaminerType().toSpanish() + ")")
+                .toList()
+                .isEmpty() ? "-" : String.join(", ", examiners.stream()
+                .map(e -> e.getExaminer().getName() + " " + e.getExaminerType().toSpanish() + ")")
+                .toList());
+
         String directorSubject = "Notificación de sustentación programada para estudiantes asignados";
 
         String directorMessage = """
@@ -232,6 +241,9 @@ public class DirectorNotificationListener {
                 **Lugar:**
                 %s
                 
+                **Jurados:**
+                %s
+                
                 En su calidad de Director/a de Proyecto, se solicita su participación y acompañamiento durante la sustentación, garantizando el cumplimiento de los lineamientos académicos y evaluativos establecidos por el programa.
                 
                 Le recomendamos verificar la información en la plataforma institucional y preparar el proceso conforme a la normativa vigente.
@@ -244,7 +256,8 @@ public class DirectorNotificationListener {
                 miembros,
                 modality.getProgramDegreeModality().getDegreeModality().getName(),
                 event.getDefenseDate(),
-                event.getDefenseLocation()
+                event.getDefenseLocation(),
+                jurados
         );
 
 
@@ -458,6 +471,7 @@ public class DirectorNotificationListener {
         dispatcher.dispatch(notification);
     }
 
+    
 
     private String translateDocumentStatus(DocumentStatus status) {
         if (status == null) return "N/A";
@@ -480,7 +494,7 @@ public class DirectorNotificationListener {
         if (status == null) return "N/A";
         return switch (status) {
             case MODALITY_SELECTED -> "Modalidad seleccionada";
-            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura";
+            case UNDER_REVIEW_PROGRAM_HEAD -> "En revisión por Jefatura de programa y/o coordinación de modalidades";
             case CORRECTIONS_REQUESTED_PROGRAM_HEAD -> "Correcciones solicitadas por Jefatura";
             case CORRECTIONS_SUBMITTED -> "Correcciones enviadas";
             case CORRECTIONS_SUBMITTED_TO_PROGRAM_HEAD -> "Correcciones enviadas a Jefatura de Programa y/o coordinación de modalidades";

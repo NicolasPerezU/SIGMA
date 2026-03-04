@@ -1,8 +1,6 @@
 package com.SIGMA.USCO.Modalities.dto.response;
 
-import com.SIGMA.USCO.Modalities.Entity.enums.AcademicDistinction;
-import com.SIGMA.USCO.Modalities.Entity.enums.ExaminerDecision;
-import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Entity.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,10 +47,26 @@ public class FinalDefenseResponse {
         private String examinerName;
         private String examinerType;
         private Double grade;
-        private ExaminerDecision decision;
+        private boolean approved;
         private String observations;
         private LocalDateTime evaluationDate;
         private boolean isFinalDecision;
+
+        /** Criterios de rúbrica (null si la modalidad no requiere formulario) */
+        private CriteriaDetail evaluationCriteria;
     }
 
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class CriteriaDetail {
+        private CriteriaRating domainAndClarity;
+        private CriteriaRating synthesisAndCommunication;
+        private CriteriaRating argumentationAndResponse;
+        private CriteriaRating innovationAndImpact;
+        private CriteriaRating professionalPresentation;
+        private ProposedMention proposedMention;
+        private LocalDateTime evaluatedAt;
+    }
 }

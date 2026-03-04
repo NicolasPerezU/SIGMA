@@ -43,43 +43,101 @@ public class ExaminerNotificationListener {
 
         List<DefenseExaminer> examiners = defenseExaminerRepository.findByStudentModalityId(studentModalityId);
 
-        // Obtener todos los estudiantes asociados a la modalidad desde los miembros
-        List<String> studentsList = modality.getMembers() != null ?
-            modality.getMembers().stream()
-                .map(member -> {
-                    User student = member.getStudent();
-                    return student.getName() + " " + student.getLastName();
-                })
-                .toList() : List.of();
-        String studentsString = studentsList.isEmpty() ? "-" : String.join(", ", studentsList);
+        // Obtener todos los miembros ACTIVOS de la modalidad
+        List<StudentModalityMember> activeMembers = studentModalityMemberRepository
+                .findByStudentModalityIdAndStatus(studentModalityId, MemberStatus.ACTIVE);
+
+        String studentsString = activeMembers.isEmpty()
+                ? (modality.getLeader() != null
+                        ? modality.getLeader().getName() + " " + modality.getLeader().getLastName()
+                                + " (" + modality.getLeader().getEmail() + ")"
+                        : "-")
+                : activeMembers.stream()
+                        .map(m -> m.getStudent().getName() + " " + m.getStudent().getLastName()
+                                + " (" + m.getStudent().getEmail() + ")")
+                        .collect(Collectors.joining("\n                        "));
+
+        String directorName = modality.getProjectDirector() != null
+                ? modality.getProjectDirector().getName() + " " + modality.getProjectDirector().getLastName()
+                : "No asignado";
+
+        String programName = modality.getProgramDegreeModality().getAcademicProgram().getName();
+        String facultyName = modality.getProgramDegreeModality().getAcademicProgram().getFaculty() != null
+                ? modality.getProgramDegreeModality().getAcademicProgram().getFaculty().getName()
+                : "";
+
+        String modalityName = modality.getProgramDegreeModality().getDegreeModality().getName();
 
         for (DefenseExaminer examinerAssignment : examiners) {
             User examiner = examinerAssignment.getExaminer();
-            String subject = "Asignación como Jurado en Modalidad de Grado";
-            String message = String.format("""
-                Estimado/a %s %s,
 
-                Le informamos que ha sido asignado como jurado en la modalidad de grado:
+            String examinerRoleLabel = switch (examinerAssignment.getExaminerType()) {
+                case PRIMARY_EXAMINER_1, PRIMARY_EXAMINER_2 -> "Jurado Principal";
+                case TIEBREAKER_EXAMINER -> "Jurado de Desempate";
+            };
 
-                Modalidad: %s
-                Programa académico: %s
-                Estudiante(s): %s
-                Director de proyecto: %s %s
-                Fecha de asignación: %s
+            String subject = "Designación oficial como Jurado Evaluador – Modalidad de Grado";
 
-                Por favor, recuerde revisar y aprobar los documentos correspondientes a la modalidad en el sistema SIGMA.
+            String message = """
+                    Estimado/a %s %s,
 
-                Cordialmente,
-                Sistema de Gestión Académica
-                """,
-                examiner.getName(),
-                examiner.getLastName(),
-                examinerAssignment.getExaminerType().name().replace('_', ' '),
-                modality.getProgramDegreeModality().getDegreeModality().getName(),
-                modality.getAcademicProgram().getName(),
-                studentsString,
-                modality.getProjectDirector() != null ? modality.getProjectDirector().getName() : "-",
-                modality.getProjectDirector() != null ? modality.getProjectDirector().getLastName() : "-"
+                    Reciba un cordial saludo de parte del Sistema de Gestión Académica de la Universidad Surcolombiana.
+
+                    Por medio de la presente, le informamos que ha sido designado/a oficialmente como **%s** en el proceso de evaluación de la siguiente modalidad de grado:
+
+                    ───────────────────────────────
+                    INFORMACIÓN DE LA MODALIDAD
+                    ───────────────────────────────
+                    Modalidad de grado:
+                    "%s"
+
+                    Programa académico:
+                    %s
+
+                    Facultad:
+                    %s
+
+                    ───────────────────────────────
+                    ESTUDIANTE(S) ASOCIADO(S)
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    DIRECTOR DE PROYECTO
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    FECHA DE ASIGNACIÓN
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    RESPONSABILIDADES
+                    ───────────────────────────────
+                    En su calidad de jurado evaluador, le solicitamos:
+
+                    1. Revisar y evaluar la documentación académica asociada a la modalidad en el sistema.
+                    2. Verificar el cumplimiento de los requisitos establecidos por el programa académico.
+                    3. Emitir su concepto evaluativo conforme a la normativa institucional vigente.
+
+                    Para acceder a la información completa de la modalidad y gestionar sus responsabilidades como jurado, le invitamos a ingresar a la plataforma.
+
+                    Agradecemos su disposición y valioso aporte al proceso académico.
+
+                    Cordialmente,
+                    Sistema de Gestión Académica
+                    Universidad Surcolombiana
+                    """.formatted(
+                    examiner.getName(),
+                    examiner.getLastName(),
+                    examinerRoleLabel,
+                    modalityName,
+                    programName,
+                    facultyName,
+                    studentsString,
+                    directorName,
+                    LocalDateTime.now().toLocalDate().toString()
             );
 
             Notification notification = Notification.builder()
@@ -94,6 +152,173 @@ public class ExaminerNotificationListener {
                     .build();
             notificationRepository.save(notification);
             dispatcher.dispatch(notification);
+        }
+
+        // ── Construir resumen de jurados asignados para el mensaje de estudiantes y director ──
+        String examinersListForOthers = examiners.stream()
+                .map(e -> {
+                    String roleLabel = switch (e.getExaminerType()) {
+                        case PRIMARY_EXAMINER_1, PRIMARY_EXAMINER_2 -> "Jurado Principal";
+                        case TIEBREAKER_EXAMINER -> "Jurado de Desempate";
+                    };
+                    return "- " + e.getExaminer().getName() + " " + e.getExaminer().getLastName()
+                            + " (" + roleLabel + ")";
+                })
+                .collect(Collectors.joining("\n"));
+
+        // ── Notificar a todos los estudiantes activos de la modalidad ──
+        List<User> studentsToNotify = activeMembers.isEmpty()
+                ? (modality.getLeader() != null ? List.of(modality.getLeader()) : List.of())
+                : activeMembers.stream().map(StudentModalityMember::getStudent).toList();
+
+        for (User student : studentsToNotify) {
+            String studentSubject = "Jurados asignados a tu modalidad de grado – SIGMA";
+            String studentMessage = """
+                    Estimado/a %s,
+
+                    Reciba un cordial saludo de parte del Sistema de Gestión Académica de la Universidad Surcolombiana.
+
+                    Le informamos que el Comité de Currículo del programa académico ha designado oficialmente los jurados evaluadores para su modalidad de grado:
+
+                    ───────────────────────────────
+                    INFORMACIÓN DE LA MODALIDAD
+                    ───────────────────────────────
+                    Modalidad de grado:
+                    "%s"
+
+                    Programa académico:
+                    %s
+
+                    Facultad:
+                    %s
+
+                    ───────────────────────────────
+                    DIRECTOR DE PROYECTO
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    JURADOS ASIGNADOS
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    FECHA DE ASIGNACIÓN
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    PRÓXIMOS PASOS
+                    ───────────────────────────────
+                    Los jurados designados procederán a revisar y evaluar la documentación académica asociada a su modalidad. Le recomendamos:
+
+                    1. Asegurarse de que todos los documentos requeridos estén correctamente cargados en el sistema.
+                    2. Mantenerse atento/a a las notificaciones del sistema, ya que los jurados podrán solicitar correcciones o emitir conceptos sobre la documentación.
+                    3. Ante cualquier duda, comunicarse oportunamente con su Director de Proyecto.
+
+                    Esta notificación se genera automáticamente como parte del procedimiento institucional de asignación de jurados.
+
+                    Cordialmente,
+                    Sistema de Gestión Académica
+                    Universidad Surcolombiana
+                    """.formatted(
+                    student.getName(),
+                    modalityName,
+                    programName,
+                    facultyName,
+                    directorName,
+                    examinersListForOthers.isBlank() ? "No asignados aún" : examinersListForOthers,
+                    LocalDateTime.now().toLocalDate().toString()
+            );
+
+            Notification studentNotification = Notification.builder()
+                    .type(NotificationType.EXAMINER_ASSIGNED)
+                    .recipientType(NotificationRecipientType.STUDENT)
+                    .recipient(student)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(studentSubject)
+                    .message(studentMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(studentNotification);
+            dispatcher.dispatch(studentNotification);
+        }
+
+        // ── Notificar al director de proyecto si está asignado ──
+        User director = modality.getProjectDirector();
+        if (director != null) {
+            String directorSubject = "Jurados asignados a modalidad bajo su dirección – SIGMA";
+            String directorMessage = """
+                    Estimado/a %s,
+
+                    Reciba un cordial saludo de parte del Sistema de Gestión Académica de la Universidad Surcolombiana.
+
+                    Le informamos que el Comité de Currículo del programa académico ha designado oficialmente los jurados evaluadores para la siguiente modalidad de grado que se encuentra bajo su dirección:
+
+                    ───────────────────────────────
+                    INFORMACIÓN DE LA MODALIDAD
+                    ───────────────────────────────
+                    Modalidad de grado:
+                    "%s"
+
+                    Programa académico:
+                    %s
+
+                    Facultad:
+                    %s
+
+                    ───────────────────────────────
+                    ESTUDIANTE(S) ASOCIADO(S)
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    JURADOS ASIGNADOS
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    FECHA DE ASIGNACIÓN
+                    ───────────────────────────────
+                    %s
+
+                    ───────────────────────────────
+                    INFORMACIÓN PARA EL DIRECTOR
+                    ───────────────────────────────
+                    Los jurados asignados iniciarán el proceso de revisión y evaluación de la documentación académica de la modalidad. Como Director/a de Proyecto, le recomendamos:
+
+                    1. Coordinar con los estudiantes la correcta presentación de todos los documentos requeridos.
+                    2. Estar disponible para atender las observaciones que los jurados puedan generar durante el proceso.
+                    3. Una vez los jurados aprueben la documentación, podrá proceder con la programación formal de la sustentación a través de la plataforma SIGMA.
+
+                    Esta notificación se genera automáticamente como parte del procedimiento institucional de asignación de jurados.
+
+                    Cordialmente,
+                    Sistema de Gestión Académica
+                    Universidad Surcolombiana
+                    """.formatted(
+                    director.getName() + " " + director.getLastName(),
+                    modalityName,
+                    programName,
+                    facultyName,
+                    studentsString,
+                    examinersListForOthers.isBlank() ? "No asignados aún" : examinersListForOthers,
+                    LocalDateTime.now().toLocalDate().toString()
+            );
+
+            Notification directorNotification = Notification.builder()
+                    .type(NotificationType.EXAMINER_ASSIGNED)
+                    .recipientType(NotificationRecipientType.PROJECT_DIRECTOR)
+                    .recipient(director)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(directorSubject)
+                    .message(directorMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(directorNotification);
+            dispatcher.dispatch(directorNotification);
         }
     }
 
@@ -298,27 +523,27 @@ public class ExaminerNotificationListener {
             String message = String.format(
                 """
                          Estimado/a %s,
-                        
+
                                 Reciba un cordial saludo.
-                        
+
                                 Le informamos que la sustentación de su modalidad de grado ha sido programada con los siguientes detalles:
-                        
+
                                 Modalidad:
                                 "%s"
-                        
+
                                 Fecha y hora:
                                 %s
-                        
+
                                 Lugar:
                                 %s
-                        
+
                                 Director/a asignado/a:
                                 %s
-                        
+
                                 Le recomendamos presentarse con la debida antelación y cumplir con los lineamientos académicos establecidos para la sustentación.
-                        
+
                                 Puede consultar la información completa en el sistema SIGMA.
-                        
+
                                 Cordialmente,
                                 Sistema de Gestión Académica
                 """,
