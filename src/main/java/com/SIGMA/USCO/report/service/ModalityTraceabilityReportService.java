@@ -38,6 +38,7 @@ public class ModalityTraceabilityReportService {
     private final StudentModalityMemberRepository studentModalityMemberRepository;
     private final ModalityProcessStatusHistoryRepository statusHistoryRepository;
     private final DefenseExaminerRepository defenseExaminerRepository;
+    private final DefenseEvaluationCriteriaRepository defenseEvaluationCriteriaRepository;
     private final StudentDocumentRepository studentDocumentRepository;
     private final StudentProfileRepository studentProfileRepository;
 
@@ -181,6 +182,34 @@ public class ModalityTraceabilityReportService {
                 default -> "Jurado";
             };
             User examiner = e.getExaminer();
+            
+            // Recuperar evaluación del jurado si existe
+            ModalityTraceabilityReportDTO.ExaminerEvaluationDTO evaluationDTO = null;
+            Optional<DefenseEvaluationCriteria> evaluation = 
+                defenseEvaluationCriteriaRepository.findByDefenseExaminerId(e.getId());
+            
+            if (evaluation.isPresent()) {
+                DefenseEvaluationCriteria eval = evaluation.get();
+                evaluationDTO = ModalityTraceabilityReportDTO.ExaminerEvaluationDTO.builder()
+                        .domainAndClarity(eval.getDomainAndClarity() != null ? eval.getDomainAndClarity().name() : null)
+                        .synthesisAndCommunication(eval.getSynthesisAndCommunication() != null ? eval.getSynthesisAndCommunication().name() : null)
+                        .argumentationAndResponse(eval.getArgumentationAndResponse() != null ? eval.getArgumentationAndResponse().name() : null)
+                        .innovationAndImpact(eval.getInnovationAndImpact() != null ? eval.getInnovationAndImpact().name() : null)
+                        .professionalPresentation(eval.getProfessionalPresentation() != null ? eval.getProfessionalPresentation().name() : null)
+                        .entrepreneurshipPresentationSupportMaterial(eval.getEntrepreneurshipPresentationSupportMaterial() != null ? eval.getEntrepreneurshipPresentationSupportMaterial().name() : null)
+                        .entrepreneurshipCoherentBusinessObjectives(eval.getEntrepreneurshipCoherentBusinessObjectives() != null ? eval.getEntrepreneurshipCoherentBusinessObjectives().name() : null)
+                        .entrepreneurshipMethodologyTechnicalApproach(eval.getEntrepreneurshipMethodologyTechnicalApproach() != null ? eval.getEntrepreneurshipMethodologyTechnicalApproach().name() : null)
+                        .entrepreneurshipAnalyticalCreativeCapacity(eval.getEntrepreneurshipAnalyticalCreativeCapacity() != null ? eval.getEntrepreneurshipAnalyticalCreativeCapacity().name() : null)
+                        .entrepreneurshipDefenseSustentation(eval.getEntrepreneurshipDefenseSustentation() != null ? eval.getEntrepreneurshipDefenseSustentation().name() : null)
+                        .grade(eval.getGrade())
+                        .proposedMention(eval.getProposedMention() != null ? eval.getProposedMention().name() : null)
+                        .observations(eval.getObservations())
+                        .isFinalDecision(eval.getIsFinalDecision())
+                        .evaluatedAt(eval.getEvaluatedAt())
+                        .rubricType(eval.getRubricType() != null ? eval.getRubricType().name() : null)
+                        .build();
+            }
+            
             return ModalityTraceabilityReportDTO.ExaminerDetailDTO.builder()
                     .userId(examiner.getId())
                     .fullName(examiner.getName() + " " + examiner.getLastName())
@@ -188,6 +217,7 @@ public class ModalityTraceabilityReportService {
                     .examinerType(e.getExaminerType() != null ? e.getExaminerType().name() : "")
                     .examinerTypeLabel(typeLabel)
                     .assignmentDate(e.getAssignmentDate())
+                    .evaluation(evaluationDTO)
                     .build();
         }).collect(Collectors.toList());
     }

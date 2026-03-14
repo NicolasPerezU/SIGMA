@@ -4,6 +4,7 @@ import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.StudentModalityMember;
 import com.SIGMA.USCO.Modalities.Entity.enums.MemberStatus;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
+import com.SIGMA.USCO.Modalities.Repository.DefenseEvaluationCriteriaRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityMemberRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.ProgramAuthority;
@@ -35,6 +36,7 @@ public class ReportService {
 
     private final StudentModalityRepository studentModalityRepository;
     private final StudentModalityMemberRepository studentModalityMemberRepository;
+    private final DefenseEvaluationCriteriaRepository defenseEvaluationCriteriaRepository;
     private final UserRepository userRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final AcademicProgramRepository academicProgramRepository;

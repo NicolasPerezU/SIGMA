@@ -101,6 +101,34 @@ public class ModalityTraceabilityReportDTO {
         private String examinerType;
         private String examinerTypeLabel;
         private LocalDateTime assignmentDate;
+        // Información de evaluación
+        private ExaminerEvaluationDTO evaluation;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExaminerEvaluationDTO {
+        // Criterios de rúbrica (estándar)
+        private String domainAndClarity;                     // E/B/A/I
+        private String synthesisAndCommunication;            // E/B/A/I
+        private String argumentationAndResponse;             // E/B/A/I
+        private String innovationAndImpact;                  // E/B/A/I
+        private String professionalPresentation;             // E/B/A/I
+        // Criterios específicos para Emprendimiento (si aplica)
+        private String entrepreneurshipPresentationSupportMaterial;
+        private String entrepreneurshipCoherentBusinessObjectives;
+        private String entrepreneurshipMethodologyTechnicalApproach;
+        private String entrepreneurshipAnalyticalCreativeCapacity;
+        private String entrepreneurshipDefenseSustentation;
+        // Calificación y decisión
+        private Double grade;
+        private String proposedMention;                      // NONE/MERITORIOUS/LAUREATE
+        private String observations;
+        private Boolean isFinalDecision;
+        private LocalDateTime evaluatedAt;
+        private String rubricType;                           // STANDARD / ENTREPRENEURSHIP / PRACTICE
     }
 
     @Data

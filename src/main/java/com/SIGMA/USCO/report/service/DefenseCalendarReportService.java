@@ -4,9 +4,9 @@ import com.SIGMA.USCO.Modalities.Entity.DefenseExaminer;
 import com.SIGMA.USCO.Modalities.Entity.StudentModality;
 import com.SIGMA.USCO.Modalities.Entity.enums.ModalityProcessStatus;
 import com.SIGMA.USCO.Modalities.Repository.DefenseExaminerRepository;
+import com.SIGMA.USCO.Modalities.Repository.DefenseEvaluationCriteriaRepository;
 import com.SIGMA.USCO.Modalities.Repository.StudentModalityRepository;
 import com.SIGMA.USCO.Users.Entity.User;
-import com.SIGMA.USCO.Users.Entity.ProgramAuthority;
 import com.SIGMA.USCO.Users.Entity.enums.ProgramRole;
 import com.SIGMA.USCO.Users.repository.ProgramAuthorityRepository;
 import com.SIGMA.USCO.Users.repository.UserRepository;
@@ -36,6 +36,7 @@ public class DefenseCalendarReportService {
 
     private final StudentModalityRepository studentModalityRepository;
     private final DefenseExaminerRepository defenseExaminerRepository;
+    private final DefenseEvaluationCriteriaRepository defenseEvaluationCriteriaRepository;
     private final UserRepository userRepository;
     private final AcademicProgramRepository academicProgramRepository;
     private final ProgramAuthorityRepository programAuthorityRepository;
@@ -312,6 +313,41 @@ public class DefenseCalendarReportService {
                 : modality.getStatus() == ModalityProcessStatus.GRADED_FAILED ? "REPROBADO"
                 : "EN EVALUACIÓN";
 
+        // Recuperar evaluaciones
+        List<DefenseEvaluationSummaryDTO> evaluationsSummary = new ArrayList<>();
+        String proposedMention = "NONE";
+        Boolean allEvaluationsCompleted = true;
+
+        for (DefenseExaminer examiner : examiners) {
+            Optional<com.SIGMA.USCO.Modalities.Entity.DefenseEvaluationCriteria> eval =
+                defenseEvaluationCriteriaRepository.findByDefenseExaminerId(examiner.getId());
+            
+            if (eval.isPresent()) {
+                com.SIGMA.USCO.Modalities.Entity.DefenseEvaluationCriteria evaluation = eval.get();
+                evaluationsSummary.add(DefenseEvaluationSummaryDTO.builder()
+                        .examinerId(examiner.getExaminer().getId())
+                        .examinerName(examiner.getExaminer().getName() + " " + examiner.getExaminer().getLastName())
+                        .examinerType(examiner.getExaminerType() != null ? examiner.getExaminerType().name() : "")
+                        .grade(evaluation.getGrade())
+                        .proposedMention(evaluation.getProposedMention() != null ? evaluation.getProposedMention().name() : "NONE")
+                        .isFinalDecision(evaluation.getIsFinalDecision())
+                        .rubricType(evaluation.getRubricType() != null ? evaluation.getRubricType().name() : "STANDARD")
+                        .evaluatedAt(evaluation.getEvaluatedAt())
+                        .build());
+                
+                // Obtener la mención propuesta (preferiblemente de decisión final)
+                if (evaluation.getIsFinalDecision() && evaluation.getProposedMention() != null) {
+                    proposedMention = evaluation.getProposedMention().name();
+                }
+            } else {
+                allEvaluationsCompleted = false;
+            }
+        }
+        
+        String evaluationStatus = evaluationsSummary.isEmpty() ? "PENDING" 
+            : allEvaluationsCompleted ? "COMPLETED" 
+            : "IN_PROGRESS";
+
         return CompletedDefenseDTO.builder()
                 .modalityId(modality.getId())
                 .modalityType(translateModalityType(modality.getModalityType().name()))
@@ -326,6 +362,11 @@ public class DefenseCalendarReportService {
                 .examiners(examiners.stream().map(this::mapToExaminerInfo).collect(Collectors.toList()))
                 .defenseLocation(modality.getDefenseLocation())
                 .daysAgo((int) daysAgo)
+                .evaluationsSummary(evaluationsSummary)
+                .proposedMention(proposedMention)
+                .totalEvaluations(evaluationsSummary.size())
+                .allEvaluationsCompleted(allEvaluationsCompleted)
+                .evaluationStatus(evaluationStatus)
                 .build();
     }
 

@@ -237,6 +237,30 @@ public class DefenseCalendarReportDTO {
         private List<ExaminerInfoDTO> examiners;
         private String defenseLocation;
         private Integer daysAgo;
+        // Información de evaluación
+        private List<DefenseEvaluationSummaryDTO> evaluationsSummary;
+        private String proposedMention;  // NONE / MERITORIOUS / LAUREATE
+        private Integer totalEvaluations;
+        private Boolean allEvaluationsCompleted;
+        private String evaluationStatus;  // PENDING / IN_PROGRESS / COMPLETED / DISAGREEMENT
+    }
+
+    /**
+     * Resumen de evaluación de sustentación
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DefenseEvaluationSummaryDTO {
+        private Long examinerId;
+        private String examinerName;
+        private String examinerType;
+        private Double grade;
+        private String proposedMention;
+        private Boolean isFinalDecision;
+        private String rubricType; // STANDARD / ENTREPRENEURSHIP / PRACTICE
+        private LocalDateTime evaluatedAt;
     }
 
     /**
