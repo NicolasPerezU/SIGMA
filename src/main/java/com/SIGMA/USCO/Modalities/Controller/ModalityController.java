@@ -78,6 +78,7 @@ public class ModalityController {
         }
 
     }
+
     @PutMapping("/update/{modalityId}")
     @PreAuthorize("hasAuthority('PERM_CREATE_MODALITY') or hasAuthority('PERM_UPDATE_MODALITY')")
     public ResponseEntity<?> updateModality(@PathVariable Long modalityId, @RequestBody ModalityDTO request) {
@@ -89,7 +90,6 @@ public class ModalityController {
     public ResponseEntity<?> deactivateModality(@PathVariable Long modalityId) {
         return modalityService.desactiveModality(modalityId);
     }
-
 
 
     @PostMapping("/requirements/create/{modalityId}")
@@ -147,7 +147,6 @@ public class ModalityController {
     }
 
 
-
     @PostMapping("/{modalityId}/start")
     public ResponseEntity<?> startModality(@PathVariable Long modalityId) {
         return modalityService.startStudentModalityIndividual(modalityId);
@@ -174,16 +173,19 @@ public class ModalityController {
     public ResponseEntity<?> viewStudentDocument(@PathVariable Long studentDocumentId) throws MalformedURLException {
         return modalityService.viewStudentDocument(studentDocumentId);
     }
+
     @PutMapping("/documents/{studentDocumentId}/review")
     @PreAuthorize("hasAuthority('PERM_REVIEW_DOCUMENTS')")
-    public ResponseEntity<?> reviewDocument(@PathVariable Long studentDocumentId,@RequestBody DocumentReviewDTO request) {
+    public ResponseEntity<?> reviewDocument(@PathVariable Long studentDocumentId, @RequestBody DocumentReviewDTO request) {
         return modalityService.reviewStudentDocument(studentDocumentId, request);
     }
+
     @PostMapping("/{studentModalityId}/approve-program-head")
     @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY')")
     public ResponseEntity<?> approveByProgramHead(@PathVariable Long studentModalityId) {
         return modalityService.approveModalityByProgramHead(studentModalityId);
     }
+
     @PostMapping("/{studentModalityId}/approve-committee")
     @PreAuthorize("hasAuthority('PERM_APPROVE_MODALITY')")
     public ResponseEntity<?> approveByCommittee(@PathVariable Long studentModalityId) {
@@ -217,32 +219,32 @@ public class ModalityController {
     @GetMapping("/students")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
     public ResponseEntity<?> listAllModalitiesForProgramHead(@RequestParam(required = false)
-                                                               List<ModalityProcessStatus> statuses, @RequestParam(required = false)
-    String name) {
+                                                             List<ModalityProcessStatus> statuses, @RequestParam(required = false)
+                                                             String name) {
         return modalityService.getAllStudentModalitiesForProgramHead(statuses, name);
     }
 
     @GetMapping("/students/committee")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
     public ResponseEntity<?> listAllModalitiesForCommittee(@RequestParam(required = false)
-                                                             List<ModalityProcessStatus> statuses, @RequestParam(required = false)
-                                                             String name) {
+                                                           List<ModalityProcessStatus> statuses, @RequestParam(required = false)
+                                                           String name) {
         return modalityService.getAllStudentModalitiesForProgramCurriculumCommittee(statuses, name);
     }
 
     @GetMapping("/students/director")
     @PreAuthorize("hasAuthority('PERM_VIEW_MODALITY')")
     public ResponseEntity<?> listAllModalitiesForProjectDirector(@RequestParam(required = false)
-                                                                  List<ModalityProcessStatus> statuses,
-                                                                  @RequestParam(required = false) String name) {
+                                                                 List<ModalityProcessStatus> statuses,
+                                                                 @RequestParam(required = false) String name) {
         return modalityService.getAllStudentModalitiesForProjectDirector(statuses, name);
     }
 
     @GetMapping("/students/examiner")
     @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
     public ResponseEntity<?> listAllModalitiesForExaminer(@RequestParam(required = false)
-                                                           List<ModalityProcessStatus> statuses,
-                                                           @RequestParam(required = false) String name) {
+                                                          List<ModalityProcessStatus> statuses,
+                                                          @RequestParam(required = false) String name) {
         return modalityService.getAllStudentModalitiesForExaminer(statuses, name);
     }
 
@@ -251,6 +253,7 @@ public class ModalityController {
     public ResponseEntity<?> getModalityDetailForProgramHead(@PathVariable Long studentModalityId) {
         return modalityService.getStudentModalityDetailForProgramHead(studentModalityId);
     }
+
     @GetMapping("/students/{studentModalityId}/committee")
     @PreAuthorize("hasAuthority('PERM_VIEW_ALL_MODALITIES')")
     public ResponseEntity<?> getModalityDetailForCommittee(@PathVariable Long studentModalityId) {
@@ -349,7 +352,6 @@ public class ModalityController {
     }
 
 
-
     @GetMapping("/defense-proposals/pending")
     @PreAuthorize("hasAuthority('PERM_SCHEDULE_DEFENSE')")
     public ResponseEntity<?> getPendingDefenseProposals() {
@@ -428,7 +430,6 @@ public class ModalityController {
     public ResponseEntity<?> getMyFinalDefenseResult() {
         return modalityService.getMyFinalDefenseResult();
     }
-
 
 
     @PostMapping("/{studentModalityId}/documents/{documentId}/resubmit-correction")
@@ -595,7 +596,7 @@ public class ModalityController {
     }
 
     @GetMapping("/examiner-type/{studentModalityId}")
-    @PreAuthorize( "hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
     public ResponseEntity<?> getExaminerTypeForModality(@PathVariable Long studentModalityId) {
         return modalityService.getExaminerTypeForModality(studentModalityId);
     }
@@ -711,7 +712,7 @@ public class ModalityController {
      * Ruta: GET /modalities/{studentModalityId}/examiners
      */
     @GetMapping("/{studentModalityId}/examiners")
-    @PreAuthorize( "hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
+    @PreAuthorize("hasAuthority('PERM_VIEW_EXAMINER_MODALITIES')")
     public ResponseEntity<?> getExaminersForModality(@PathVariable Long studentModalityId) {
         return modalityService.getExaminersForModality(studentModalityId);
     }
@@ -719,7 +720,7 @@ public class ModalityController {
     /**
      * Retorna la lista completa de todos los estudiantes que pertenecen al
      * programa académico del comité autenticado, con filtro opcional por nombre.
-     *
+     * <p>
      * GET /modalities/committee/program-students?studentName=raul
      */
     @GetMapping("/committee/program-students")
@@ -736,9 +737,9 @@ public class ModalityController {
      * Lista todas las modalidades donde los jurados han propuesto unánimemente
      * una distinción honorífica (Meritoria o Laureada) pendiente de revisión
      * por el Comité de Currículo.
-     *
+     * <p>
      * Incluye los argumentos de cada jurado para que el comité pueda evaluarlos.
-     *
+     * <p>
      * GET /modalities/committee/pending-distinction-proposals
      */
     @GetMapping("/committee/pending-distinction-proposals")
@@ -750,9 +751,9 @@ public class ModalityController {
     /**
      * El Comité de Currículo ACEPTA la distinción honorífica propuesta por los jurados.
      * La modalidad pasa a estado GRADED_APPROVED con la distinción confirmada.
-     *
+     * <p>
      * Body (opcional): { "notes": "Observaciones del comité al aceptar" }
-     *
+     * <p>
      * POST /modalities/{studentModalityId}/committee/accept-distinction
      */
     @PostMapping("/{studentModalityId}/committee/accept-distinction")
@@ -767,9 +768,9 @@ public class ModalityController {
     /**
      * El Comité de Currículo RECHAZA la distinción honorífica propuesta por los jurados.
      * La modalidad pasa a estado GRADED_APPROVED sin mención especial.
-     *
+     * <p>
      * Body: { "reason": "Razón del rechazo (obligatorio)" }
-     *
+     * <p>
      * POST /modalities/{studentModalityId}/committee/reject-distinction
      */
     @PostMapping("/{studentModalityId}/committee/reject-distinction")
@@ -781,4 +782,4 @@ public class ModalityController {
         return modalityService.rejectDistinctionProposal(studentModalityId, reason);
     }
 
-
+}

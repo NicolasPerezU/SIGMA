@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,10 @@ public class NotificationDispatcherService {
 
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
+    
+    // Set para deduplicación: evita que el mismo adjunto se envíe múltiples veces
+    // para la misma notificación en procesamiento asincrónico
+    private final Set<Long> processingNotificationsWithAttachment = ConcurrentHashMap.newKeySet();
 
     private boolean shouldSendEmail(Notification notification) {
         return switch (notification.getRecipientType()) {
@@ -55,6 +61,12 @@ public class NotificationDispatcherService {
     @Transactional
     @Async("notificationTaskExecutor")
     public void dispatchWithAttachment(Notification notification, Path attachmentPath, String attachmentName) {
+        // Deduplicación: Si esta notificación ya está siendo procesada con adjunto, ignora
+        if (!processingNotificationsWithAttachment.add(notification.getId())) {
+            log.warn("Notificación ID {} ya está siendo procesada con adjunto, ignorando duplicado", notification.getId());
+            return;
+        }
+
         try {
             if (shouldSendEmail(notification)) {
                 emailService.sendEmailWithAttachment(
@@ -71,6 +83,9 @@ public class NotificationDispatcherService {
         } catch (Exception ex) {
             log.error("Error enviando correo con adjunto para notificación id={}", notification.getId(), ex);
             notification.setEmailSent(false);
+        } finally {
+            // Remover de la cola de procesamiento cuando termina
+            processingNotificationsWithAttachment.remove(notification.getId());
         }
 
         notification.setInAppDelivered(true);

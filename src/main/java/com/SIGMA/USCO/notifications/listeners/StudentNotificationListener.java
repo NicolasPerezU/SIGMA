@@ -17,7 +17,32 @@ import com.SIGMA.USCO.documents.repository.StudentDocumentRepository;
 import com.SIGMA.USCO.notifications.entity.Notification;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationRecipientType;
 import com.SIGMA.USCO.notifications.entity.enums.NotificationType;
-import com.SIGMA.USCO.notifications.event.*;
+import com.SIGMA.USCO.notifications.event.CancellationApprovedEvent;
+import com.SIGMA.USCO.notifications.event.CancellationRejectedEvent;
+import com.SIGMA.USCO.notifications.event.CancellationRequestedEvent;
+import com.SIGMA.USCO.notifications.event.CorrectionApprovedEvent;
+import com.SIGMA.USCO.notifications.event.CorrectionDeadlineExpiredEvent;
+import com.SIGMA.USCO.notifications.event.CorrectionDeadlineReminderEvent;
+import com.SIGMA.USCO.notifications.event.CorrectionRejectedFinalEvent;
+import com.SIGMA.USCO.notifications.event.CorrectionResubmittedEvent;
+import com.SIGMA.USCO.notifications.event.DefenseScheduledEvent;
+import com.SIGMA.USCO.notifications.event.DirectorAssignedEvent;
+import com.SIGMA.USCO.notifications.event.DocumentCorrectionsRequestedEvent;
+import com.SIGMA.USCO.notifications.event.DocumentEditResolvedEvent;
+import com.SIGMA.USCO.notifications.event.ExaminersAssignedEvent;
+import com.SIGMA.USCO.notifications.event.FinalDefenseResultEvent;
+import com.SIGMA.USCO.notifications.event.ModalityApprovedByCommitteeEvent;
+import com.SIGMA.USCO.notifications.event.ModalityApprovedByExaminers;
+import com.SIGMA.USCO.notifications.event.ModalityApprovedByProgramHead;
+import com.SIGMA.USCO.notifications.event.ModalityClosedByCommitteeEvent;
+import com.SIGMA.USCO.notifications.event.ModalityFinalApprovedByCommitteeEvent;
+import com.SIGMA.USCO.notifications.event.ModalityInvitationAcceptedEvent;
+import com.SIGMA.USCO.notifications.event.ModalityInvitationRejectedEvent;
+import com.SIGMA.USCO.notifications.event.ModalityInvitationSentEvent;
+import com.SIGMA.USCO.notifications.event.ModalityRejectedByCommitteeEvent;
+import com.SIGMA.USCO.notifications.event.SeminarCancelledEvent;
+import com.SIGMA.USCO.notifications.event.SeminarStartedEvent;
+import com.SIGMA.USCO.notifications.event.StudentModalityStarted;
 import com.SIGMA.USCO.notifications.repository.NotificationRepository;
 import com.SIGMA.USCO.notifications.service.AcademicCertificatePdfService;
 import com.SIGMA.USCO.notifications.service.NotificationDispatcherService;
@@ -25,6 +50,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -489,16 +518,21 @@ public class StudentNotificationListener {
         }
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleDefenseResult(FinalDefenseResultEvent event){
 
         StudentModality modality = studentModalityRepository.findById(event.getStudentModalityId())
                         .orElseThrow();
 
         boolean approved = event.getFinalStatus() == ModalityProcessStatus.GRADED_APPROVED;
+        boolean approvedPendingCommitteeReview = event.getFinalStatus() == ModalityProcessStatus.PENDING_DISTINCTION_COMMITTEE_REVIEW;
+        boolean shouldSendCertificate = approved || approvedPendingCommitteeReview;
 
-        String studentSubject = approved
-                ? "Resultado final de sustentación – Modalidad aprobada"
+        String studentSubject = shouldSendCertificate
+                ? (approvedPendingCommitteeReview
+                    ? "Resultado de sustentación – Modalidad aprobada (distinción en revisión del comité)"
+                    : "Resultado final de sustentación – Modalidad aprobada")
                 : "Resultado final de sustentación – Modalidad no aprobada";
 
         // Obtener todos los miembros activos
@@ -506,9 +540,82 @@ public class StudentNotificationListener {
             modality.getId(), MemberStatus.ACTIVE
         );
 
+        // Fallback para modalidades individuales sin registros activos en StudentModalityMember
+        if (members == null || members.isEmpty()) {
+            StudentModalityMember syntheticLeaderMember = StudentModalityMember.builder()
+                    .studentModality(modality)
+                    .student(modality.getLeader())
+                    .status(MemberStatus.ACTIVE)
+                    .isLeader(true)
+                    .build();
+            members = List.of(syntheticLeaderMember);
+        }
+
+        // GENERAR EL PDF UNA SOLA VEZ (FUERA DEL LOOP)
+        AcademicCertificate certificate = null;
+        Path pdfPath = null;
+        if (shouldSendCertificate) {
+            try {
+                log.info("Generando acta de aprobación para la modalidad ID: {}", modality.getId());
+
+                boolean isComplete = isCompleteModality(modality);
+                if (isComplete) {
+                    certificate = certificatePdfService.generateCertificate(modality);
+                } else {
+                    certificate = certificatePdfService.generateCertificateForCommitteeApproval(modality);
+                }
+                pdfPath = certificatePdfService.getCertificatePath(modality.getId());
+                log.info("Acta PDF generada exitosamente para la modalidad ID: {}", modality.getId());
+            } catch (Exception e) {
+                log.error("Error generando acta PDF para modalidad ID {}: {}", modality.getId(), e.getMessage(), e);
+            }
+        }
+
+        // ENVIAR CORREO CON ACTA SOLO AL LÍDER (evita múltiples adjuntos)
+        User leader = modality.getLeader();
+        if (leader != null) {
+            String leaderMessage = shouldSendCertificate
+                    ? buildApprovedStudentMessage(leader, modality, event)
+                    : buildRejectedStudentMessage(leader, modality, event);
+
+            Notification leaderNotification = Notification.builder()
+                    .type(NotificationType.DEFENSE_COMPLETED)
+                    .recipientType(NotificationRecipientType.STUDENT)
+                    .recipient(leader)
+                    .triggeredBy(null)
+                    .studentModality(modality)
+                    .subject(studentSubject)
+                    .message(leaderMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(leaderNotification);
+
+            if (shouldSendCertificate && pdfPath != null) {
+                try {
+                    dispatcher.dispatchWithAttachment(
+                            leaderNotification,
+                            pdfPath,
+                            "ACTA_DE_APROBACION.pdf"
+                    );
+                    log.info("Acta enviada al líder {} (modalidad ID {})", leader.getId(), modality.getId());
+                } catch (Exception e) {
+                    log.error("Error enviando acta al líder {}: {}", leader.getId(), e.getMessage());
+                    dispatcher.dispatch(leaderNotification);
+                }
+            } else {
+                dispatcher.dispatch(leaderNotification);
+            }
+        }
+
+        // ENVIAR NOTIFICACIÓN SIN ACTA A LOS DEMÁS MIEMBROS (si la modalidad es grupal)
         for (StudentModalityMember member : members) {
+            // Si ya es el líder, saltarlo (ya recibió el correo con acta)
+            if (leader != null && member.getStudent().getId().equals(leader.getId())) {
+                continue;
+            }
+
             User student = member.getStudent();
-            String studentMessage = approved
+            String studentMessage = shouldSendCertificate
                     ? buildApprovedStudentMessage(student, modality, event)
                     : buildRejectedStudentMessage(student, modality, event);
 
@@ -524,67 +631,24 @@ public class StudentNotificationListener {
                     .build();
             notificationRepository.save(notification);
 
-            if (approved) {
-                try {
-                    log.info("Generando acta de aprobación para la modalidad ID: {}", modality.getId());
+            // Sin adjunto para los demás miembros (el líder ya tiene el acta)
+            dispatcher.dispatch(notification);
+            log.info("Notificación enviada al miembro {} (modalidad ID {}, sin acta adjunta)", student.getId(), modality.getId());
+        }
 
-
-                    AcademicCertificate certificate = certificatePdfService.generateCertificate(modality);
-
-
-                    Path pdfPath = certificatePdfService.getCertificatePath(modality.getId());
-
-
-                    dispatcher.dispatchWithAttachment(
-                            notification,
-                            pdfPath,
-                            "ACTA_DE_APROBACION.pdf"
-                    );
-
-
-                    certificatePdfService.updateCertificateStatus(certificate.getId(), CertificateStatus.SENT);
-
-                    log.info("Acta PDF generada y enviada exitosamente para la modalidad ID: {}", modality.getId());
-
-                } catch (IOException e) {
-                    log.error("Error generando o enviando acta PDF para modalidad ID {}: {}",
-                            modality.getId(), e.getMessage(), e);
-
-
-                    dispatcher.dispatch(notification);
-                }
-            } else {
-
-                dispatcher.dispatch(notification);
+        // MARCAR COMO ENVIADA UNA SOLA VEZ
+        if (certificate != null && shouldSendCertificate) {
+            try {
+                certificatePdfService.updateCertificateStatus(certificate.getId(), CertificateStatus.SENT);
+                log.info("Estado del certificado actualizado a SENT para modalidad ID: {}", modality.getId());
+            } catch (Exception e) {
+                log.error("Error actualizando estado del certificado: {}", e.getMessage());
             }
         }
     }
 
     private String buildApprovedStudentMessage(User student, StudentModality modality, FinalDefenseResultEvent event) {
-        String observaciones = event.getObservations();
-        // Detecta si la observación contiene la distinción propuesta y confirmada
-        if (observaciones != null && observaciones.contains("Distinción propuesta:") && observaciones.contains("Distinción confirmada:")) {
-            // Extrae los enums de la observación
-            String regex = "Distinción propuesta: ([A-Z_]+) → Distinción confirmada: ([A-Z_]+)";
-            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(observaciones);
-            if (matcher.find()) {
-                String propuesta = matcher.group(1);
-                String confirmada = matcher.group(2);
-                AcademicDistinction propuestaEnum = null;
-                AcademicDistinction confirmadaEnum = null;
-                try {
-                    propuestaEnum = AcademicDistinction.valueOf(propuesta);
-                    confirmadaEnum = AcademicDistinction.valueOf(confirmada);
-                } catch (Exception ignored) {}
-                String propuestaLabel = propuestaEnum != null ? translateAcademicDistinction(propuestaEnum) : propuesta;
-                String confirmadaLabel = confirmadaEnum != null ? translateAcademicDistinction(confirmadaEnum) : confirmada;
-                // Reemplaza en la observación
-                observaciones = observaciones.replace(
-                    "Distinción propuesta: " + propuesta + " → Distinción confirmada: " + confirmada,
-                    "Distinción propuesta: " + propuestaLabel + " → Distinción confirmada: " + confirmadaLabel
-                );
-            }
-        }
+        String observaciones = localizeObservations(event.getObservations());
         return """
             Estimado/a %s,
 
@@ -2028,6 +2092,17 @@ public class StudentNotificationListener {
     }
 
     /**
+     * Determina si la modalidad requiere acta completa (sustentación/jurados/director)
+     * o simplificada (comité).
+     */
+    private boolean isCompleteModality(StudentModality modality) {
+        boolean hasDefenseDate = modality.getDefenseDate() != null;
+        boolean hasExaminers = modality.getDefenseExaminers() != null && !modality.getDefenseExaminers().isEmpty();
+        boolean hasDirector = modality.getProjectDirector() != null;
+        return hasDefenseDate || hasExaminers || hasDirector;
+    }
+
+    /**
      * Notifica a todos los estudiantes miembros de la modalidad cuando un jurado
      * aprueba o rechaza su solicitud de edición de un documento.
      */
@@ -2144,13 +2219,71 @@ public class StudentNotificationListener {
             case TIEBREAKER_EXAMINER -> "Jurado de Desempate";
         };
     }
+
+    private String localizeObservations(String observations) {
+        if (observations == null) return "Ninguna";
+
+        // Crear mapa de traducciones para enums
+        java.util.Map<String, String> translations = java.util.Map.ofEntries(
+            // Tipos de jurados
+            java.util.Map.entry("PRIMARY_EXAMINER_1", "Jurado Principal 1"),
+            java.util.Map.entry("PRIMARY_EXAMINER_2", "Jurado Principal 2"),
+            java.util.Map.entry("TIEBREAKER_EXAMINER", "Jurado de Desempate"),
+            
+            // Estados de distinción
+            java.util.Map.entry("PENDING_COMMITTEE_MERITORIOUS", "Mención Meritoria propuesta (pendiente del comité)"),
+            java.util.Map.entry("PENDING_COMMITTEE_LAUREATE", "Mención Laureada propuesta (pendiente del comité)"),
+            java.util.Map.entry("TIEBREAKER_PENDING_COMMITTEE_MERITORIOUS", "Mención Meritoria por desempate (pendiente del comité)"),
+            java.util.Map.entry("TIEBREAKER_PENDING_COMMITTEE_LAUREATE", "Mención Laureada por desempate (pendiente del comité)"),
+            java.util.Map.entry("NO_DISTINCTION", "Sin distinción"),
+            java.util.Map.entry("AGREED_APPROVED", "Aprobado"),
+            java.util.Map.entry("AGREED_MERITORIOUS", "Meritorio"),
+            java.util.Map.entry("AGREED_LAUREATE", "Laureado"),
+            java.util.Map.entry("AGREED_REJECTED", "Reprobado"),
+            java.util.Map.entry("DISAGREEMENT_PENDING_TIEBREAKER", "Desacuerdo, pendiente desempate"),
+            java.util.Map.entry("TIEBREAKER_APPROVED", "Aprobado por desempate"),
+            java.util.Map.entry("TIEBREAKER_MERITORIOUS", "Meritorio por desempate"),
+            java.util.Map.entry("TIEBREAKER_LAUREATE", "Laureado por desempate"),
+            java.util.Map.entry("TIEBREAKER_REJECTED", "Reprobado por desempate"),
+            java.util.Map.entry("REJECTED_BY_COMMITTEE", "Rechazado por comité")
+        );
+
+        // Aplicar todas las traducciones
+        String result = observations;
+        for (java.util.Map.Entry<String, String> entry : translations.entrySet()) {
+            result = result.replace(entry.getKey(), entry.getValue());
+        }
+
+        // Traducir distinción en formato "Distinción propuesta: X → Distinción confirmada: Y"
+        if (result.contains("Distinción propuesta:") && result.contains("Distinción confirmada:")) {
+            try {
+                String regex = "Distinción propuesta: ([A-Z_]+) → Distinción confirmada: ([A-Z_]+)";
+                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(result);
+                if (matcher.find()) {
+                    String propuesta = matcher.group(1);
+                    String confirmada = matcher.group(2);
+                    AcademicDistinction propuestaEnum = null;
+                    AcademicDistinction confirmadaEnum = null;
+                    try {
+                        propuestaEnum = AcademicDistinction.valueOf(propuesta);
+                        confirmadaEnum = AcademicDistinction.valueOf(confirmada);
+                    } catch (Exception ignored) {}
+
+                    String propuestaLabel = propuestaEnum != null ? translateAcademicDistinction(propuestaEnum) : propuesta;
+                    String confirmadaLabel = confirmadaEnum != null ? translateAcademicDistinction(confirmadaEnum) : confirmada;
+                    // Reemplaza en la observación
+                    result = result.replace(
+                        "Distinción propuesta: " + propuesta + " → Distinción confirmada: " + confirmada,
+                        "Distinción propuesta: " + propuestaLabel + " → Distinción confirmada: " + confirmadaLabel
+                    );
+                }
+            } catch (Exception e) {
+                // Ignorar error de formateo
+            }
+        }
+
+        return result;
+    }
 }
-
-
-
-
-
-
-
 
 

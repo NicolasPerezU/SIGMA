@@ -6927,18 +6927,17 @@ public class ModalityService {
                         .build()
         );
 
-        // Solo publicar el evento de resultado final si ya es definitivo (sin pendiente de comité)
-        if (!pendingDistinctionReview) {
-            notificationEventPublisher.publish(
-                    new FinalDefenseResultEvent(
-                            studentModality.getId(),
-                            finalStatus,
-                            distinction,
-                            observations,
-                            examiner.getId()
-                    )
-            );
-        }
+        // Publicar siempre: incluso si la distinción queda pendiente de comité,
+        // el estudiante debe recibir correo y acta de aprobación inicial.
+        notificationEventPublisher.publish(
+                new FinalDefenseResultEvent(
+                        studentModality.getId(),
+                        finalStatus,
+                        distinction,
+                        observations,
+                        examiner.getId()
+                )
+        );
 
         String message;
         if (pendingDistinctionReview) {
@@ -7075,18 +7074,16 @@ public class ModalityService {
                         .build()
         );
 
-        // Solo publicar el evento de resultado final si ya es definitivo
-        if (!pendingDistinctionReview) {
-            notificationEventPublisher.publish(
-                    new FinalDefenseResultEvent(
-                            studentModality.getId(),
-                            finalStatus,
-                            distinction,
-                            observations,
-                            examiner.getId()
-                    )
-            );
-        }
+        // Publicar siempre: si queda pendiente de comité también se debe enviar acta inicial.
+        notificationEventPublisher.publish(
+                new FinalDefenseResultEvent(
+                        studentModality.getId(),
+                        finalStatus,
+                        distinction,
+                        observations,
+                        examiner.getId()
+                )
+        );
 
         String message;
         if (pendingDistinctionReview) {
