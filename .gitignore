@@ -9,7 +9,7 @@ target/
 .env.local
 .env.prod
 .env.*.local
-application-prod.properties
+
 *.key
 *.jks
 *.keystore
