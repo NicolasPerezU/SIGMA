@@ -1,18 +1,21 @@
 FROM eclipse-temurin:21-jdk
 
-EXPOSE 8080
-
 WORKDIR /app
 
-COPY ./pom.xml /app
-COPY ./.mvn /app/.mvn
-COPY ./mvnw /app
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
 
+RUN chmod +x mvnw
 RUN ./mvnw dependency:go-offline
 
-COPY ./src /app/src
+COPY src ./src
 
-RUN ./mvnw clean install -DskipTests    #nos saltamos los test unitarios (pero esto al momento de pasar a producción tiene que estar)
+RUN ./mvnw clean package -DskipTests
 
 
-ENTRYPOINT ["java", "-jar","/app/target/SIGMA-0.0.1-SNAPSHOT.jar"]
+RUN cp target/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

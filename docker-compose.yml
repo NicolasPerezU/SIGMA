@@ -26,15 +26,7 @@ services:
     volumes:
       - sigma-volume:/var/lib/mysql
 
-  front:
-    image: sigma-frontend
-    container_name: sigma-frontend-container
-    ports:
-      - "5173:80"
-    networks:
-        - sigma-network
-    depends_on:
-      - sigma
+
 
 networks:
   sigma-network:

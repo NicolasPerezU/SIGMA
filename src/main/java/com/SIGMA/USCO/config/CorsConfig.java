@@ -21,7 +21,10 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // Origen del frontend
-        config.setAllowedOrigins(List.of(frontendUrl));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://sigma.onrender.com"
+        ));
 
         // Métodos permitidos
         config.setAllowedMethods(List.of(
