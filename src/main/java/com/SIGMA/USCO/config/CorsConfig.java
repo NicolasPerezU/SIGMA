@@ -20,25 +20,19 @@ public class CorsConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        // Origen del frontend
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://sigma.onrender.com"
+                frontendUrl
         ));
 
-        // Métodos permitidos
         config.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
         ));
 
-        // Headers permitidos
-        config.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept"
-        ));
+        config.setAllowedHeaders(List.of("*"));
 
-        // Permitir credenciales (JWT / cookies)
+        config.setExposedHeaders(List.of("Authorization"));
+
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
