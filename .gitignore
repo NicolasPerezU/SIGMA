@@ -6,6 +6,7 @@ target/
 
 # ========== SECRETOS Y CONFIGURACIÓN ==========
 .env
+.env.dev
 .env.local
 .env.prod
 .env.*.local

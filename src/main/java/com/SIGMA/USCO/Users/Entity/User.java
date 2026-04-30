@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Entity
+@Table(name = "users")
 @Data
 @Builder
 @AllArgsConstructor
