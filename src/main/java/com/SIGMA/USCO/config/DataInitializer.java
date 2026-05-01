@@ -15,7 +15,6 @@ import java.util.Set;
 
 @Configuration
 @RequiredArgsConstructor
-@Profile("dev")
 public class DataInitializer {
 
     private final RoleRepository roleRepository;
